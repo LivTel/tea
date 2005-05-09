@@ -39,7 +39,7 @@
     <target name = "compile" depends = "prepare" 
       description = "Compile sources">
       <javac srcdir  = "." 
-	destdir = "${class.dir}">  
+	destdir = "${class.dir}" debug = "true" >  
 	
 	<classpath>
 	  <pathelement path="${classpath}"/>
