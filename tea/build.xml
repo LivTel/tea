@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+
+ <!-- ESTAR Telescope Embedded Agent (TEA) -->
+
+<project name="TEA" default="compile" basedir=".">
+
+  <description>
+    "ESTAR Telescope Embedded Agent"
+  </description>
+  
+  <property name = "class.dir"     value = "/home/dev/bin/estar/tea/java"/>
+  <property name = "dist.dir"      value = "/home/dev/public_html/estar/tea/deploy"/>
+  <property name = "estar.javalib" value = "/home/dev/bin/estar/javalib"/>
+  <property name = "estar.clib"    value = "/home/dev/bin/estar/lib"/>
+
+    <!-- Prepare build directories -->
+    
+    <target name = "prepare"
+      description = "Prepare build directories">
+      <mkdir dir = "${class.dir}"/>
+	<tstamp>
+	  <format property="BUILD" pattern="yyyyMMdd_HHmm" locale="en"/>
+	</tstamp>
+	<echo message = "Build date: ${BUILD}"/>
+    </target>
+    
+
+    <!-- Cleanup dross -->
+    
+    <target name = "clean"
+      description = "Clean out dross">
+      <delete verbose = "true" >       
+	<fileset dir="." includes="**/*~" defaultexcludes = "false"/>
+      </delete>
+    </target>
+
+    <!-- Compile all sources -->
+ 
+    <target name = "compile" depends = "prepare" 
+      description = "Compile sources">
+      <javac srcdir  = "." 
+	destdir = "${class.dir}">  
+	
+	<classpath>
+	  <pathelement path="${classpath}"/>
+	    <fileset dir="/home/dev/bin/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+	    <fileset dir="/home/dev/bin/estar/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+	</classpath>
+        
+        <exclude name = "**/DNServerTest.java"/>
+	<exclude name = "**/DocChecker.java"/>
+
+      </javac>
+    </target>
+    
+    <!-- Deploy to JAR -->
+    
+    <target name = "deploy" 
+      depends = "compile"
+      description = "Create class JAR">
+      <echo message = "Creating deployment jar - Build#: ${BUILD}"/>
+	
+	  <jar jarfile = "/home/dev/bin/estar/javalib/tea.jar" basedir = "${class.dir}" />
+	    
+    </target>
+
+    <!-- Release for testing -->
+
+    <target name  = "release"
+      description = "Release for testing"
+      depends     = "deploy">
+
+      <echo message = "Generating release for testing"/>
+
+	<mkdir dir = "${dist.dir}"/>
+	<mkdir dir = "${dist.dir}/javalib"/>
+        <mkdir dir = "${dist.dir}/scripts"/>
+        <mkdir dir = "${dist.dir}/config"/>
+        <mkdir dir = "${dist.dir}/elib"/>
+
+	<copy file="${estar.javalib}/org_estar_astrometry.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_rtml.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_rtml_test.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_io.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_io_test.jar" todir="${dist.dir}/javalib"/>
+
+        <copy file="${estar.javalib}/tea.jar" todir="${dist.dir}/javalib"/>
+
+        <copy todir="${dist.dir}/scripts">
+          <fileset dir="scripts"/>
+        </copy>     
+
+        <copy todir="${dist.dir}/config">
+          <fileset dir="config"/>
+        </copy>
+
+       <copy todir="${dist.dir}/elib">
+          <fileset dir="${estar.clib}"/>
+       </copy>
+
+        <tar tarfile="/home/snf/tea_test.tar" basedir="${dist.dir}"/>
+     
+    </target>
+
+</project>
