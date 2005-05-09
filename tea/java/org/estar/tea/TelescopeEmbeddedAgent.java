@@ -1,0 +1,856 @@
+package org.estar.tea;
+
+import java.io.*;
+import java.util.*;
+import java.net.*;
+//import javax.net.ssl.*;
+//import javax.security.cert.*;
+import java.util.*;
+import java.text.*;
+
+
+import org.estar.astrometry.*;
+import org.estar.rtml.*;
+import org.estar.io.*;
+
+import ngat.util.*;
+import ngat.util.logging.*;
+import ngat.net.*;
+import ngat.astrometry.*;
+
+import ngat.message.GUI_RCS.*;
+import ngat.message.OSS.*;
+
+
+/**
+ * This class implements a Telescope Embedded Agent.
+ */
+public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Logging {
+
+    public static final String CLASS = "TelescopeEA";
+
+    /** Default agent name for logging.*/
+    public static final String DEFAULT_ID = "TELESCOPE_EA";
+
+    /** Default port for DN server. (Listening for messages from UA via SOAP NA).*/
+    public static final int    DEFAULT_DN_PORT = 2220;
+
+    /** Default port for telemetry server (callbacks from RCS).*/
+    public static final int    DEFAULT_TELEMETRY_PORT = 2233;
+
+    /** Default host for telemetry server (callbacks from RCS).*/
+    public static final String DEFAULT_TELEMETRY_HOST = "localhost";
+
+    /** Default port for OSS. (Ongoing DB insertions).*/
+    public static final int    DEFAULT_OSS_PORT = 7940;
+   
+    /** Default host address for OSS. (Ongoing DB insertions).*/
+    public static final String DEFAULT_OSS_HOST = "occ";
+
+    /** Default port for SSL ITR.*/
+    public static final int    DEFAULT_RELAY_PORT = 7166;
+
+    /** Default host for SSL ITR.*/
+    public static final String DEFAULT_RELAY_HOST = "occ";
+
+    /** Default port for RCS CTRL. (Status requests).*/
+    public static final int    DEFAULT_CTRL_PORT = 9110;
+   
+    /** Default host address for RCS CTRL. (Status requests).*/
+    public static final String DEFAULT_CTRL_HOST = "occ";
+    
+    /** Default port for RCS TOCS. (TOC requests).*/
+    public static final int    DEFAULT_TOCS_PORT = 8610;
+   
+    /** Default host address for RCS TOCS. (TOC requests).*/
+    public static final String DEFAULT_TOCS_HOST = "occ";
+
+    public static final String DEFAULT_IMAGE_WEB_URL = "http://nosuchaddress/";
+
+    public static final String DEFAULT_IMAGE_DIR = "/home/estar/nosuchdir";
+
+    public static final double DEFAULT_LATITUDE = 0.0;
+
+    public static final double DEFAULT_LONGITUDE = 0.0;
+
+    public static final double DEFAULT_DOME_LIMIT = 0.0;
+
+    public static final String DEFAULT_FILTER_COMBO = "RATCam-Clear-2";
+
+    public static final String DEFAULT_DB_ROOT = "/DEV_Phase2_001";
+
+    public static final String DEFAULT_TOCS_SERVICE_ID = "GRB";
+
+    public static final String DEFAULT_SSL_KEY_FILE_NAME   = "nosuchkeystore.private";
+
+    public static final String DEFAULT_SSL_TRUST_FILE_NAME = "nosuchtruststore.public";
+
+    public static final String DEFAULT_SSL_KEY_FILE_PASSWORD    = "secret";
+
+    public static final int    DEFAULT_SSL_FILE_XFER_BANDWIDTH = 50; // kbyte/s
+
+    public static final long DEFAULT_TELEMETRY_RECONNECT_TIME = 600*1000L;
+
+    public static final long DEFAULT_EXPIRATOR_POLLING_TIME   = 3600*1000L;
+
+    public static final long DEFAULT_EXPIRATOR_OFFSET_TIME    = 1800*1000L;
+
+    public static final int GROUP_PRIORITY = 5;
+
+    /** Default maximum observation time (mult*expose) (ms).*/
+    public static final long DEFAULT_MAX_OBS_TIME = 7200;
+
+    /** (Long ISO8601) date formatter.*/
+    public static SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd 'T' HH:mm:ss z");
+
+    /** Date formatter (Long ISO8601).*/
+    public static SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
+
+    /** Date formatter (Medium SOD).*/
+    public static SimpleDateFormat mdf = new SimpleDateFormat("ddHHmmss");
+
+    /** Date formatter (Day in year).*/
+    public static SimpleDateFormat adf = new SimpleDateFormat("yyyyMMdd");
+    
+    /** UTC Timezone.*/
+    public static final SimpleTimeZone UTC = new SimpleTimeZone(0, "UTC");
+    
+    /** DN Server port.*/
+    protected int dnPort;
+
+    /** Telemetry host i.e. us as seen by RCS.*/
+    protected String telemetryHost;
+
+    /** Telemetry port.*/
+    protected int telemetryPort;
+
+    /** OSS Server port.*/
+    protected int ossPort;
+
+    /** OSS host address.*/
+    protected String ossHost;
+
+    /** True if the OSS requires a secure connection.*/
+    protected boolean ossConnectionSecure;
+
+    /** RCS CTRL Server port.*/
+    protected int ctrlPort;
+
+    /** RCS CTRL host address.*/
+    protected String ctrlHost;
+
+    /** RCS TOCS Server port.*/
+    protected int tocsPort;
+
+    /** RCS TOCS host address.*/
+    protected String tocsHost;
+
+    /** RCS SFX Server port.*/
+    protected int relayPort;
+
+    /** RCS SFX host address.*/
+    protected String relayHost;
+
+    protected File   relayKeyFile;
+    protected File   relayTrustFile;
+    protected String relayPassword;
+
+    protected int    transferBandwidth;
+
+
+    /** Image transfer client.*/
+    protected SSLFileTransfer.Client sslClient;
+
+    /** ConnectionFactory.*/
+    protected ConnectionFactory connectionFactory;
+
+    /** Base URL for image server - where generated images will be served from.*/
+    protected String imageWebUrl;
+
+    /** Base dir where images are placed.*/
+    protected String imageDir;
+
+    /** Handles estar communications.*/
+    protected eSTARIO io;
+
+    // Logging.
+    protected Logger traceLog;
+    
+    protected Logger errorLog;
+
+    protected Logger connectLog;
+    
+    /** Identity.*/
+    protected String id;
+
+    /** Site latitude (rads).*/
+    protected double siteLatitude;
+
+    /** Site longitude (rads).*/
+    protected double siteLongitude;
+
+    /** Dome lower limit (rads).*/
+    protected double domeLimit;
+
+    /** DB Root name.*/
+    protected String dbRootName;
+
+    /** ### TOCS Service ID - should be a mapping from something in RTML doc to a SvcID.*/
+    protected String tocsServiceId;
+
+    /** Counts connections from UA(s).*/
+    protected int connectionCount;
+
+    /** Holds mapping between filter descriptions and filter combos for PCR.*/
+    protected Properties filterMap;
+
+    protected Map requestMap;
+
+    protected Map fileMap;
+
+    protected Map agentMap;
+
+    protected TelemetryReceiver telemetryServer;
+
+    /** Max observing time - ### this should be determined by the OSS via TEST_SCHEDULEImpl.*/
+    protected long maxObservingTime;
+
+    /** Keeps on requesting telemetry from RCS incase the RCS loses its subscriber list.*/
+    protected TelemetryRequestor telemetryRequestor;
+
+    /** Checks Documents for expiration.*/
+    protected DocumentExpirator docExpirator;
+
+
+    /** Create a DNServer.*/
+    public TelescopeEmbeddedAgent(String id) {
+
+	this.id = id;
+
+	io = new eSTARIO();
+
+	ConsoleLogHandler console = new ConsoleLogHandler(new BasicLogFormatter(150));
+	console.setLogLevel(ALL);
+	
+	traceLog   = LogManager.getLogger("TRACE");
+	traceLog.setLogLevel(ALL);	
+	traceLog.addHandler(console);
+
+	filterMap = new Properties();
+
+	requestMap = new HashMap();
+	fileMap    = new HashMap();
+	agentMap   = new HashMap();
+
+	connectionFactory = new TEAConnectionFactory();
+
+    }
+
+    protected void start() throws Exception {
+
+	// TelemRecvr
+	telemetryServer = new TelemetryReceiver(this, "TR-TEST");
+	telemetryServer.bind(telemetryPort);
+	telemetryServer.start();	
+	traceLog.log(INFO, 1, CLASS, id, "init",
+                     "Started Telemetry Server on port: "+telemetryPort+
+		     ", We are: "+telemetryHost+" from "+ctrlHost);
+
+	// TelemReq
+	telemetryRequestor = new TelemetryRequestor(this, DEFAULT_TELEMETRY_RECONNECT_TIME);
+	telemetryRequestor.start();
+	traceLog.log(INFO, 1, CLASS, id, "init",
+		     "Started Telemetry Requestor with reconnect interval: "+
+		     (DEFAULT_TELEMETRY_RECONNECT_TIME/1000)+" secs");
+	
+	// DocExp
+	docExpirator = new DocumentExpirator(this, 
+					     DEFAULT_EXPIRATOR_POLLING_TIME,
+					     DEFAULT_EXPIRATOR_OFFSET_TIME); 
+	docExpirator.start();
+	traceLog.log(INFO, 1, CLASS, id, "init",
+		     "Started DocExpirator with polling interval: "+
+		     (DEFAULT_EXPIRATOR_POLLING_TIME/1000)+" secs");
+	
+	sslClient = new SSLFileTransfer.Client("TEA_GRABBER", relayHost, relayPort);
+		
+	sslClient.setBandWidth(transferBandwidth);
+
+	// If we fail to setup we just can't grab images back but other stuff will work.
+	try {
+	    traceLog.log(INFO, 1, CLASS, id, "init",
+			 "Trying to initialize SSL Image Transfer client:"+
+			 " KF = "+relayKeyFile+" TF="+relayTrustFile+" Pass="+relayPassword);
+	    sslClient.initialize(relayKeyFile, relayPassword, relayTrustFile);
+	    traceLog.log(INFO, 1, CLASS, id, "init",
+			 "Setup SSL Image Transfer client:"+
+			 "Image TransferRelay: "+relayHost+" : "+relayPort);
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    sslClient = null;
+	}
+	
+	traceLog.log(INFO, 1, CLASS, id, "init",
+		     "Starting eSTARIO server:"+id+
+		     "\n Incoming port: "+dnPort+		     
+		     "\n  OSS:          "+ossHost+" : "+ossPort+
+		     "\n    Root:       "+dbRootName+
+		     "\n    Connect:    "+(ossConnectionSecure ? " SECURE" : " NON_SECURE")+
+		     "\n  TOCS:         "+tocsHost+": "+tocsPort+
+		     "\n    Svc:        "+tocsServiceId+
+		     "\n  Ctrl:         "+ctrlHost+" : "+ctrlPort+
+		     "\n"+
+		     "\n Telescope:"+
+		     "\n  Lat:          "+Position.toDegrees(siteLatitude, 3)+
+		     "\n  Long:         "+Position.toDegrees(siteLongitude,3)+
+		     "\n  Dome limit:   "+Position.toDegrees(domeLimit, 3)+
+		     "\n Image WEB Loc: "+imageWebUrl);
+
+	try {
+	    loadDocuments();
+	    traceLog.log(INFO, 1, CLASS, id, "init",
+			 "Loaded current documents from persistence store");
+	} catch (Exception e) {
+	    traceLog.log(INFO, 1, CLASS, id, "init",
+			 "Failed to load current documents from persistence store: "+e);
+	    e.printStackTrace();
+	}
+
+	io.serverStart(dnPort, this);	
+	
+    }
+    
+    /* Closes eSTARIO session, TelemetryServer, TelemetryRequestor, DocExpirator.*/
+    protected void shutdown() {
+
+	if (telemetryServer != null) {
+	    telemetryServer.terminate();
+	    traceLog.log(INFO, 2, CLASS, id, " shutdown",
+			 "Closed down Telemetry server:");
+	}
+
+	if (telemetryRequestor != null) {
+	    telemetryRequestor.terminate();
+	    traceLog.log(INFO, 2, CLASS, id, " shutdown",
+			 "Closed down Telemetry receiver:");
+	}
+
+	if (docExpirator  != null) {
+	    docExpirator.terminate();
+	    traceLog.log(INFO, 2, CLASS, id, " shutdown",
+			 "Closed down DocExpirator:");
+	}
+
+	if (io != null) {	     
+	    io.serverClose();	
+	    traceLog.log(INFO, 2, CLASS, id, " shutdown",
+			 "Closed down eSTARIO server:");	    
+	}
+
+    }
+
+    /** Sets the DN (incoming) port.*/
+    public void setDnPort(int p) { this.dnPort = p; }
+
+    /** Sets the OSS port.*/
+    public void setOssPort(int p) { this.ossPort = p; }
+    
+    /** Sets the OSS host address.*/
+    public void setOssHost(String h) { this.ossHost = h; }
+
+    /** Sets whether the OSS Connection is secure.*/    
+    public void setOssConnectionSecure(boolean s) { this.ossConnectionSecure = s; }
+
+    /** Sets the RCS CTRL port.*/
+    public void setCtrlPort(int p) { this.ctrlPort = p; }
+    
+    /** Sets the RCS CTRL host address.*/
+    public void setCtrlHost(String h) { this.ctrlHost = h; }
+
+    /** Sets the RCS TCOS port.*/
+    public void setTocsPort(int p) { this.tocsPort = p; }
+    
+    /** Sets the RCS TOCS host address.*/
+    public void setTocsHost(String h) { this.tocsHost = h; }
+   
+    /** Sets the Telemetry port.*/
+    public void setTelemetryPort(int p) { this.telemetryPort = p; }
+
+    /** Sets the Telemetry  host address.*/
+    public void setTelemetryHost(String h) { this.telemetryHost = h; }
+
+    public void setRelayHost(String r) { this.relayHost = r; }
+
+    public void setRelayPort(int p) { this.relayPort = p; }
+
+    /** Sets the Base dir where transferred images are placed.*/
+    public void setImageDir(String d) { this.imageDir = d; }
+    
+    /** Sets the base URL for image server - where generated images will be served from.*/
+    public void setImageWebUrl(String u) { this.imageWebUrl = u; }
+
+    /** Sets the site latitude (rads).*/
+    public void setSiteLatitude(double l) { this.siteLatitude = l; }
+
+    /** Sets the site longitude (rads).*/
+    public void setSiteLongitude(double l) { this.siteLongitude = l; }
+
+    /** Sets the dome limit (rads).*/
+    public void setDomeLimit(double d) { this.domeLimit = d; }
+
+    /** Sets the DB rootname.*/
+    public void setDBRootName(String r) { this.dbRootName = r; }
+
+    /** Sets the TOCS Service ID.*/
+    public void setTocsServiceId(String s) { this.tocsServiceId = s; }
+
+    /** Sets the Maximum allowable observation length (ms).*/
+    public void setMaxObservingTime(long t) { this.maxObservingTime = t; }
+
+    /** Sets the SSL transfer keystore.*/
+    public void setRelayKeyFile(File k) { relayKeyFile = k; }
+    
+    /** Sets the SSL transfer trust store.*/
+    public void setRelayTrustFile(File t) { relayTrustFile = t; };
+    
+    /** Sets the SSL transfer keypass.*/
+    public void setRelayPassword(String p) { relayPassword = p; }
+    
+    /** Sets the SSL transfer bandwidth (kbyte/s).*/
+    public void setTransferBandwidth(int b) { transferBandwidth = b; }
+
+    /** Returns the Id for this TEA.*/
+    public String getId() { return id; }
+
+    /** Returns the DB rootname.*/
+    public String getDBRootName() {  return dbRootName; }
+    
+    /** Returns the TOCS service ID.*/
+    public String getTocsServiceId() { return tocsServiceId; }
+
+    /** DN Server port.*/
+    public int getDnPort() { return dnPort; }
+
+    /** OSS Server port.*/
+    public int getOssPort() { return ossPort; }
+
+    /** Returns whether the OSS Conneciton is secure. */
+    public boolean getOssConnectionSecure() { return ossConnectionSecure; }
+
+    /** OSS host address.*/
+    public String getOssHost() { return ossHost; }
+
+    /** RCS CTRL Server port.*/
+    public int getCtrlPort() { return ctrlPort; }
+
+    /** RCS CTRL host address.*/
+    public String getCtrlHost() { return ctrlHost; }
+
+    /** RCS TOCS Server port.*/
+    public int getTocsPort() { return tocsPort; }
+
+    /** RCS TOCS host address.*/
+    public String getTocsHost() { return tocsHost; }
+
+    /** Telemetry Server port.*/
+    public int getTelemetryPort() { return telemetryPort; }
+
+     /** Telemetry Server host.*/
+    public String getTelemetryHost() { return telemetryHost; }
+
+    /** Image transfer client.*/
+    public SSLFileTransfer.Client getImageTransferClient() { return sslClient; }
+
+    /** Base dir where transferred images are placed.*/
+    public String getImageDir() { return imageDir; }
+
+    public double getDomeLimit() { return domeLimit; }
+
+    /**Base URL for web image server - where transferred images will be served from.*/
+    public String getImageWebUrl() { return imageWebUrl; }
+
+    public Properties getFilterMap() { return filterMap; }
+
+    public Map getRequestMap() { return requestMap; }
+
+    public long getMaxObservingTime() { return maxObservingTime; }
+
+    /** Handles estar communications.*/
+    public eSTARIO getEstarIo() { return io; }   
+    
+       
+    /** Handle the connection - creates a new ConnectionHandler for the connection.
+     * @param connectionHandle The globus IO handle of the connection.
+     */
+    public void handleConnection(GlobusIOHandle connectionHandle) {
+
+	ConnectionHandler handler = new ConnectionHandler(this, connectionHandle, ++connectionCount);
+
+	handler.execute();
+
+    }
+
+    // ---------------------------------------------
+    // Update mapping Mutators and Extractors.
+    // ---------------------------------------------
+
+    /** Add an UH for obsid.*/
+    public void addUpdateHandler(String key, UpdateHandler uh) {
+	agentMap.put(key, uh);
+    }
+
+    /** Find an UH for obsid.*/
+    public UpdateHandler getUpdateHandler(String key) {
+	if (agentMap.containsKey(key))
+	    return (UpdateHandler)agentMap.get(key);
+	return null;
+    }
+
+    /** Remove the UH for obsid.*/
+    public void deleteUpdateHandler(String key) {
+	if (agentMap.containsKey(key))
+	    agentMap.remove(key);
+    }
+    
+    // ---------------------------------------------
+    // Document Persistance Mutators and Extractors.
+    // ---------------------------------------------
+ 
+   /** Returns an Iterator over the set of document keys.*/
+    public Iterator listDocumentKeys() { 
+	return requestMap.keySet().iterator();
+    }
+
+    /** Add a document into request map for supplied key and saves to file.
+     * @param key      Document's group path.
+     * @param document The document to save.
+     * @throws Exception If anything goes horribly wrong.
+     */
+    public void addDocument(String key, RTMLDocument document) throws Exception {
+	requestMap.put(key, document);
+	saveDocument(key, document);
+    }
+
+    /** Get the Doucument for the supplied key or null.
+     * @param key      Document's group path.
+     */
+    public RTMLDocument getDocument(String key) {
+	return (RTMLDocument)requestMap.get(key);
+    }
+
+    /** Save the document with group path supplied.
+     * @param key      Document's group path.
+     * @param document The document to save.
+     * @throws Exception If anything goes horribly wrong.
+     */
+    public void saveDocument(String key, RTMLDocument document) throws Exception {
+
+	String fname = createFileName(key);
+
+	File docFile = new File("data", fname);
+	FileOutputStream fos = new FileOutputStream(docFile);
+	RTMLCreate create = new RTMLCreate();
+	create.create(document);
+	create.toStream(fos);
+
+	fileMap.put(key, fname);
+
+	System.err.println("TEA::Saved document for path: "+key+" as file: "+docFile.getPath());
+	
+    }
+
+    /** Load all current rtml docs as at startup.*/
+    public void loadDocuments() throws Exception {
+
+	File base = new File("data");
+	File[] flist = base.listFiles();
+	for (int i = 0; i < flist.length; i++ ){
+
+	    File file = flist[i];
+	    String fname = file.getName();
+	    traceLog.log(INFO, 1, CLASS, id, "loadDocs",
+			 "Loading from file: "+file.getPath());
+	    
+	    RTMLDocument doc = readDocument(file);
+	    String key = createKeyFromDoc(doc);
+	    
+	    requestMap.put(key, doc);
+	    fileMap.put(key, fname);
+
+	    traceLog.log(INFO, 1, CLASS, id, "loadDocs",
+			 "Loaded document for path: "+key+" from file: "+file.getPath());
+
+	}
+	
+    }
+
+    /** Read a document from a file.
+     * @param file The file to load from.
+     */
+    public RTMLDocument readDocument(File file) throws Exception {
+
+	RTMLParser parser = new RTMLParser();
+	RTMLDocument doc = parser.parse(file);
+	return doc;
+
+    }
+
+    /** Delete the document represented by key from persistence store and in-memory.
+     * If key not present fails silently. 
+     * @param key Document's group path.
+     * @throws FileNotFoundException if key exists but file does not.
+     */
+    public void deleteDocument(String key) throws Exception {
+	
+	if (requestMap.containsKey(key)) {
+	    requestMap.remove(key);
+	    
+	    if (fileMap.containsKey(key)) {
+		String fname = (String)fileMap.get(key);
+		File docFile = new File("data", fname);
+		docFile.delete();
+		fileMap.remove(key);
+	    }
+
+	}
+	
+    }
+
+    /** Creates a filename for the supplied key.*/
+    private String createFileName(String key) {
+	return "doc-"+System.currentTimeMillis()+".rtml";
+    }
+
+    
+    /** Gets the GroupID from the RTMLDocument supplied.*/
+    public String createKeyFromDoc(RTMLDocument doc) throws Exception {
+	
+	RTMLContact contact = doc.getContact();
+	String      userId  = contact.getUser();
+
+	RTMLProject project    = doc.getProject();
+	String      proposalId = project.getProject();
+
+	RTMLIntelligentAgent userAgent = doc.getIntelligentAgent();
+	String               requestId = userAgent.getId();
+
+	return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId;
+
+    }
+    
+    /** Configure the filter combos from a file - ### this is camera only for now..*/
+    protected void configureFilters(File file) throws IOException {
+	
+	FileInputStream fin = new FileInputStream(file);
+	filterMap.load(fin);
+	
+    }
+
+    /**Create an error (type = 'reject' from scratch).
+     * @param errorMessage The error messsage.
+     */
+    public String createErrorDocReply(String errorMessage) {
+	RTMLDocument document = new RTMLDocument();	
+	return createErrorDocReply(document, errorMessage);
+    }
+
+    /** Create an error (type = 'reject' from supplied document.
+     * @param document The document to change to error type.
+     * @param errorMessage The error messsage.
+     */
+    public String createErrorDocReply(RTMLDocument document, String errorMessage) {
+	document.setCompletionTime(new Date());
+	document.setType("reject");
+	try {
+	    document.setErrorString(errorMessage); 
+	} catch (RTMLException rx) {
+	    System.err.println("Error setting error string in doc: "+rx);
+	}
+	return createReply(document);	   
+    }
+    
+    /** Create a reply from supplied document of given type.
+     * @param document The document to change.
+     * @param type The type.
+     */
+    public String createDocReply(RTMLDocument document, String type) {
+	System.err.println("Create doc reply using type: "+type);
+	document.setCompletionTime(new Date());
+	document.setType(type);
+	return createReply(document);
+    }
+    
+    /** Creates a reply message from the supplied document.
+     * @param document The document to extract a reply message from.
+     * @return A reply message in RTML format.
+     */
+    public String createReply(RTMLDocument document) {
+	System.err.println("Create reply for: \n\n\n"+document+"\n\n\n");
+	try {
+	    RTMLCreate createReply = new RTMLCreate();
+	    createReply.create(document);
+	    
+	    String replyMessage = createReply.toXMLString();
+	    createReply = null;
+	    return replyMessage;
+	} catch (Exception ex) {
+	    System.err.println("Error creating RTMLDocument: "+ex);
+	    return null;
+	}
+    }
+    
+
+
+    /** Configures and starts a Telescope Embedded Agent.*/
+    public static void main(String args[]) {
+	
+	// Extract command line parameters.
+	CommandTokenizer ct = new CommandTokenizer("--");
+	//try {
+	    ct.parse(args);
+	    //	} catch (ParseException px) {	    
+	    //System.err.println("Error parsing command line args: "+px);
+	    //usage();
+	    //return;
+	    //}
+	
+	ConfigurationProperties config = ct.getMap();
+	
+	int dnPort = config.getIntValue("dn-port", DEFAULT_DN_PORT);
+	
+	int ossPort = config.getIntValue("oss-port", DEFAULT_OSS_PORT);
+	
+	String ossHost = config.getProperty("oss-host", DEFAULT_OSS_HOST);
+
+	boolean ossSecure = (config.getProperty("oss-secure") != null);
+	
+	int ctrlPort = config.getIntValue("ctrl-port", DEFAULT_CTRL_PORT);
+	
+	String ctrlHost = config.getProperty("ctrl-host", DEFAULT_CTRL_HOST);
+
+	int telPort = config.getIntValue("telemetry-port", DEFAULT_TELEMETRY_PORT);
+
+	String telHost = config.getProperty("telemetry-host", DEFAULT_TELEMETRY_HOST);
+	
+	int tocsPort = config.getIntValue("tocs-port", DEFAULT_TOCS_PORT);
+	
+	String tocsHost = config.getProperty("tocs-host", DEFAULT_TOCS_HOST);
+	
+	String id = config.getProperty("id", DEFAULT_ID);
+	
+	// Specify as degrees
+	double dlat = config.getDoubleValue("latitude", DEFAULT_LATITUDE);
+	
+	// Specify as degrees
+	double dlong = config.getDoubleValue("longitude", DEFAULT_LONGITUDE);
+	
+	double domeLimit =  config.getDoubleValue("dome-limit", DEFAULT_DOME_LIMIT);
+	
+	long maxTime = config.getLongValue("max-obs", DEFAULT_MAX_OBS_TIME);
+	maxTime = maxTime*1000L;
+
+	String bdir = config.getProperty("base-dir", DEFAULT_IMAGE_DIR);
+	
+	String url = config.getProperty("image-web-url", DEFAULT_IMAGE_WEB_URL);
+
+	String dbroot = config.getProperty("db-root", DEFAULT_DB_ROOT);
+
+	String filterMapFileName = config.getProperty("filter-map-file");
+
+	String tocsServiceId = config.getProperty("service", DEFAULT_TOCS_SERVICE_ID);
+
+	String rkf = config.getProperty("ssl-keyfile", DEFAULT_SSL_KEY_FILE_NAME);
+	File relayKeyFile = new File(rkf);
+
+	String rtf = config.getProperty("ssl-trustfile", DEFAULT_SSL_TRUST_FILE_NAME);
+	File relayTrustFile = new File(rtf);
+
+	String rpass = config.getProperty("ssl-pass", DEFAULT_SSL_KEY_FILE_PASSWORD);
+
+	int band = config.getIntValue("bandwidth", DEFAULT_SSL_FILE_XFER_BANDWIDTH);
+
+	String rhost = config.getProperty("relay-host", DEFAULT_RELAY_HOST);
+	int rport = config.getIntValue("relay-port", DEFAULT_RELAY_PORT);
+
+	TelescopeEmbeddedAgent tea = new TelescopeEmbeddedAgent(id);
+	
+	tea.setDnPort(dnPort);
+	tea.setOssHost(ossHost);
+	tea.setOssPort(ossPort);
+	tea.setOssConnectionSecure(ossSecure);
+	tea.setCtrlHost(ctrlHost);
+	tea.setCtrlPort(ctrlPort);
+	tea.setTocsHost(tocsHost);
+	tea.setTocsPort(tocsPort);
+	tea.setTelemetryHost(telHost);
+	tea.setTelemetryPort(telPort);
+	tea.setRelayHost(rhost);
+	tea.setRelayPort(rport);
+	tea.setSiteLatitude(Math.toRadians(dlat));
+	tea.setSiteLongitude(Math.toRadians(dlong));
+	tea.setDomeLimit(Math.toRadians(domeLimit));
+	tea.setImageDir(bdir);
+	tea.setImageWebUrl(url);
+	tea.setDBRootName(dbroot);
+	tea.setTocsServiceId(tocsServiceId);
+
+	tea.setRelayKeyFile(relayKeyFile);
+	tea.setRelayTrustFile(relayTrustFile);
+	tea.setRelayPassword(rpass);
+	tea.setTransferBandwidth(band);
+
+	tea.setMaxObservingTime(maxTime);
+
+	if (filterMapFileName != null) {
+	    File file = new File(filterMapFileName);
+	    try {
+		tea.configureFilters(file);
+	    } catch (IOException iox) {
+		System.err.println("Error reading filter combo map: "+iox);	
+	    }
+	}
+
+	Position.setViewpoint(Math.toRadians(dlat), Math.toRadians(dlong));
+	
+	try {
+	    tea.start();
+	} catch (Exception e) {
+	    e.printStackTrace();
+	} finally {	    
+	    tea.shutdown();
+	}
+    }
+    
+    private static void usage() {
+	
+	System.err.println("Usage: java -Dastrometry.impl=<astrometry-class> org.estar.tea.TelescopeEmbeddedAgent [options]");
+	
+    }
+
+    /** Returns ref to the TEAConnectionFactory.
+     * Valid conection IDs are:-
+     *
+     * <dl>
+     *  <dt>OSS<dd>OSS: For ongoing DB entries and corrections.
+     *  <dt>CTRL<dd>RCS Control Server: For status comands.
+     *  <dt>TOCS<dd>RCS TOC Server: For TO control.
+     * </dl>
+     */
+    public ConnectionFactory getConnectionFactory() { return connectionFactory; }
+    
+    private class TEAConnectionFactory implements ConnectionFactory {
+	
+	public IConnection createConnection(String connId) throws UnknownResourceException {
+	    
+	    if (connId.equals("CTRL")) {
+		return new SocketConnection(ctrlHost, ctrlPort);
+	    } else if
+		(connId.equals("OSS")) {
+		return new SocketConnection(ossHost, ossPort);
+	    } else
+		throw new UnknownResourceException("Not known: "+connId);
+	}
+	
+    }
+
+}
