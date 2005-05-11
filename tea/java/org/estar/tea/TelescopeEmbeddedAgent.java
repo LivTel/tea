@@ -650,6 +650,20 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	}
 
 	/** 
+	 * Save the document. Assumes the document already has a key->filename mapping,
+	 * which is used to get the filename to save the document into.
+	 * @param document The document to save.
+	 * @throws Exception If anything goes horribly wrong.
+	 * @see #createKeyFromDoc
+	 * @see #saveDocument(String,RTMLDocument)
+	 */
+	public void saveDocument(RTMLDocument document) throws Exception
+	{
+		String key = createKeyFromDoc(document);
+		saveDocument(key,document);
+	}
+
+	/** 
 	 * Save the document with group path supplied.
 	 * Note this creates a new unique key -> filename mapping, if one does not already exist.
 	 * @param key      Document's group path.
@@ -730,30 +744,45 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 	}
 
-	/** Delete the document represented by key from persistence store and in-memory.
+	/** 
+	 * Delete the document.
+	 * First figure out the key from the document using createKeyFromDoc.
+	 * @param document The document.
+	 * @throws FileNotFoundException if key exists but file does not.
+	 * @see #createKeyFromDoc
+	 */
+	public void deleteDocument(RTMLDocument document) throws Exception
+	{
+		String key = null;
+
+		key = createKeyFromDoc(document);
+		deleteDocument(key);
+	}
+
+	/** 
+	 * Delete the document represented by key from persistence store and in-memory.
 	 * If key not present fails silently. 
 	 * @param key Document's group path.
 	 * @throws FileNotFoundException if key exists but file does not.
 	 * @see #documentDirectory
 	 * @see #expiredDocumentDirectory
 	 */
-	public void deleteDocument(String key) throws Exception {
-	
-		if (requestMap.containsKey(key)) {
+	public void deleteDocument(String key) throws Exception
+	{
+		if (requestMap.containsKey(key))
+		{
 			requestMap.remove(key);
 
-			if (fileMap.containsKey(key)) {
+			if (fileMap.containsKey(key))
+			{
 				String fname = (String)fileMap.get(key);
 				File docFile = new File(documentDirectory, fname);
 				File expiredFile = new File(expiredDocumentDirectory,fname);
-				//diddly
-				//docFile.delete();
+				// rename
 				docFile.renameTo(expiredFile);
 				fileMap.remove(key);
 			}
-
 		}
-	
 	}
 
 	/** Creates a filename for the supplied key.*/
@@ -762,16 +791,37 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	}
 
     
-	/** Gets the GroupID from the RTMLDocument supplied.*/
+	/** 
+	 * Gets the GroupID from the RTMLDocument supplied.
+	 * @param doc The RTMLDocument.
+	 * @return A string unique to a document (group).
+	 * @exception Exception Thrown if the document's contact/project,intelligent agent is null.
+	 * @see #getDBRootName
+	 */
 	public String createKeyFromDoc(RTMLDocument doc) throws Exception {
 	
 		RTMLContact contact = doc.getContact();
+		if(contact == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Contact was null for document.");
+		}
 		String      userId  = contact.getUser();
 
 		RTMLProject project    = doc.getProject();
+		if(project == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Project was null for document.");
+		}
 		String      proposalId = project.getProject();
 
 		RTMLIntelligentAgent userAgent = doc.getIntelligentAgent();
+		if(userAgent == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Intelligent Agent was null for document.");
+		}
 		String               requestId = userAgent.getId();
 
 		return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId;
