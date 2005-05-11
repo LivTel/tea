@@ -71,14 +71,16 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 	 */
 	public void handleRequest()
 	{
+		UpdateHandler uh = null;
+
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest","TELH::Received TelemetryRequest: "+telem);
 		if (telem instanceof ObservationInfo)
 		{
-			// we never these for some reason.
+			// we never get these for some reason.
 			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 				   "TELH::This is an instance of ObservationInfo.");
 
-			// Create a UH for this oid and add to TEA's agentMap.
+			// Get the oid
 			Observation obs = ((ObservationInfo)telem).getObservation();	    
 			if (obs == null)
 			{
@@ -87,49 +89,19 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 				return;
 			}
 			String oid = obs.getFullPath(); 
-	 
-			RTMLDocument document = tea.getDocument(oid);
-
-			// Not one of ours or weve lost it 
-			if (document == null)
-			{
-				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::No document found for oid:"+oid+".");
-				return;
-			}
-			UpdateHandler uh = null;
-
-			try {
-				uh = new UpdateHandler(tea, document);
-			} catch (Exception e) {
-			        logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::Failed to create UH for: "+oid);
-				e.printStackTrace();
-				return;
-			}
-
-			// Number of exposures we should get.
-			uh.setNumberExposures(obs.getNumRuns());
-
-			// Try to predict time until obs done message.
-			long total = obs.getNumRuns()* ((long)obs.getExposeTime() + READOUT + DPRT);
-			uh.setExpectedTime(total);
-
-			uh.setObservation(obs);
-			// ###since weve told it the obs it could work most of the above anyway??
-
-			// Register the UH against the obspath -- problem if we get multiple
-			// instantiations of an obs (mongroup windows) while still processing
-			tea.addUpdateHandler(oid, uh);
-
-		} else if (telem instanceof ObservationStatusInfo) {
-	    
+			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+				   "TELH::ObservationInfo had oid "+oid+".");
+			// diddly if we ever got one of these, we could do something here
+			// given we are returning update documents ona per-frame basis, what can we do here? 
+		}
+		else if (telem instanceof ObservationStatusInfo)
+		{
 			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 				   "TELH::This is instance of ObservationStatusInfo.");
 			// Either a COMPETED or a FAIL
 			String oid = ((ObservationStatusInfo)telem).getObsPathName();
 	    
-			UpdateHandler uh      = tea.getUpdateHandler(oid);
+			uh      = tea.getUpdateHandler(oid);
 	    
 			if (uh == null) {
 				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
@@ -144,44 +116,64 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 						uh.setObservationCompleted();
 						break;
 				}
-			}
-	    
+			}	    
 		}
 		else if(telem instanceof ReductionInfo)
 		{
 			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 				   "TELH::This is instance of ReductionInfo.");
 	    
-			// Push this to the already created ? ARQ
-			// it may pickup via its thread the image file via SFX
-	    
+			// get the oid and filename from the telemetry
 			String oid = ((ReductionInfo)telem).getObsPathName(); 
 			String imageFileName = ((ReductionInfo)telem).getFileName();
-	    
-			UpdateHandler uh      = tea.getUpdateHandler(oid);
-	    
-			if (uh == null) {
+
+			RTMLDocument document = tea.getDocument(oid);
+
+			// Not one of ours or weve lost it 
+			if (document == null)
+			{
 				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::No UpdateHandler found for: "+oid);
-			} else {
-				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::UpdateHandler located: Adding image:"+imageFileName);
-				uh.addImageFileName(imageFileName);
+					   "TELH::No document found for oid:"+oid+".");
+				return;
 			}
 
-	   
+			// have we already got an undate handler working on this document?
+			// we might have if the next image in a multrun arrives before we have transferred the last one
+			uh = tea.getUpdateHandler(oid);
 
-			// 	RTMLObservation obs = document.getObservation(0);
-	
-			// 	try {
-			// 	    // obs.setImageDataURL(tea.getImageWebUrl()+"/"+imageFileName);	    
-			// 	    arq.sendDocUpdate(document, "update");
-			// 	} catch (Exception rx) {
-			// 	    System.err.println("Error setting up update document: "+rx);
-			// 	}
-			//     }
-    
-		} else {
+			// if we don't already have a uh, create one
+			if(uh == null)
+			{
+				try
+				{
+					uh = new UpdateHandler(tea, document);
+				} 
+				catch (Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+						   "TELH::Failed to create UH for: "+oid);
+					e.printStackTrace();
+					return;
+				}
+			}
+			// Add one to the Number of exposures we should get.
+			uh.incrementNumberExposures();
+
+			// Try to predict time until obs done message.
+			long total = uh.getNumberExposures()* (READOUT + DPRT);
+			uh.setExpectedTime(total);
+			uh.setObservationId(oid);
+
+			// Register the UH against the obspath -- problem if we get multiple
+			// instantiations of an obs (mongroup windows) while still processing
+			tea.addUpdateHandler(oid, uh);
+	    
+			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+				   "TELH::UpdateHandler located: Adding image:"+imageFileName);
+			uh.addImageFileName(imageFileName);
+		}
+		else
+		{
 			// Handle other types of TelemetryInfo here if any....
 		}
 	
