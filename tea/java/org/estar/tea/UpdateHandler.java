@@ -35,8 +35,10 @@ import ngat.message.OSS.*;
  * placed in the update document. 
  *
  */
-public class UpdateHandler extends ControlThread
+public class UpdateHandler extends ControlThread implements Logging
 {
+	public static final String CLASS = "UpdateHandler";
+
 	/** Polling interval for pending queue.*/
 	private static final long SLEEP_TIME = 5000L;
 
@@ -90,13 +92,21 @@ public class UpdateHandler extends ControlThread
 	/** Records the number of exposures received so far.*/
 	private int countExposures;
 
-	/** The observation.*/
-	private Observation observation;
+	/** 
+	 * The observation identifier, the observation full path.
+	 */
+	private String observationId = null;
+	/**
+	 * The logger.
+	 */
+	Logger logger = null;
 
-	/** Create an UpdateHandler.
+	/** 
+	 * Create an UpdateHandler. Setup logger.
 	 * @param tea The TEA.
 	 * @param baseDoc The base document.
 	 * @throws Exception if anything dodgy occurs - typically the baseDir deepClone().
+	 * @see #logger
 	 */
 	public UpdateHandler(TelescopeEmbeddedAgent tea, RTMLDocument baseDoc) throws Exception
 	{
@@ -116,16 +126,29 @@ public class UpdateHandler extends ControlThread
 
 		countExposures = 0;
 		elapsedTime = 0L;
+		logger = LogManager.getLogger(this);
 
 	}
 
-	/** Set the observation.*/
-	public void setObservation(Observation obs) { this.observation = obs; }
+	/** 
+	 * Set the observation ID.
+	 */
+	public void setObservationId(String s) { this.observationId = s; }
 
 	/**
 	 * Sets the number of exposures we expect.
 	 */
 	public void setNumberExposures(int n) { this.numberExposures = n; }
+
+	/**
+	 * Increments the number of exposures we expect.
+	 */
+	public void incrementNumberExposures() { this.numberExposures++; }
+
+	/**
+	 * Gets the number of exposures we expect.
+	 */
+	public int getNumberExposures() { return this.numberExposures; }
 
 	/** Sets the expected total observation time (ms).*/
 	public void setExpectedTime(long t) { this.expectedTime = t; }
@@ -160,24 +183,22 @@ public class UpdateHandler extends ControlThread
 	 *
 	 * elapsedTime > max allowed (v.generous margin).
 	 * #num exposures > expected number
-	 * 
+	 * @see #addImageDataToObservation
 	 */
 	protected void mainTask()
 	{    
 		if (state == OBS_FAILED)
 		{
-
 			// bugger - weve already modified the base doc !
 			// do we need to pull the new imagedata out? as we're not
 			// going to send the updateDoc now. Maybe we just dont bother
 			// to save it.. I think so..
+			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask","UH::State is obs failed:terminating.");
 			terminate();
 			return;
-
 		}
 		else
-		{
-	    
+		{	    
 			// Either OBS_DONE or NOT_DONE_YET either way we need to clear out
 			// the pending list.
 
@@ -186,6 +207,9 @@ public class UpdateHandler extends ControlThread
 			{
 		
 				String imageFileName = (String)pending.remove(0);
+
+				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask","UH::Processing image filename "+
+					   imageFileName+".");
 		
 				// Generate the correct destination file name.
 				String destDirName = tea.getImageDir();
@@ -195,10 +219,19 @@ public class UpdateHandler extends ControlThread
 				File   destFile    = new File(destDir, rawFileName);
 				String destFileName= destFile.getPath();	
 		
-				try {		    
+				try
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Transferring image filename "+
+						   imageFileName+" to "+destFileName+".");
 					transfer(imageFileName, destFileName);		    
-				} catch (Exception e) {
-					e.printStackTrace();
+				}
+				catch (Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Transferring image filename "+
+						   imageFileName+" to "+destFileName+" failed:"+e);
+					logger.dumpStack(1,e);
 					return;
 				}
 		
@@ -216,59 +249,82 @@ public class UpdateHandler extends ControlThread
 				//
 				// } catch (Thingy..) {}
 		
-				// Add to updatedoc and basedoc
+				// Add processed data to basedoc
 				RTMLObservation obs = baseDoc.getObservation(0);
-				if (obs != null) {
-					try {
-						RTMLImageData data = new RTMLImageData();
-						//data.setFITSHeader("");
-						data.setImageDataType("FITS16");
-						data.setImageDataURL(tea.getImageWebUrl()+"/noideayetbutincludessomethingfromdestfile.fits");
-						data.setObjectListType("cluster");
-						data.setObjectListCluster("a data point from the pipeline");
-			
-						obs.addImageData(data);
-					} catch (Exception e) {
-						e.printStackTrace();
+				if (obs != null)
+				{
+					try
+					{
+						// diddly get cluster data from pipeline
+						addImageDataToObservation(obs,tea.getImageWebUrl()+destFileName,null);
+					} 
+					catch (Exception e)
+					{
+						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+							   "UH::addImageDataToObservation "+
+							   tea.getImageWebUrl()+destFileName+" failed:"+e);
+						logger.dumpStack(1,e);
 						return;
 					}
-		    
 				}
-		
+				// save the base document
+				try
+				{
+					tea.saveDocument(baseDoc);
+				} 
+				catch (Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::saveDocument failed:"+e);
+					logger.dumpStack(1,e);
+					return;
+				}
+				// Add processed data to updatedoc
 				obs = updateDoc.getObservation(0);
-				if (obs != null) {
-
-					try {
-						RTMLImageData data = new RTMLImageData();
-						//data.setFITSHeader("");
-						data.setImageDataType("FITS16");
-						data.setImageDataURL(tea.getImageWebUrl()+"/noideayetbutincludessomethingfromdestfile.fits");
-						data.setObjectListType("cluster");
-						data.setObjectListCluster("a data point from the pipeline");
-			
-						obs.addImageData(data);
-					} catch (Exception e) {
-						e.printStackTrace();
+				if (obs != null)
+				{
+					try
+					{
+						// diddly get cluster data from pipeline
+						addImageDataToObservation(obs,tea.getImageWebUrl()+destFileName,null);
+					} 
+					catch (Exception e)
+					{
+						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+							   "UH::addImageDataToObservation "+
+							   tea.getImageWebUrl()+destFileName+" failed:"+e);
+						logger.dumpStack(1,e);
 						return;
 					}
-
 				}
 		
 				// Now try to send the update to the UA.
 				// this is a mess - need global comms method like
 				// tea.sendDoc(doc); This may need to go in athread
 				// as it may block for a while if the connection is blocked
-				AgentRequestHandler arq = new AgentRequestHandler(tea);
-				arq.sendDocUpdate(updateDoc, "update");
-				  
+				try
+				{
+					AgentRequestHandler arq = new AgentRequestHandler(tea);
+					arq.sendDocUpdate(updateDoc, "update");
+				} 
+				catch (Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::sendDocUpdate failed:"+e);
+					logger.dumpStack(1,e);
+					return;
+				}
+				// add to list of processed filenames
 				processed.add(imageFileName);
-		
 			} // while not empty
 	    
 		} // test (state)
 
 		// Finally quit
-		if (state == OBS_DONE) {
+		if (state == OBS_DONE)
+		{
+			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+				   "UH::state is now OBS_DONE:terminating.");
 			terminate();
 			return;
 		}
@@ -276,7 +332,11 @@ public class UpdateHandler extends ControlThread
 		elapsedTime = System.currentTimeMillis() - startTime;
 
 		// Quit if weve overrun horribly
-		if (elapsedTime > expectedTime + TIME_MARGIN) {
+		if (elapsedTime > expectedTime + TIME_MARGIN)
+		{
+			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+				   "UH::Ran out of time to complete ("+elapsedTime+" > "+(expectedTime+TIME_MARGIN)+
+				   "):terminating.");
 			terminate();
 			return;
 		}
@@ -287,34 +347,69 @@ public class UpdateHandler extends ControlThread
 	}
 
 	/** Called at end-of-run.*/
-	protected void shutdown() {
+	protected void shutdown()
+	{
+		int multrunExposureCount = 0;
+		// if no series constraint present, default to 1 set of multruns (flexibly scheduled)
+		int seriesConstraintCount = 1;
+		int imageDataCount = 0;
 
-		// time to check if weve done all the exposures we expect to do
-		// not easy to work out. No easy way to record how many weve
-		// got persistently...
-		// we can count the number of imageddatas in the basedoc's obs#0 and
-		// see if it matches the number we would expect if the
-		// correct no of monitor periods were observed which is
-		// almost never correct! The value of count*expcount should 
-		// equal no of imagaedatas recorded - doesnt cope with partial
-		// completed obs or missed periods..... TBD
-
-		// if (weve got all the exposures we were expecting over the entire
-		//       monitor startdate-enddate ) {
-		//  arq.sendDocUpdate(baseDoc, "completed");
-		// ## baseDoc not updateDoc weve already sent heaps of those..
-		// }
-
+		// if we have completed the number of observations requested by the UA,
+		// send a complete.
+		// This should only fire on the last UpdateHandler created for a particular MonitorGroup
+		// if <SeriesConstraint><Count> accurately reflects (end date - start_date) / period.
+		// If a MonitorGroup, we expect <SeriesConstraint><Count>* <Exposure><Count> frames, if a MonitorGroup.
+		// If a FlexibleGroup, we expect <Exposure><Count> frames. 
+		RTMLObservation observation = baseDoc.getObservation(0);
+		if(observation != null)
+		{
+			RTMLSchedule schedule = observation.getSchedule();
+			if(schedule != null)
+			{
+				multrunExposureCount = schedule.getExposureCount();
+				RTMLSeriesConstraint seriesConstraint = schedule.getSeriesConstraint();
+				if(seriesConstraint != null)
+				{
+					seriesConstraintCount = seriesConstraint.getCount();
+					// Note should really check :
+					// (schedule.getEndDate() - schedule.getStartDate())/
+					// seriesConstraint.getInterval() 
+					// does not give a number less than seriesConstraintCount, in which
+					// case it is unlikely seriesConstraintCount monitor period will occur before 
+					// the document expires,
+					// or it does not give a number greater than seriesConstraintCount,
+					// in which case we may provide more data than the UA has asked for.
+				}
+			}
+			imageDataCount = observation.getImageDataCount();
+		}
+		if(imageDataCount >= (multrunExposureCount*seriesConstraintCount))
+		{
+			// we have done at least as many frames as the UA expects
+			try
+			{
+				// send "observation" type document to complete
+				AgentRequestHandler arq = new AgentRequestHandler(tea);
+				arq.sendDocUpdate(baseDoc, "observation");
+				// save document
+				tea.saveDocument(baseDoc);
+				// move document to expired dir
+				// delete document from memory
+				tea.deleteDocument(baseDoc);
+			} 
+			catch (Exception e)
+			{
+				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+					   "UH::sendDocUpdate failed:"+e);
+				logger.dumpStack(1,e);
+				return;
+			}
+		}
 		// Always pull this UH off the tea.agentMap as its defunct now
 		// #####slightly worrying - the agmap only matches against an obs path
 		// this will be the same if another instantiation of the group
 		// appears before weve done with this one ....aaargh!
-		String oid = observation.getFullPath();
-		tea.deleteUpdateHandler(oid);
-
-		// Save the master baseDoc ie. replace it in the same file TBD
-		// tea.replaceDoc(blahblah)
-
+		tea.deleteUpdateHandler(observationId);
 	}
 
 	/** Tries to pull an image file off the OCC and stick it in the appropriate directory.*/
@@ -326,10 +421,37 @@ public class UpdateHandler extends ControlThread
 		if (client == null) 
 			throw new Exception("The transfer client is not available");
 
-		System.err.println("UH::Requesting image file: "+imageFileName+" -> "+destFileName);
+		logger.log(INFO, 1, CLASS, tea.getId(),"transfer","UH::Requesting image file: "+
+			   imageFileName+" -> "+destFileName);
 
 		client.request(imageFileName, destFileName);
 
 	}
 
+	/**
+	 * Add a new image data to an observation.
+	 * @param obs The observation to add a new RTMLImageData to.
+	 * @param imageDataUrlString The URL of the image data just produced.
+	 * @param clusterString A string containing a cluster format data point.
+	 * @exception RTMLException Thrown if an error occurs.
+	 */
+	private void addImageDataToObservation(RTMLObservation obs,String imageDataUrlString,String clusterString)
+		throws RTMLException
+	{
+		RTMLImageData data = new RTMLImageData();
+
+		//data.setFITSHeader("");
+		data.setImageDataType("FITS16");
+		data.setImageDataURL(imageDataUrlString);
+		data.setObjectListType("cluster");
+		data.setObjectListCluster(clusterString);
+
+		obs.addImageData(data);
+	}
+		    
+
+
 }
+//
+// $Log: not supported by cvs2svn $
+//
