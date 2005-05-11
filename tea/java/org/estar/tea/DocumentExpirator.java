@@ -114,9 +114,12 @@ public class DocumentExpirator extends ControlThread implements Logging
 										   "Expirator trying to expire document "+documentId+".");
 									try
 									{
-										// send failed to UA
+										// send failed/incomplete to UA
 										arq = new AgentRequestHandler(tea);
-										arq.sendDocUpdate(doc,"failed");
+										if(obs.getImageDataCount() > 0)
+											arq.sendDocUpdate(doc,"incomplete");
+										else
+											arq.sendDocUpdate(doc,"failed");
 										// save document
 										tea.saveDocument(key,doc);
 										// move document to expired dir
