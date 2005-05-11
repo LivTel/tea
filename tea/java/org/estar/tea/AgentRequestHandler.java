@@ -890,7 +890,6 @@ public class AgentRequestHandler implements Logging
 		{
 			logger.log(INFO, 1, CLASS, id, "sendDocUpdate", "User agent was null.");
 			throw new Exception(this.getClass().getName()+":sendDocUpdate:user agent was null");
-			return;
 		}
 
 		String agid = userAgent.getId();
