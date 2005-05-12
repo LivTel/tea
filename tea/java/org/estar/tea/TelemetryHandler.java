@@ -72,6 +72,7 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 	public void handleRequest()
 	{
 		UpdateHandler uh = null;
+		TELEMETRY_UPDATE_DONE done = new TELEMETRY_UPDATE_DONE("TestReply");
 
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest","TELH::Received TelemetryRequest: "+telem);
 		if (telem instanceof ObservationInfo)
@@ -86,6 +87,9 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 			{
 				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 					   "TELH::The observation was null.");
+				// send telemetry reply to RCS
+				done.setSuccessful(true);	
+				sendDone(done);
 				return;
 			}
 			String oid = obs.getFullPath(); 
@@ -125,8 +129,12 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 	    
 			// get the oid and filename from the telemetry
 			String oid = ((ReductionInfo)telem).getObsPathName(); 
-			String imageFileName = ((ReductionInfo)telem).getFileName();
+			// The observation id is the group id with a /obsid on the end e.g.:
+			// /LT_Phase2_001/PATT/keith.horne/PL04B17/000086:UA:v1-15:run#10:user#agent/ExoPlanetMonitor
+			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+				   "TELH::ReductionInfo has oid: "+oid+".");
 
+			String imageFileName = ((ReductionInfo)telem).getFileName();
 			RTMLDocument document = tea.getDocument(oid);
 
 			// Not one of ours or weve lost it 
@@ -134,6 +142,9 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 			{
 				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 					   "TELH::No document found for oid:"+oid+".");
+				// send telemetry reply to RCS
+				done.setSuccessful(true);	
+				sendDone(done);
 				return;
 			}
 
@@ -147,12 +158,19 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 				try
 				{
 					uh = new UpdateHandler(tea, document);
+					uh.start();
+					// Register the UH against the obspath -- problem if we get multiple
+					// instantiations of an obs (mongroup windows) while still processing
+					tea.addUpdateHandler(oid, uh);
 				} 
 				catch (Exception e)
 				{
 					logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 						   "TELH::Failed to create UH for: "+oid);
 					e.printStackTrace();
+					// send telemetry reply to RCS
+					done.setSuccessful(true);	
+					sendDone(done);
 					return;
 				}
 			}
@@ -163,10 +181,6 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 			long total = uh.getNumberExposures()* (READOUT + DPRT);
 			uh.setExpectedTime(total);
 			uh.setObservationId(oid);
-
-			// Register the UH against the obspath -- problem if we get multiple
-			// instantiations of an obs (mongroup windows) while still processing
-			tea.addUpdateHandler(oid, uh);
 	    
 			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 				   "TELH::UpdateHandler located: Adding image:"+imageFileName);
@@ -177,9 +191,8 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 			// Handle other types of TelemetryInfo here if any....
 		}
 	
-		TELEMETRY_UPDATE_DONE done = new TELEMETRY_UPDATE_DONE("TestReply");
-		done.setSuccessful(true);
-	
+		// send telemetry reply to RCS
+		done.setSuccessful(true);	
 		sendDone(done);
 	
 	}
