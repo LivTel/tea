@@ -118,11 +118,6 @@ public class UpdateHandler extends ControlThread implements Logging
 		processed = new Vector();
 
 		updateDoc = (RTMLDocument)baseDoc.deepClone();
-	
-		RTMLObservation obs = updateDoc.getObservation(0);
-		if (obs == null)
-			throw new Exception("There was no obs#0 in the document");
-		obs.clearImageDataList();
 
 		countExposures = 0;
 		elapsedTime = 0L;
@@ -193,7 +188,8 @@ public class UpdateHandler extends ControlThread implements Logging
 			// do we need to pull the new imagedata out? as we're not
 			// going to send the updateDoc now. Maybe we just dont bother
 			// to save it.. I think so..
-			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask","UH::State is obs failed:terminating.");
+			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask","UH::State is obs failed:terminating for "+
+				   observationId+".");
 			terminate();
 			return;
 		}
@@ -209,7 +205,7 @@ public class UpdateHandler extends ControlThread implements Logging
 				String imageFileName = (String)pending.remove(0);
 
 				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask","UH::Processing image filename "+
-					   imageFileName+".");
+					   imageFileName+" for "+observationId+".");
 		
 				// Generate the correct destination file name.
 				String destDirName = tea.getImageDir();
@@ -223,14 +219,18 @@ public class UpdateHandler extends ControlThread implements Logging
 				{
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::Transferring image filename "+
-						   imageFileName+" to "+destFileName+".");
+						   imageFileName+" to "+destFileName+" for "+observationId+".");
 					transfer(imageFileName, destFileName);		    
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Transfered image filename "+
+						   imageFileName+" to "+destFileName+" for "+observationId+".");
 				}
 				catch (Exception e)
 				{
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::Transferring image filename "+
-						   imageFileName+" to "+destFileName+" failed:"+e);
+						   imageFileName+" to "+destFileName+" failed for "+
+						   observationId+":"+e);
 					logger.dumpStack(1,e);
 					return;
 				}
@@ -270,12 +270,14 @@ public class UpdateHandler extends ControlThread implements Logging
 				// save the base document
 				try
 				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Saving document for "+observationId+".");
 					tea.saveDocument(baseDoc);
 				} 
 				catch (Exception e)
 				{
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-						   "UH::saveDocument failed:"+e);
+						   "UH::saveDocument for "+observationId+" failed:"+e);
 					logger.dumpStack(1,e);
 					return;
 				}
@@ -285,13 +287,16 @@ public class UpdateHandler extends ControlThread implements Logging
 				{
 					try
 					{
+						// clear image data except for one just transferred
+						obs.clearImageDataList();
+
 						// diddly get cluster data from pipeline
 						addImageDataToObservation(obs,tea.getImageWebUrl()+destFileName,null);
 					} 
 					catch (Exception e)
 					{
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-							   "UH::addImageDataToObservation "+
+							   "UH::addImageDataToObservation for "+observationId+" "+
 							   tea.getImageWebUrl()+destFileName+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
@@ -304,27 +309,29 @@ public class UpdateHandler extends ControlThread implements Logging
 				// as it may block for a while if the connection is blocked
 				try
 				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Sending update document for "+observationId+".");
 					AgentRequestHandler arq = new AgentRequestHandler(tea);
 					arq.sendDocUpdate(updateDoc, "update");
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Sent update document for "+observationId+".");
 				} 
 				catch (Exception e)
 				{
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-						   "UH::sendDocUpdate failed:"+e);
+						   "UH::sendDocUpdate failed for "+observationId+":"+e);
 					logger.dumpStack(1,e);
 					return;
 				}
 				// add to list of processed filenames
 				processed.add(imageFileName);
 			} // while not empty
-	    
 		} // test (state)
-
 		// Finally quit
 		if (state == OBS_DONE)
 		{
 			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-				   "UH::state is now OBS_DONE:terminating.");
+				   "UH::state is now OBS_DONE:terminating for "+observationId+".");
 			terminate();
 			return;
 		}
@@ -336,7 +343,7 @@ public class UpdateHandler extends ControlThread implements Logging
 		{
 			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 				   "UH::Ran out of time to complete ("+elapsedTime+" > "+(expectedTime+TIME_MARGIN)+
-				   "):terminating.");
+				   "):terminating for "+observationId+".");
 			terminate();
 			return;
 		}
@@ -354,6 +361,8 @@ public class UpdateHandler extends ControlThread implements Logging
 		int seriesConstraintCount = 1;
 		int imageDataCount = 0;
 
+		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+				   "UH::Shutdown for this handler for "+observationId+".");
 		// if we have completed the number of observations requested by the UA,
 		// send a complete.
 		// This should only fire on the last UpdateHandler created for a particular MonitorGroup
@@ -383,16 +392,27 @@ public class UpdateHandler extends ControlThread implements Logging
 			}
 			imageDataCount = observation.getImageDataCount();
 		}
+		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+			   "UH::Testing whether image data count "+imageDataCount+
+			   " is greater than expected number of images "+
+			   (multrunExposureCount*seriesConstraintCount)+" for "+observationId+".");
 		if(imageDataCount >= (multrunExposureCount*seriesConstraintCount))
 		{
 			// we have done at least as many frames as the UA expects
 			try
 			{
+				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+					   "UH::Sending observation complete document for "+observationId+".");
 				// send "observation" type document to complete
 				AgentRequestHandler arq = new AgentRequestHandler(tea);
 				arq.sendDocUpdate(baseDoc, "observation");
+				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+					   "UH::Saving observation complete document for "+observationId+".");
 				// save document
 				tea.saveDocument(baseDoc);
+				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+					   "UH::Deleting observation complete document for "+observationId+
+					   " (to expired directory).");
 				// move document to expired dir
 				// delete document from memory
 				tea.deleteDocument(baseDoc);
@@ -409,6 +429,8 @@ public class UpdateHandler extends ControlThread implements Logging
 		// #####slightly worrying - the agmap only matches against an obs path
 		// this will be the same if another instantiation of the group
 		// appears before weve done with this one ....aaargh!
+		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+			   "UH::Deleting update handler for "+observationId+".");
 		tea.deleteUpdateHandler(observationId);
 	}
 
@@ -454,4 +476,9 @@ public class UpdateHandler extends ControlThread implements Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2005/05/11 19:21:41  cjm
+// Rewritten to support one update document per frame.
+// Also can produce multiple update documents per instance, if new images for one group
+// appear quicker than update documents can be sent out (due to data transfer etc)...
+//
 //
