@@ -789,12 +789,9 @@ public class AgentRequestHandler implements Logging
 			}
 
 			sendDoc(document, "confirmation");
-	    
-			// We are saving against the full Observation path.
-			String obsPathName = proposalPathName+"/"+requestId+"/"+targetIdent;
 
 			// TEA will Save this for persistance.
-			tea.addDocument(obsPathName, document);
+			tea.addDocument(document);
 	 
 		} catch (Exception ex) {
 	    
