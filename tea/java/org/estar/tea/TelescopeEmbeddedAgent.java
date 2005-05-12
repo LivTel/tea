@@ -46,25 +46,25 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public static final int    DEFAULT_OSS_PORT = 7940;
    
 	/** Default host address for OSS. (Ongoing DB insertions).*/
-	public static final String DEFAULT_OSS_HOST = "occ";
+	public static final String DEFAULT_OSS_HOST = "192.168.1.30";
 
 	/** Default port for SSL ITR.*/
 	public static final int    DEFAULT_RELAY_PORT = 7166;
 
 	/** Default host for SSL ITR.*/
-	public static final String DEFAULT_RELAY_HOST = "occ";
+	public static final String DEFAULT_RELAY_HOST = "192.168.1.30";
 
 	/** Default port for RCS CTRL. (Status requests).*/
 	public static final int    DEFAULT_CTRL_PORT = 9110;
    
 	/** Default host address for RCS CTRL. (Status requests).*/
-	public static final String DEFAULT_CTRL_HOST = "occ";
+	public static final String DEFAULT_CTRL_HOST = "192.168.1.30";
     
 	/** Default port for RCS TOCS. (TOC requests).*/
 	public static final int    DEFAULT_TOCS_PORT = 8610;
    
 	/** Default host address for RCS TOCS. (TOC requests).*/
-	public static final String DEFAULT_TOCS_HOST = "occ";
+	public static final String DEFAULT_TOCS_HOST = "192.168.1.30";
 
 	public static final String DEFAULT_IMAGE_WEB_URL = "http://nosuchaddress/";
 
@@ -266,6 +266,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		logger.setLogLevel(ALL);
 		logger.addHandler(console);
 		logger = LogManager.getLogger("org.estar.tea.TelemetryHandler");
+		logger.setLogLevel(ALL);
+		logger.addHandler(console);
+		logger = LogManager.getLogger("org.estar.tea.UpdateHandler");
 		logger.setLogLevel(ALL);
 		logger.addHandler(console);
 		logger = LogManager.getLogger("org.estar.tea.DocumentExpirator");
@@ -632,12 +635,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		return v;
 	}
 
-	/** Add a document into request map for supplied key and saves to file.
-	 * @param key      Document's group path.
+	/**
+	 * Add a document into request map for supplied key and saves to file.
 	 * @param document The document to save.
 	 * @throws Exception If anything goes horribly wrong.
+	 * @see #createKeyFromDoc
 	 */
-	public void addDocument(String key, RTMLDocument document) throws Exception {
+	public void addDocument(RTMLDocument document) throws Exception
+	{
+		String key = createKeyFromDoc(document);
 		requestMap.put(key, document);
 		saveDocument(key, document);
 	}
@@ -824,7 +830,22 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 		String               requestId = userAgent.getId();
 
-		return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId;
+		RTMLObservation observation = doc.getObservation(0);
+		if(observation == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Observation(0) was null for document.");
+		}
+
+		RTMLTarget target = observation.getTarget();
+		if(target == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Target was null for document.");
+		}
+		String targetIdent = target.getIdent();
+
+		return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId+"/"+targetIdent;
 
 	}
     
