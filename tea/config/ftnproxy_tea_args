@@ -1,0 +1,46 @@
+#!/bin/csh
+
+#set DN_PORT  = 2220
+set DN_PORT  = 8080
+
+set TEL_PORT = 9325
+set TEL_HOST = 192.168.4.1
+
+set OSS_HOST = 192.168.1.30
+set OSS_PORT = 7940
+
+set OSS_SEC
+
+set CTRL_HOST = 192.168.1.30
+set CTRL_PORT = 9120
+
+set TOCS_HOST = 192.168.1.30
+set TOCS_PORT = 8610
+
+set TO_SERVICE = GRB
+
+set LAT        = 20.708
+set LON        = -156.257
+
+set DOME = 20.0
+
+set WEB = http://132.160.98.239/~estar/data
+
+set BASE = /home/estar/data
+
+set FM = "../config/filter-combo.properties"
+
+set DBROOT = "/FTN_Phase2_001"
+
+set KEY   = /occ/misc/certs/pca.private
+set PASS  = geronimo
+set TRUST = /occ/misc/certs/itr.public
+set BAND = 10
+set RELAY_HOST = 192.168.1.30
+set RELAY_PORT = 7166
+
+set PPLUG = org.estar.tea.DefaultPipelinePlugin
+
+set DOC_DIR = data
+set EXPIRED_DOC_DIR = expired
+set EXPIRATOR_SLEEP = 600000
