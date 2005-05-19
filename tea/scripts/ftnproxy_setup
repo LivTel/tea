@@ -1,0 +1,36 @@
+#!/bin/csh
+
+# setup classpath.
+
+set JBIN = /occ/common/ngat
+set EBIN = /occ/tea/javalib
+
+setenv CLASSPATH .
+
+setenv CLASSPATH ${CLASSPATH}:$EBIN/org_estar_astrometry.jar
+setenv CLASSPATH ${CLASSPATH}:$EBIN/org_estar_rtml.jar
+setenv CLASSPATH ${CLASSPATH}:$EBIN/org_estar_rtml_test.jar
+setenv CLASSPATH ${CLASSPATH}:$EBIN/org_estar_io.jar
+setenv CLASSPATH ${CLASSPATH}:$EBIN/org_estar_io_test.jar
+
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_util.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_util_logging.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_net.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_net_camp.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_astrometry.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_phase2.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_message_base.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_message_oss.jar
+setenv CLASSPATH ${CLASSPATH}:$JBIN/ngat_message_gui_rcs.jar
+
+setenv CLASSPATH ${CLASSPATH}:$EBIN/tea.jar
+
+# Add POS classes.
+
+#setenv CLASSPATH ${CLASSPATH}:$JBIN/planetarium.jar
+
+set LIB = /occ/tea/elib
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:$LIB
+
+set CLIB = /occ/common/lib
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:$CLIB
