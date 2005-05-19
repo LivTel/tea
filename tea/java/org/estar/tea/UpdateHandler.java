@@ -10,6 +10,7 @@ import java.text.*;
 import javax.net.ssl.*;
 
 import org.estar.astrometry.*;
+import org.estar.fits.*;
 import org.estar.rtml.*;
 import org.estar.io.*;
 
@@ -256,13 +257,14 @@ public class UpdateHandler extends ControlThread implements Logging
 					try
 					{
 						// diddly get cluster data from pipeline
-						addImageDataToObservation(obs,tea.getImageWebUrl()+destFileName,null);
+						addImageDataToObservation(obs,tea.getImageWebUrl()+rawFileName,
+									  destFileName,null);
 					} 
 					catch (Exception e)
 					{
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 							   "UH::addImageDataToObservation "+
-							   tea.getImageWebUrl()+destFileName+" failed:"+e);
+							   tea.getImageWebUrl()+rawFileName+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
 					}
@@ -291,13 +293,14 @@ public class UpdateHandler extends ControlThread implements Logging
 						obs.clearImageDataList();
 
 						// diddly get cluster data from pipeline
-						addImageDataToObservation(obs,tea.getImageWebUrl()+destFileName,null);
+						addImageDataToObservation(obs,tea.getImageWebUrl()+rawFileName,
+									  destFileName,null);
 					} 
 					catch (Exception e)
 					{
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 							   "UH::addImageDataToObservation for "+observationId+" "+
-							   tea.getImageWebUrl()+destFileName+" failed:"+e);
+							   tea.getImageWebUrl()+rawFileName+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
 					}
@@ -434,7 +437,14 @@ public class UpdateHandler extends ControlThread implements Logging
 		tea.deleteUpdateHandler(observationId);
 	}
 
-	/** Tries to pull an image file off the OCC and stick it in the appropriate directory.*/
+	/**
+	 * Tries to pull an image file off the OCC and stick it in the appropriate directory.
+	 * @param imageFileName The remote filename path.
+	 * @param destFileName The local filename path to store the copied file into.
+	 * @exception Exception Thrown if the transfer failed.
+	 * @see #client
+	 * @see #logger
+	 */
 	private void transfer(String imageFileName, String destFileName) throws Exception
 	{
 	
@@ -454,15 +464,25 @@ public class UpdateHandler extends ControlThread implements Logging
 	 * Add a new image data to an observation.
 	 * @param obs The observation to add a new RTMLImageData to.
 	 * @param imageDataUrlString The URL of the image data just produced.
+	 * @param imageDataFilename The local filename of the image data just produced.
 	 * @param clusterString A string containing a cluster format data point.
 	 * @exception RTMLException Thrown if an error occurs.
+	 * @exception IOException Thrown if loading the FITS headers fails.
+	 * @exception FITSException Thrown if loading the FITS headers fails.
 	 */
-	private void addImageDataToObservation(RTMLObservation obs,String imageDataUrlString,String clusterString)
-		throws RTMLException
+	private void addImageDataToObservation(RTMLObservation obs,String imageDataUrlString,
+		    String imageDataFilename,String clusterString) throws RTMLException, IOException, FITSException
 	{
 		RTMLImageData data = new RTMLImageData();
+		FITSHeaderLoader headerLoader = null;
 
-		//data.setFITSHeader("");
+		// load fits headers
+		if(imageDataFilename != null)
+		{
+			headerLoader = new FITSHeaderLoader();
+			headerLoader.load(imageDataFilename);
+			data.setFITSHeader(headerLoader.toString());
+		}
 		data.setImageDataType("FITS16");
 		data.setImageDataURL(imageDataUrlString);
 		data.setObjectListType("cluster");
@@ -476,6 +496,10 @@ public class UpdateHandler extends ControlThread implements Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2005/05/12 16:27:15  cjm
+// Changed when clearImageDataList was called, so update document contain 1 frame only.
+// Added lots of logging.
+//
 // Revision 1.3  2005/05/11 19:21:41  cjm
 // Rewritten to support one update document per frame.
 // Also can produce multiple update documents per instance, if new images for one group
