@@ -10,7 +10,6 @@ import java.text.*;
 import javax.net.ssl.*;
 
 import org.estar.astrometry.*;
-import org.estar.fits.*;
 import org.estar.rtml.*;
 import org.estar.io.*;
 
@@ -38,6 +37,10 @@ import ngat.message.OSS.*;
  */
 public class UpdateHandler extends ControlThread implements Logging
 {
+	/**
+	 * Revision control system version id.
+	 */
+	public final static String RCSID = "$Id: UpdateHandler.java,v 1.6 2005-05-23 16:10:00 cjm Exp $";
 	public static final String CLASS = "UpdateHandler";
 
 	/** Polling interval for pending queue.*/
@@ -65,7 +68,7 @@ public class UpdateHandler extends ControlThread implements Logging
 	private RTMLDocument updateDoc;
 
 	/** Pipeline processing plugin implementation. (#### Should be per project)*/
-	private PipelineProcessingPlugin pipelinePlugin;
+	private PipelineProcessingPlugin pipelinePlugin = null;
 
 	/** List of pending image filenames to transfer and process.*/
 	private List pending;
@@ -103,11 +106,22 @@ public class UpdateHandler extends ControlThread implements Logging
 	Logger logger = null;
 
 	/** 
-	 * Create an UpdateHandler. Setup logger.
+	 * Create an UpdateHandler. Setup logger. Initialises pending and processed.
+	 * Figures out which pipeline plugin to use by calling pipelinePlugin.
 	 * @param tea The TEA.
 	 * @param baseDoc The base document.
-	 * @throws Exception if anything dodgy occurs - typically the baseDir deepClone().
+	 * @throws Exception Thrown if an error occurs. i.e. the baseDir deepClone() fails. getPipelinePluginFromDoc
+	 *                   fails.
+	 * @see #getPipelinePluginFromDoc
+	 * @see #tea
+	 * @see #baseDoc
+	 * @see #updateDoc
+	 * @see #pending
+	 * @see #processed
+	 * @see #pipelinePlugin
 	 * @see #logger
+	 * @see #countExposures
+	 * @see #elapsedTime
 	 */
 	public UpdateHandler(TelescopeEmbeddedAgent tea, RTMLDocument baseDoc) throws Exception
 	{
@@ -119,7 +133,9 @@ public class UpdateHandler extends ControlThread implements Logging
 		processed = new Vector();
 
 		updateDoc = (RTMLDocument)baseDoc.deepClone();
-
+		pipelinePlugin = getPipelinePluginFromDoc();
+		pipelinePlugin.setTea(tea);
+		pipelinePlugin.initialise();
 		countExposures = 0;
 		elapsedTime = 0L;
 		logger = LogManager.getLogger(this);
@@ -167,6 +183,75 @@ public class UpdateHandler extends ControlThread implements Logging
 		startTime = System.currentTimeMillis();
 	}
 
+	/**
+	 * Uses the baseDoc to figure out which project this document belong to.
+	 * Then tries to create the a suitable pipeline processing plugin.
+	 * @return A new instance of a class implementing PipelineProcessingPlugin, suitable for this data.
+	 * @exception NullPointerException Thrown if baseDoc is null.
+	 * @exception ClassNotFoundException Thrown if the specified class does not exist.
+	 * @exception InstantiationException Thrown if an instance of the class cannot be created.
+	 * @exception IllegalAccessException Thrown if an instance of the class cannot be created.
+	 * @see #baseDoc
+	 */
+	protected PipelineProcessingPlugin getPipelinePluginFromDoc() throws NullPointerException, 
+	       ClassNotFoundException, InstantiationException, IllegalAccessException
+	{
+		RTMLContact contact = null;
+		RTMLProject project = null;
+		String userId = null;
+		String proposalId = null;
+		String pipelinePluginClassname = null;
+		Class pipelinePluginClass = null;
+		String key = null;
+
+		logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc","UH:: Started.");
+		if(baseDoc == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPipelinePluginFromDoc:base document was null.");
+		}
+		// get userId
+		contact = baseDoc.getContact();
+		if(contact == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPipelinePluginFromDoc:Contact was null for document.");
+		}
+		userId = contact.getUser();
+		// get proposalId
+	        project = baseDoc.getProject();
+		if(project == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPipelinePluginFromDoc:Project was null for document.");
+		}
+		proposalId = project.getProject();
+		// get pipeline plugin class name
+		key = new String("pipeline.plugin.classname."+userId+"."+proposalId);
+		logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc",
+			   "UH:: Trying to get pipeline classname using key "+key+".");
+		pipelinePluginClassname = tea.getPropertyString(key);
+		if(pipelinePluginClassname == null)
+		{
+			logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc",
+				   "UH:: Project specific pipeline does not exist, "+
+				   "trying default pipeline.plugin.classname.default.");
+			pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname.default");
+		}
+		logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc",
+			   "UH:: Pipeline classname found was "+pipelinePluginClassname+".");
+		// if we could not find a class name to instansiate, fail.
+		if(pipelinePluginClassname == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPipelinePluginFromDoc:Pipeline classname found was null.");
+		}
+		// get pipeline plugin class from class name
+		pipelinePluginClass = Class.forName(pipelinePluginClassname);
+		// get pipeline plugin instance from class
+		return  (PipelineProcessingPlugin)(pipelinePluginClass.newInstance());
+	}
+
 	/** 
 	 * Called by wrapping thread forever until terminated.
 	 *
@@ -179,10 +264,11 @@ public class UpdateHandler extends ControlThread implements Logging
 	 *
 	 * elapsedTime > max allowed (v.generous margin).
 	 * #num exposures > expected number
-	 * @see #addImageDataToObservation
 	 */
 	protected void mainTask()
 	{    
+		RTMLImageData imageData = null;
+		
 		if (state == OBS_FAILED)
 		{
 			// bugger - weve already modified the base doc !
@@ -209,7 +295,20 @@ public class UpdateHandler extends ControlThread implements Logging
 					   imageFileName+" for "+observationId+".");
 		
 				// Generate the correct destination file name.
-				String destDirName = tea.getImageDir();
+				//diddly String destDirName = tea.getImageDir();
+				String destDirName = null;
+				try
+				{
+					destDirName = pipelinePlugin.getInputDirectory();
+				}
+				catch(Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::Getting input directory failed for pipeline plugin "
+						   +pipelinePlugin+":"+e);
+					logger.dumpStack(1,e);
+					return;
+				}
 				File   destDir     = new File(destDirName);
 				File   fullFile    = new File(imageFileName);
 				String rawFileName = fullFile.getName();
@@ -237,34 +336,32 @@ public class UpdateHandler extends ControlThread implements Logging
 				}
 		
 				// pipeline process
+				try
+				{
+					imageData = pipelinePlugin.processFile(destFile);
+				}
+				catch(Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+						   "UH::pipelinePlugin.processFile "+
+						   destFile+" failed:"+e);
+					logger.dumpStack(1,e);
+					return;
+				}
 
-				// pipelinePlugin = create from reflection..
-				// needs a null constructor and we get from the tea as 
-				// tea.getPipelinePluginClassname() -> String
-				// then
-				// try { 
-				//  RTMLImageData data = p.reduce(destFileName, 
-				//                                tea.getProjectProperties(project));
-				//	or for now simpler ...	
-				//  RTMLImageData data = p.reduce(destFileName, tea.getImageDir());
-				//
-				// } catch (Thingy..) {}
-		
 				// Add processed data to basedoc
 				RTMLObservation obs = baseDoc.getObservation(0);
 				if (obs != null)
 				{
 					try
 					{
-						// diddly get cluster data from pipeline
-						addImageDataToObservation(obs,tea.getImageWebUrl()+rawFileName,
-									  destFileName,null);
+						obs.addImageData(imageData);
 					} 
 					catch (Exception e)
 					{
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-							   "UH::addImageDataToObservation "+
-							   tea.getImageWebUrl()+rawFileName+" failed:"+e);
+							   "UH::addImageData "+
+							   imageData+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
 					}
@@ -291,16 +388,14 @@ public class UpdateHandler extends ControlThread implements Logging
 					{
 						// clear image data except for one just transferred
 						obs.clearImageDataList();
-
-						// diddly get cluster data from pipeline
-						addImageDataToObservation(obs,tea.getImageWebUrl()+rawFileName,
-									  destFileName,null);
+						// add reduced image data
+						obs.addImageData(imageData);
 					} 
 					catch (Exception e)
 					{
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-							   "UH::addImageDataToObservation for "+observationId+" "+
-							   tea.getImageWebUrl()+rawFileName+" failed:"+e);
+							   "UH::addImageData for "+observationId+" "+
+							   imageData+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
 					}
@@ -459,43 +554,12 @@ public class UpdateHandler extends ControlThread implements Logging
 		client.request(imageFileName, destFileName);
 
 	}
-
-	/**
-	 * Add a new image data to an observation.
-	 * @param obs The observation to add a new RTMLImageData to.
-	 * @param imageDataUrlString The URL of the image data just produced.
-	 * @param imageDataFilename The local filename of the image data just produced.
-	 * @param clusterString A string containing a cluster format data point.
-	 * @exception RTMLException Thrown if an error occurs.
-	 * @exception IOException Thrown if loading the FITS headers fails.
-	 * @exception FITSException Thrown if loading the FITS headers fails.
-	 */
-	private void addImageDataToObservation(RTMLObservation obs,String imageDataUrlString,
-		    String imageDataFilename,String clusterString) throws RTMLException, IOException, FITSException
-	{
-		RTMLImageData data = new RTMLImageData();
-		FITSHeaderLoader headerLoader = null;
-
-		// load fits headers
-		if(imageDataFilename != null)
-		{
-			headerLoader = new FITSHeaderLoader();
-			headerLoader.load(imageDataFilename);
-			data.setFITSHeader(headerLoader.toString());
-		}
-		data.setImageDataType("FITS16");
-		data.setImageDataURL(imageDataUrlString);
-		data.setObjectListType("cluster");
-		data.setObjectListCluster(clusterString);
-
-		obs.addImageData(data);
-	}
-		    
-
-
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2005/05/19 12:55:56  cjm
+// Added FITS header handling methods.
+//
 // Revision 1.4  2005/05/12 16:27:15  cjm
 // Changed when clearImageDataList was called, so update document contain 1 frame only.
 // Added lots of logging.
