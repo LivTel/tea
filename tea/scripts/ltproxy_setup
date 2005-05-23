@@ -7,7 +7,7 @@ set EBIN = /home/eng/proxy/tea/javalib
 
 setenv CLASSPATH .
 
-foreach jar ( $EBIN/org_estar_astrometry.jar $EBIN/org_estar_fits.jar $EBIN/org_estar_io.jar $EBIN/org_estar_io_test.jar $EBIN/org_estar_rtml.jar $EBIN/org_estar_rtml_test.jar $EBIN/jfits-0.91.jar $JBIN/ngat_util.jar $JBIN/ngat_util_logging.jar $JBIN/ngat_net.jar $JBIN/ngat_net_camp.jar $JBIN/ngat_astrometry.jar $JBIN/ngat_phase2.jar $JBIN/ngat_message_base.jar $JBIN/ngat_message_oss.jar $JBIN/ngat_message_gui_rcs.jar ${CLASSPATH}:$EBIN/tea.jar )
+foreach jar ( $EBIN/org_estar_astrometry.jar $EBIN/org_estar_cluster.jar $EBIN/org_estar_fits.jar $EBIN/org_estar_io.jar $EBIN/org_estar_io_test.jar $EBIN/org_estar_rtml.jar $EBIN/org_estar_rtml_test.jar $EBIN/jfits-0.91.jar $JBIN/ngat_util.jar $JBIN/ngat_util_logging.jar $JBIN/ngat_net.jar $JBIN/ngat_net_camp.jar $JBIN/ngat_astrometry.jar $JBIN/ngat_phase2.jar $JBIN/ngat_message_base.jar $JBIN/ngat_message_oss.jar $JBIN/ngat_message_gui_rcs.jar $EBIN/tea.jar )
     echo $CLASSPATH | /bin/grep -q $jar
     if ( $status != 0 ) then
 	setenv CLASSPATH ${CLASSPATH}":"${jar}
