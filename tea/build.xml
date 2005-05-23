@@ -12,6 +12,7 @@
   <property name = "dist.dir"      value = "/home/dev/public_html/estar/tea/deploy"/>
   <property name = "estar.javalib" value = "/home/dev/bin/estar/javalib"/>
   <property name = "estar.clib"    value = "/home/dev/bin/estar/lib"/>
+  <property name = "javadoc.dir"   value = "/home/dev/public_html/estar/javadocs/org/estar/tea"/>
 
     <!-- Prepare build directories -->
     
@@ -82,11 +83,14 @@
         <mkdir dir = "${dist.dir}/config"/>
         <mkdir dir = "${dist.dir}/elib"/>
 
+	<copy file="/home/dev/src/estar/jfits/jfits-0.91.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_astrometry.jar" todir="${dist.dir}/javalib"/>
-	<copy file="${estar.javalib}/org_estar_rtml.jar" todir="${dist.dir}/javalib"/>
-	<copy file="${estar.javalib}/org_estar_rtml_test.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_cluster.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_fits.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_io.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_io_test.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_rtml.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_rtml_test.jar" todir="${dist.dir}/javalib"/>
 
         <copy file="${estar.javalib}/tea.jar" todir="${dist.dir}/javalib"/>
 
@@ -105,5 +109,34 @@
         <tar tarfile="/home/snf/tea_test.tar" basedir="${dist.dir}"/>
      
     </target>
+
+    <!-- javadoc -->
+
+    <target name  = "javadoc"
+      description = "Create documentation"
+      depends     = "compile">
+
+      <echo message = "Generating documentation"/>
+
+      <javadoc destdir = "${javadoc.dir}" >  
+
+	<fileset dir="java/org/estar/tea">
+             <include name = "*.java"/> 
+             <exclude name = "**/DNServerTest.java"/>
+	     <exclude name = "**/DocChecker.java"/>
+        </fileset>
+
+	<classpath>
+	  <pathelement path="${classpath}"/>
+	    <fileset dir="/home/dev/bin/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+	    <fileset dir="/home/dev/bin/estar/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+	</classpath>        
+      </javadoc>
+    </target>
+
 
 </project>
