@@ -1,0 +1,33 @@
+#!/bin/csh
+# blank_pipeline <input FITS> <output FITS> <cluster file>
+# $Header: /space/home/eng/cjm/cvs/tea/scripts/blank_pipeline,v 1.1 2005-05-24 09:00:26 cjm Exp $
+if( $#argv != 3) then
+	echo "blank_pipeline <input FITS> <output FITS> <cluster file>"
+	exit 1
+endif
+set input_fits_filename = $1
+set output_fits_filename = $2
+set output_cluster_filename = $3
+echo "blank_pipeline ${input_fits_filename} ${output_fits_filename} ${output_cluster_filename} started."
+#
+#
+#
+if ( "${input_fits_filename}" == "${output_fits_filename}" ) then
+	echo "The input and output FITS images are the same."
+endif
+#
+# If the output FITS image does not exist, copy the input FITS image to it.
+#
+if ( ! -e ${output_fits_filename} ) then
+	/bin/cp ${input_fits_filename} ${output_fits_filename}
+	set cp_status = $status
+	if( ${cp_status} != 0 ) then
+		echo "/bin/cp ${input_fits_filename} ${output_fits_filename} failed ${cp_status}."
+		exit ${cp_status}
+	endif
+endif
+
+echo "blank_pipeline ${input_fits_filename} ${output_fits_filename} ${output_cluster_filename} finished."
+#
+# $Id: blank_pipeline,v 1.1 2005-05-24 09:00:26 cjm Exp $
+#
