@@ -1,0 +1,492 @@
+#!/bin/csh
+# astrometric_fit_pipeline <input FITS> <output FITS> <cluster file>
+# $Header: /space/home/eng/cjm/cvs/tea/scripts/astrometric_fit_pipeline,v 1.1 2005-05-24 15:36:07 cjm Exp $
+# Based on ~dev/bin/grb/astrometric_fit/GRB_pipe_astrometric.csh
+# Original version written by AM/CRG/AG/RJS
+if( $#argv != 3) then
+	echo "astrometric_fit_pipeline <input FITS> <output FITS> <cluster file>"
+	exit 1
+endif
+set input_fits_filename = $1
+set output_fits_filename = $2
+set output_cluster_filename = $3
+echo "astrometric_fit_pipeline ${input_fits_filename} ${output_fits_filename} ${output_cluster_filename} started."
+set inpfile = ${input_fits_filename}
+
+#
+#
+#
+if ( "${input_fits_filename}" == "${output_fits_filename}" ) then
+	echo "The input and output FITS images are the same."
+	exit 1
+endif
+if ( ! ${?MYBIN} ) then
+    if ( -d /grb/bin/astrometric_fit/ ) then
+	setenv MYBIN "/grb/bin/astrometric_fit/"
+    else
+	setenv MYBIN "/home/dev/Dpol/dpol/CURRENT_VERSION_GRBPIPELINE/bin/"
+    endif
+endif
+set script_base_directory = `dirname $0`
+
+# TABLE OF POSSIBLE RETURNS OF THIS SCRIPT
+# ----------------------------------------
+#  0 : no error occurred
+#  1 : some fatal error occurred. Description of that is provided both
+#      to stout
+# ----------------------------------------
+setenv TMP_DIR_EXIST 0
+#setenv TMP_DIR "${PWD}"
+setenv TMP_DIR "/home/estar/tmp"
+
+###################################################
+# If TELESCOPE is FTN then invert image, if LT do nothing
+# CRG 21/09/04
+setenv TELESCOP `${MYBIN}gethead -u TELESCOP $inpfile|awk '{print $1}'`
+
+switch ( $TELESCOP )
+    case 'FTN' :
+	setenv TELESCOP "Faulkes"
+	breaksw
+    case 'LT' :
+	setenv TELESCOP "Liverpool"
+	breaksw
+    case 'Liverpool Telescope' :
+	setenv TELESCOP "Liverpool"
+	breaksw
+endsw
+############# Correct for bad pixel column on LT ############
+if ( ${TELESCOP} == 'Liverpool' ) then
+    ${MYBIN}fixpix ${inpfile}  362 479 362 1024 
+endif
+
+
+############# SExtractor #############
+# NB sextractor writes image.cat to the current directory.
+# Therefore, change directory to TMP_DIR before continuing.
+cd ${TMP_DIR}
+echo "Starting SEx Pipe: $inpfile"
+echo "${MYBIN}sex_LT -c ${MYBIN}grb_pipe.sex $inpfile"
+${MYBIN}sex_LT -c ${MYBIN}grb_pipe.sex $inpfile
+
+###Below: managing the sex files image.dat->wcs.cat->wcs.info->wcs.cat
+###       Preparing the extracted source catalog for matching
+    
+if ( ! -s image.cat ) then
+    echo 'SEx did not write image.cat'
+    exit 1
+endif
+/bin/mv -f image.cat ${inpfile:r:t}_image.cat
+/bin/cp ${inpfile:r:t}_image.cat ${inpfile:r:t}_wcs.dat
+
+
+if ( ${TMP_DIR_EXIST} ) then
+    /bin/mv -f ${inpfile:r:t}_image.cat ${TMP_DIR}/
+    /bin/mv -f ${inpfile:r:t}_wcs.dat   ${TMP_DIR}/
+endif
+setenv N_STARS `awk '! /^#/' ${TMP_DIR}/${inpfile:r:t}_image.cat|wc -l|awk '{print $1}'`
+
+echo "Number of sources extracted by SEx: $N_STARS"
+setenv MIN_N_STARS 3
+# CASE: DO NOT TRY ASTROMETRIC FIT for too few sources extracted
+if ($N_STARS < $MIN_N_STARS) then
+    echo 'Too few sources. Astrometric fit not possible.'
+    setenv ASFIT_STATUS 1  # 0 if the astrometric fit is OK, 1 when it fails
+else
+    setenv ASFIT_STATUS 0  # 0 if the astrometric fit is OK, 1 when it fails
+endif
+# Set the number of sources to be used for the ASTROMETRIC FIT
+if ($N_STARS > 20) then
+    setenv N_STARS_TAKEN 20
+else
+    setenv N_STARS_TAKEN $N_STARS
+endif
+
+#sorting and wcs.info compilation with MAG_BEST
+setenv MAG_BEST_FIELD `awk '($3=="MAG_BEST") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+setenv MAG_BEST_FIELD `echo $MAG_BEST_FIELD | awk '{print $1-1}'`
+if ( ${MAG_BEST_FIELD} < 0 ) then
+    echo 'MAG_BEST not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+    exit 1
+endif
+/bin/sort -n +$MAG_BEST_FIELD ${TMP_DIR}/${inpfile:r:t}_wcs.dat | awk '! /^#/' |head -$N_STARS_TAKEN > ${TMP_DIR}/${inpfile:r:t}_wcs.info
+setenv MAG_BEST_FIELD `echo $MAG_BEST_FIELD | awk '{print $1+1}'`
+
+#Reformatting to wcs.cat just to extract x,y,mag
+setenv X_IMAGE_FIELD `awk '($3=="X_IMAGE") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+setenv X_IMAGE_FIELD `echo $X_IMAGE_FIELD | awk '{print $1-1}'`
+if ( ${X_IMAGE_FIELD} < 0 ) then
+    echo 'X_IMAGE not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+    exit 1
+endif
+setenv X_IMAGE_FIELD `echo $X_IMAGE_FIELD | awk '{print $1+1}'`
+
+setenv Y_IMAGE_FIELD `awk '($3=="Y_IMAGE") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+setenv Y_IMAGE_FIELD `echo $Y_IMAGE_FIELD | awk '{print $1-1}'`
+if ( ${Y_IMAGE_FIELD} < 0 ) then
+    echo 'Y_IMAGE not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+    exit 1
+endif
+setenv Y_IMAGE_FIELD `echo $Y_IMAGE_FIELD | awk '{print $1+1}'`
+
+echo "Used content of ${TMP_DIR}/${inpfile:r:t}_image.cat written by SEx:"
+echo "X_IMAGE_FIELD : $X_IMAGE_FIELD"
+echo "Y_IMAGE_FIELD : $Y_IMAGE_FIELD"
+echo "MAG_BEST_FIELD: $MAG_BEST_FIELD"
+
+/bin/awk '! /^#/ {printf "%s %s %s\n", $ENVIRON["X_IMAGE_FIELD"],$ENVIRON["Y_IMAGE_FIELD"],$ENVIRON["MAG_BEST_FIELD"]}' ${TMP_DIR}/${inpfile:r:t}_wcs.info > ${TMP_DIR}/${inpfile:r:t}_wcs.cat
+###Below: Change FITS keywords from LT standards to those used by wcstools
+##
+# If not set yet, PIXSCALE is set now
+setenv PIXSCALE `${MYBIN}gethead -u PIXSCALE $inpfile`
+if ( $PIXSCALE == '___' ) then
+    setenv PIXSCALE `${MYBIN}gethead -u CCDSCALE $inpfile`
+    if ( $PIXSCALE == '___' ) then
+	echo "Neither PIXSCALE nor CCDSCALE keywords defined. Stop program."
+	exit 1
+    else
+	${MYBIN}sethead $inpfile PIXSCALE=`${MYBIN}gethead $inpfile CCDSCALE` / '[arcsec/pixel] Scale of CCD pixel on sky'
+	setenv PIXSCALE `${MYBIN}gethead -u PIXSCALE $inpfile`
+    endif
+endif
+
+
+###Below: Pointing catalog compilation (only if not already there)
+###       Need to retrieve the USNOB file      Author: CRG
+##
+setenv RA `${MYBIN}gethead $inpfile RA`
+setenv DE `${MYBIN}gethead $inpfile DEC`
+setenv RASTR `echo $RA|sed 's/[:=&]//g'`
+setenv DESTR `echo $DE|sed 's/[:=&]//g'`
+    
+if ( ! -s ${RASTR}${DESTR}.usnob ) then
+    setenv SIZE_X `${MYBIN}gethead $inpfile NAXIS1`  # equivalent to CCDXIMSI
+    setenv SIZE_Y `${MYBIN}gethead $inpfile NAXIS2`  # equivalent to CCDYIMSI
+    setenv PIXSC  `${MYBIN}gethead $inpfile CCDSCALE`
+
+    setenv TRUE_SIZE_X  9.0    # arcmin
+    setenv TRUE_SIZE_Y  9.0    # arcmin
+
+    echo "Retrieving USNOB file according to the following:"
+    echo "Center RA: $RA"
+    echo "Center DEC: $DE"
+    echo "X Size (minutes): $TRUE_SIZE_X"
+    echo "Y Size (minutes): $TRUE_SIZE_Y"
+    echo "........"
+
+    echo "USNOB local copy not available. Retrieve it from the net..."
+    echo "${MYBIN}/get_usnob_hhmmss.sh $RA $DE $TRUE_SIZE_X $TRUE_SIZE_Y"
+    ${MYBIN}/get_usnob_hhmmss.sh $RA $DE $TRUE_SIZE_X $TRUE_SIZE_Y
+    echo "${MYBIN}/tostartab_hhmmss.sh ${RASTR}${DESTR}.usnob >! ${RASTR}${DESTR}_usnob.starb"
+    ${MYBIN}/tostartab_hhmmss.sh ${RASTR}${DESTR}.usnob >! ${RASTR}${DESTR}_usnob.starb
+else
+    echo "USNO File already available"
+endif
+
+####### Start Cropping #######
+#
+if ( ! -s crop_${RASTR}${DESTR}.usnob ) then
+
+    echo "No cropped catalogue: start cropping USNOB file..."
+
+    setenv CROP_SIZE_X  5.0    # arcmin
+    setenv CROP_SIZE_Y  5.0    # arcmin
+
+    ${MYBIN}crop_usnob ${inpfile} ${RASTR}${DESTR}.usnob ${CROP_SIZE_X} crop_${RASTR}${DESTR}.usnob usnob_nominal.dat
+    setenv STATUS $status
+    if ( ${STATUS} ) then
+	echo "Cropping USNOB catalogue failed: use the entire catalogue"
+	cp -f ${RASTR}${DESTR}.usnob ${CROP_SIZE_X} crop_${RASTR}${DESTR}.usnob
+    else
+	echo "USNOB catalogue cropped."
+    endif
+    ${MYBIN}/tostartab_hhmmss.sh crop_${RASTR}${DESTR}.usnob >! crop_${RASTR}${DESTR}_usnob.starb
+else
+    echo "Cropped USNOB catalogue already available."
+endif
+####### End Cropping #######
+
+setenv N_STARS_CAT `awk '/^[0-9]/' crop_${RASTR}${DESTR}_usnob.starb|wc -l|awk '{print $1}'`
+
+echo "RA               : $RA"
+echo "DEC              : $DE"
+echo "Extracted sources        N_STARS      : $N_STARS"
+echo "Used for Astrometric fit N_STARS_TAKEN: $N_STARS_TAKEN"
+echo "Catalogue sources number N_STARS_CAT  : $N_STARS_CAT"
+
+## NOTE BY CRG (28/11/04): TO BE DEFINED with AM what "much greater" MEANS!
+### CONDITION: number of sources must not be "much greater" than number of catalogue stars
+if ($N_STARS_CAT < $N_STARS_TAKEN) then
+    echo "Unexpectedly high number of sources vs. number of catalogue stars."
+    exit 1
+endif
+
+###Below: Determination of Galactic attenuation and gal coords (AM 22/11/2004)
+##
+echo "${MYBIN}skycoor -g -n 6 $RA $DE J2000"
+setenv MWAY `${MYBIN}skycoor_LT -g -n 6 $RA $DE J2000`
+echo "${MYBIN}dust_getval_LT $MWAY ipath=$MYBIN"
+
+setenv ATTNV `${MYBIN}dust_getval_LT $MWAY ipath=$MYBIN`
+
+setenv ATTNV `echo "5k $ATTNV 3.08 * 3k 1/ p" | dc`
+echo "# Field details: l,b galactic A_V(mag) N_STARS(extracted by USNO)" >! ${TMP_DIR}/${inpfile:r:t}.ext
+echo "$MWAY   $ATTNV   $N_STARS_CAT" >> ${TMP_DIR}/${inpfile:r:t}.ext
+
+
+########### ASTROMETRIC FIT: begin ###########
+
+if ( ! ${ASFIT_STATUS} ) then
+    setenv ROTSKYPA `${MYBIN}gethead $inpfile ROTSKYPA`
+    echo "ROTSKYPA: $ROTSKYPA"
+
+    # Change sign to ROTSKYPA: needed to feed WCS tool imwcs
+    setenv ROTSKYPA `echo "$ROTSKYPA"|awk '{print -$1}'`
+    
+    echo "Performing Astrometric Fit..."
+
+    #   Keep stdout and stderr of imwcs_LT separate: (mod. CRG, 11/11/04)
+    echo "(${MYBIN}imwcs_LT -n -12578 -c crop_${RASTR}${DESTR}_usnob.starb -s 2.0 -p ${PIXSCALE} -a ${ROTSKYPA} -vwd ${TMP_DIR}/${inpfile:r:t}_wcs.cat -t 20 -q ir -o ${TMP_DIR}/${inpfile:r:t}_temp.fits $inpfile >! ${TMP_DIR}/${inpfile:r:t}.wcsfit) >& ${TMP_DIR}/${inpfile:r:t}.errwcsfit"
+    
+    (${MYBIN}imwcs_LT -n -12578 -c crop_${RASTR}${DESTR}_usnob.starb -s 2.0 -p ${PIXSCALE} -a ${ROTSKYPA} -vwd ${TMP_DIR}/${inpfile:r:t}_wcs.cat -t 20 -q ir -o ${TMP_DIR}/${inpfile:r:t}_temp.fits $inpfile >! ${TMP_DIR}/${inpfile:r:t}.wcsfit) >& ${TMP_DIR}/${inpfile:r:t}.errwcsfit
+else
+    echo "Too few sources: no astrometric fit is going to be attempted"
+endif
+
+########### ASTROMETRIC FIT: end   ###########
+
+#    setenv fittedfile ${inpfile}.wcs
+setenv fittedfile ${output_fits_filename}
+setenv cat_ass_file ${inpfile:r:t}.ass
+setenv cat_ot_file  ${inpfile:r:t}.ot
+
+########### Sanity checks on the results of the Astrometric Fit ###########
+
+
+# Check the existence of the output file ${TMP_DIR}/${inpfile:r:t}_temp.fits
+if ( ! -s ${TMP_DIR}/${inpfile:r:t}_temp.fits ) then
+    if ( ! ${ASFIT_STATUS} ) then
+	echo 'Astrometric fit failed: no output file written'
+	setenv ASFIT_STATUS "1"
+    endif
+else
+    ###Below: Check full compliance with WCS and write other WCS keywords
+    ##
+    setenv CTYPE1 `${MYBIN}gethead ${TMP_DIR}/${inpfile:r:t}_temp.fits CTYPE1`
+    if($CTYPE1 != 'RA---TAN') then
+	echo "Fitted Image: non-gnomonic Projection: CTYPE1= $CTYPE1"
+	setenv ASFIT_STATUS "1"
+    endif
+
+    if ( ${ASFIT_STATUS} == 0 ) then
+	setenv CRVAL2 `${MYBIN}gethead ${TMP_DIR}/${inpfile:r:t}_temp.fits CRVAL2`
+	setenv I_CRVAL2 `echo "$CRVAL2 / 1"|bc`    # INTEGER PART ONLY (otherwise, use 'bc -l')
+    
+	if( $I_CRVAL2 < 90) then
+	    setenv LONPOLE '180.0'
+	else if($I_CRVAL2 == 90) then
+	    setenv LONPOLE '0.0'
+	else
+	    echo "Fitted Image: unacceptable value for CRVAL2: $CRVAL2"
+	    setenv ASFIT_STATUS "1"
+	endif
+    endif
+
+    if ( ${ASFIT_STATUS} == 0 ) then
+	setenv PV2_1 '0.0'  # Native longitude of the fiducial point
+	setenv PV2_2 '90.0' # Native latitude  of the fiducial point
+	setenv PV2_3 `echo $LONPOLE` # Native longitude of the celestial pole
+	setenv PV2_4 `echo $CRVAL2`  # Native latitude of the celestial pole
+
+	# Add some WCS keywords
+	test -f listkeys.tmp && rm -f listkeys.tmp
+	echo "CUNIT1='deg'" > listkeys.tmp
+	echo "CUNIT2='deg'" >> listkeys.tmp
+	#echo "PV2_1=$PV2_1 / Native longitude of fiducial point" >> listkeys.tmp
+	#echo "PV2_2=$PV2_2 / Native latitude of fiducial point" >> listkeys.tmp
+	#echo "PV2_3=$PV2_3 / Native longitude of celestial pole" >> listkeys.tmp
+	#echo "PV2_4=$PV2_4 / Native latitude of celestial pole" >> listkeys.tmp
+	echo "LONPOLE=$LONPOLE / Native longitude of celestial pole" >> listkeys.tmp
+	setenv MJDOBS `${MYBIN}gethead -u ${TMP_DIR}/${inpfile:r:t}_temp.fits MJD`
+	if ( ${MJDOBS} != '___' ) then
+	    echo "MJD-OBS=$MJDOBS / Start time in Modified Julian Days" >> listkeys.tmp
+	else
+	    echo "MJD undefined"
+	endif
+	${MYBIN}sethead ${TMP_DIR}/${inpfile:r:t}_temp.fits @listkeys.tmp
+	cat listkeys.tmp ; rm -f listkeys.tmp
+
+
+	###Below:  Further Sanity checks on the WCS
+	##
+	setenv NMATCH `awk '/nmatch=/ {nmatch=$3}; END {print nmatch}' ${TMP_DIR}/${inpfile:r:t}.wcsfit`
+	setenv NSTARS `awk '/nmatch=/ {nstars=$5}; END {print nstars}' ${TMP_DIR}/${inpfile:r:t}.wcsfit`
+	echo "Matched  $NMATCH out of  $NSTARS  stars"
+
+	setenv MATCHFRAC `echo "$NMATCH * 100 / $NSTARS" | bc`
+	echo "Fitted Image: Matched fraction = $MATCHFRAC"
+	#Conditions to be satisfied for rejecting the fit AM
+	setenv THR_FRACTION 50
+	if(($MATCHFRAC < ${THR_FRACTION}) || ($NMATCH < $MIN_N_STARS)) then
+	    echo "Fitted Image: less than ${THR_FRACTION}% of reference stars matched or less than ${MIN_N_STARS}"
+	    setenv ASFIT_STATUS "1"
+	endif
+    endif
+
+    # Make sure PIXSCALE is defined in the fitted image
+    if ( ${ASFIT_STATUS} == 0 ) then
+	setenv PIXSCALE `${MYBIN}gethead -u PIXSCALE ${TMP_DIR}/${inpfile:r:t}_temp.fits`
+	if ( $PIXSCALE == '___' ) then 
+	    echo "Fitted Image: pixscale not known"
+	    setenv ASFIT_STATUS "1"
+	endif 
+    endif
+
+    # Make sure scale change is not greater than 1.0 %
+    # Previous versione was correct only for rotation angles= 0,90,180,270!
+    # Now the check is robust!
+    if ( ${ASFIT_STATUS} == 0 ) then
+	setenv CD1_1 `${MYBIN}gethead ${TMP_DIR}/${inpfile:r:t}_temp.fits CD1_1`
+	setenv CD1_1 `echo "$CD1_1 * 3600" | bc -l`
+	setenv CD1_2 `${MYBIN}gethead ${TMP_DIR}/${inpfile:r:t}_temp.fits CD1_2`
+	setenv CD1_2 `echo "$CD1_2 * 3600" | bc -l`
+	setenv CD2_1 `${MYBIN}gethead ${TMP_DIR}/${inpfile:r:t}_temp.fits CD2_1`
+	setenv CD2_1 `echo "$CD2_1 * 3600" | bc -l`
+	setenv CD2_2 `${MYBIN}gethead ${TMP_DIR}/${inpfile:r:t}_temp.fits CD2_2`
+	setenv CD2_2 `echo "$CD2_2 * 3600" | bc -l`
+	echo "PIXSCALE:  $PIXSCALE"
+	echo "CD1_1   CD1_2:  $CD1_1  $CD1_2"
+	echo "CD2_1   CD2_2:  $CD2_1  $CD2_2"
+	setenv SCALECHANGE_1 `echo "(sqrt( $CD1_1 ^ 2 + $CD2_1 ^ 2 ) - $PIXSCALE ) / $PIXSCALE * 1000"| bc -l|sed 's/\..*//g'`
+	setenv SCALECHANGE_2 `echo "(sqrt( $CD1_2 ^ 2 + $CD2_2 ^ 2 ) - $PIXSCALE ) / $PIXSCALE * 1000"| bc -l|sed 's/\..*//g'`
+	echo "Fitted Image: Scalechange 1: $SCALECHANGE_1 (0.1%)  Scalechange 2: $SCALECHANGE_2 (0.1%)"
+	if(($SCALECHANGE_1 >= 10) || ($SCALECHANGE_2 >= 10)) then 
+	    echo 'Fitted Image: CD matrix suggests plate scale changed by more than 1.0%. Bad.'
+	    setenv ASFIT_STATUS "1"
+	endif
+    endif
+ 
+    # Rename ${TMP_DIR}/${inpfile:r:t}_temp.fits to fittedfile variable
+    mv ${TMP_DIR}/${inpfile:r:t}_temp.fits ${fittedfile}
+
+    if ( ${ASFIT_STATUS} == 0 ) then
+	###Below: Convert the SExtractor X,Y to RA,dec for OT search
+	##
+	echo "Starting X,Y -> ra,dec Pipe: $inpfile"
+	setenv MAGERR_BEST_FIELD `awk '($3=="MAGERR_BEST") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv MAGERR_BEST_FIELD `echo $MAGERR_BEST_FIELD | awk '{print $1-1}'`
+	if ( ${MAGERR_BEST_FIELD} < 0 ) then
+	    echo 'SEX output: MAGERR_BEST not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv MAGERR_BEST_FIELD `echo $MAGERR_BEST_FIELD | awk '{print $1+1}'`
+	echo "SEX output: MAGERR_BEST_FIELD: $MAGERR_BEST_FIELD"
+
+	setenv FLUX_ISOCOR_FIELD `awk '($3=="FLUX_ISOCOR") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv FLUX_ISOCOR_FIELD `echo $FLUX_ISOCOR_FIELD | awk '{print $1-1}'`
+	if ( ${FLUX_ISOCOR_FIELD} < 0 ) then
+	    echo 'SEX output: FLUX_ISOCOR not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv FLUX_ISOCOR_FIELD `echo $FLUX_ISOCOR_FIELD | awk '{print $1+1}'`
+	echo "SEX output: FLUX_ISOCOR_FIELD: $FLUX_ISOCOR_FIELD"
+
+	setenv FLUXERR_ISOCOR_FIELD `awk '($3=="FLUXERR_ISOCOR") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv FLUXERR_ISOCOR_FIELD `echo $FLUXERR_ISOCOR_FIELD | awk '{print $1-1}'`
+	if ( ${FLUXERR_ISOCOR_FIELD} < 0 ) then
+	    echo 'SEX output: FLUXERR_ISOCOR not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv FLUXERR_ISOCOR_FIELD `echo $FLUXERR_ISOCOR_FIELD | awk '{print $1+1}'`
+	echo "SEX output: FLUXERR_ISOCOR_FIELD: $FLUXERR_ISOCOR_FIELD"
+
+	setenv BACKGROUND_FIELD `awk '($3=="BACKGROUND") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv BACKGROUND_FIELD `echo $BACKGROUND_FIELD | awk '{print $1-1}'`
+	if ( ${BACKGROUND_FIELD} < 0 ) then
+	    echo 'SEX output: BACKGROUND not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv BACKGROUND_FIELD `echo $BACKGROUND_FIELD | awk '{print $1+1}'`
+	echo "SEX output: BACKGROUND_FIELD: $BACKGROUND_FIELD"
+
+	setenv ELONGATION_FIELD `awk '($3=="ELONGATION") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv ELONGATION_FIELD `echo $ELONGATION_FIELD | awk '{print $1-1}'`
+	if ( ${ELONGATION_FIELD} < 0 ) then
+	    echo 'SEX output: ELONGATION not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv ELONGATION_FIELD `echo $ELONGATION_FIELD | awk '{print $1+1}'`
+	echo "SEX output: ELONGATION_FIELD: $ELONGATION_FIELD"
+
+	setenv THETA_IMAGE_FIELD `awk '($3=="THETA_IMAGE") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv THETA_IMAGE_FIELD `echo $THETA_IMAGE_FIELD | awk '{print $1-1}'`
+	if ( ${THETA_IMAGE_FIELD} < 0 ) then
+	    echo 'SEX output: THETA_IMAGE not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv THETA_IMAGE_FIELD `echo $THETA_IMAGE_FIELD | awk '{print $1+1}'`
+	echo "SEX output: THETA_IMAGE_FIELD: $THETA_IMAGE_FIELD"
+
+	setenv FWHM_IMAGE_FIELD `awk '($3=="FWHM_IMAGE") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv FWHM_IMAGE_FIELD `echo $FWHM_IMAGE_FIELD | awk '{print $1-1}'`
+	if ( ${FWHM_IMAGE_FIELD} < 0 ) then
+	    echo 'SEX output: FWHM_IMAGE not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv FWHM_IMAGE_FIELD `echo $FWHM_IMAGE_FIELD | awk '{print $1+1}'`
+	echo "SEX output: FWHM_IMAGE_FIELD: $FWHM_IMAGE_FIELD"
+
+	setenv FLAGS_FIELD `awk '($3=="FLAGS") {print $2}' ${TMP_DIR}/${inpfile:r:t}_image.cat`
+	setenv FLAGS_FIELD `echo $FLAGS_FIELD | awk '{print $1-1}'`
+	if ( ${FLAGS_FIELD} < 0 ) then
+	    echo 'SEX output: FLAGS not set in ${TMP_DIR}/${inpfile:r:t}_image.cat'
+	    exit 1
+	endif
+	setenv FLAGS_FIELD `echo $FLAGS_FIELD | awk '{print $1+1}'`
+	echo "SEX output: FLAGS_FIELD: $FLAGS_FIELD"
+
+
+	# Every field is now properly defined
+	# Store the required info into the following files (required by WCS tool xy2sky):
+	#
+	# 1. ${inpfile:r:t}.image.xy
+	# 2. ${inpfile:r:t}.image.det
+	#
+	/bin/awk '! /^#/ {printf "%s %s \n", $ENVIRON["X_IMAGE_FIELD"],$ENVIRON["Y_IMAGE_FIELD"]}' ${TMP_DIR}/${inpfile:r:t}_image.cat >! ${TMP_DIR}/${inpfile:r:t}.image.xy 
+	/bin/awk '! /^#/ {printf "%s %s \n", $ENVIRON["MAG_BEST_FIELD"],$ENVIRON["MAGERR_BEST_FIELD"]}' ${TMP_DIR}/${inpfile:r:t}_image.cat >! ${TMP_DIR}/${inpfile:r:t}.image.mag 
+	/bin/awk '! /^#/ {printf "%s %s %s %s %s %s %s\n",$ENVIRON["FLUX_ISOCOR_FIELD"],$ENVIRON["FLUXERR_ISOCOR_FIELD"],$ENVIRON["BACKGROUND_FIELD"],$ENVIRON["ELONGATION_FIELD"],$ENVIRON["THETA_IMAGE_FIELD"],$ENVIRON["FWHM_IMAGE_FIELD"],$ENVIRON["FLAGS_FIELD"]}' ${TMP_DIR}/${inpfile:r:t}_image.cat >! ${TMP_DIR}/${inpfile:r:t}.image.det
+
+	setenv MAG_LEN `wc ${TMP_DIR}/${inpfile:r:t}.image.mag | awk '{print $1}'`
+
+	# Transform X,Y to SKY coordinates for all the sources detected (WCS tool xy2sky)
+	${MYBIN}xy2sky ${fittedfile} @${TMP_DIR}/${inpfile:r:t}.image.xy >! ${TMP_DIR}/${inpfile:r:t}.image.radec
+
+	setenv RADEC_LEN  `wc ${TMP_DIR}/${inpfile:r:t}.image.radec | awk '{print $1}'`
+
+	# Make sure that the number of sources does not change
+	if($MAG_LEN != $RADEC_LEN) then
+	    echo "Number of positions does not match number of magnitudes."
+	    setenv ASFIT_STATUS "1"
+	endif
+    endif
+
+    if ( ${ASFIT_STATUS} == 0 ) then
+	paste ${TMP_DIR}/${inpfile:r:t}.image.radec ${TMP_DIR}/${inpfile:r:t}.image.mag ${TMP_DIR}/${inpfile:r:t}.image.det >! ${TMP_DIR}/${inpfile:r:t}.image.temp
+	sort +5  -n ${TMP_DIR}/${inpfile:r:t}.image.temp >! ${TMP_DIR}/${inpfile:r:t}.image.rd               # sort by MAG
+	echo "Finished X,Y -> ra,dec Pipe: $inpfile"
+# example line in ${TMP_DIR}/${inpfile:r:t}.image.rd:
+# 17:55:52.650 -29:28:01.53 J2000  779.175  978.388 	12.2939 0.0003 	5.98009e+06 2151.81 718.002 1.056 -81.0 7.61 4
+# RAJ2000      DECJ2000            X        Y           MagvsUSNOB-R ?  Counts?
+	if( -e ${output_cluster_filename} ) then
+	    rm -f ${output_cluster_filename}
+	endif
+        echo "1  colours were created." > ${output_cluster_filename}
+	echo "R" >> ${output_cluster_filename}
+	echo "Magnitudes vs USNOB-1 R band." >> ${output_cluster_filename}
+	cat ${TMP_DIR}/${inpfile:r:t}.image.rd | /bin/awk -f ${script_base_directory}/rd_to_cluster.awk >> ${output_cluster_filename}
+    endif
+endif
+echo "astrometric_fit_pipeline ${input_fits_filename} ${output_fits_filename} ${output_cluster_filename} finished."
+#
+# $Id: astrometric_fit_pipeline,v 1.1 2005-05-24 15:36:07 cjm Exp $
+#
