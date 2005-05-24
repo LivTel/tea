@@ -1,7 +1,7 @@
 #!/bin/csh
 # astrometric_fit_pipeline <input FITS> <output FITS> <cluster file>
-# $Header: /space/home/eng/cjm/cvs/tea/scripts/astrometric_fit_pipeline,v 1.1 2005-05-24 15:36:07 cjm Exp $
-# Based on ~dev/bin/grb/astrometric_fit/GRB_pipe_astrometric.csh
+# $Header: /space/home/eng/cjm/cvs/tea/scripts/astrometric_fit_pipeline,v 1.2 2005-05-24 15:46:47 cjm Exp $
+# Based on ~dev/bin/grb/astrometric_fit/GRB_pipe_astrometric.csh v 0.9
 # Original version written by AM/CRG/AG/RJS
 if( $#argv != 3) then
 	echo "astrometric_fit_pipeline <input FITS> <output FITS> <cluster file>"
@@ -488,5 +488,5 @@ else
 endif
 echo "astrometric_fit_pipeline ${input_fits_filename} ${output_fits_filename} ${output_cluster_filename} finished."
 #
-# $Id: astrometric_fit_pipeline,v 1.1 2005-05-24 15:36:07 cjm Exp $
+# $Id: astrometric_fit_pipeline,v 1.2 2005-05-24 15:46:47 cjm Exp $
 #
