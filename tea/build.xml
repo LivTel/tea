@@ -60,7 +60,7 @@
     
     <!-- Deploy to JAR -->
     
-    <target name = "deploy" 
+    <target name = "jar" 
       depends = "compile"
       description = "Create class JAR">
       <echo message = "Creating deployment jar - Build#: ${BUILD}"/>
@@ -72,10 +72,21 @@
     <!-- Release for testing -->
 
     <target name  = "release"
-      description = "Release for testing"
-      depends     = "deploy">
+      description = "Release to target host"
+      depends     = "jar">
 
-      <echo message = "Generating release for testing"/>
+      <echo message = "Generate deployment for ${ant.project.name}"/>
+
+      <input
+        message="Please enter deployment target:"
+        validargs= "ftnproxy,ltproxy"
+        addproperty="scope"
+        defaultvalue="ltproxy"
+      />
+
+      <echo message = "Generating target release for ${scope}"/>
+
+        <delete verbose = "true" file = "/home/snf/tea_test.tar"/>
 
 	<mkdir dir = "${dist.dir}"/>
 	<mkdir dir = "${dist.dir}/javalib"/>
@@ -99,7 +110,9 @@
         </copy>     
 
         <copy todir="${dist.dir}/config">
-          <fileset dir="config"/>
+          <fileset dir="config">
+            <include name = "${scope}*.properties"/>
+          </fileset>
         </copy>
 
        <copy todir="${dist.dir}/elib">
@@ -118,7 +131,12 @@
 
       <echo message = "Generating documentation"/>
 
-      <javadoc destdir = "${javadoc.dir}" >  
+      <javadoc    windowtitle = "Telescope Embedded Agent"
+		  destdir = "${javadoc.dir}" 
+		  private = "true"
+		  author  = "true"
+		  version = "true"
+		  use     = "true">
 
 	<fileset dir="java/org/estar/tea">
              <include name = "*.java"/> 
@@ -135,7 +153,9 @@
 	      <include name = "*.jar"/> 
 	    </fileset>
 	</classpath>        
+
       </javadoc>
+
     </target>
 
 
