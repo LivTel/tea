@@ -40,7 +40,7 @@ public class UpdateHandler extends ControlThread implements Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: UpdateHandler.java,v 1.6 2005-05-23 16:10:00 cjm Exp $";
+	public final static String RCSID = "$Id: UpdateHandler.java,v 1.7 2005-05-25 11:15:44 cjm Exp $";
 	public static final String CLASS = "UpdateHandler";
 
 	/** Polling interval for pending queue.*/
@@ -132,13 +132,14 @@ public class UpdateHandler extends ControlThread implements Logging
 		pending   = new Vector();
 		processed = new Vector();
 
+		logger = LogManager.getLogger(this);
+
 		updateDoc = (RTMLDocument)baseDoc.deepClone();
 		pipelinePlugin = getPipelinePluginFromDoc();
 		pipelinePlugin.setTea(tea);
 		pipelinePlugin.initialise();
 		countExposures = 0;
 		elapsedTime = 0L;
-		logger = LogManager.getLogger(this);
 
 	}
 
@@ -557,6 +558,9 @@ public class UpdateHandler extends ControlThread implements Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2005/05/23 16:10:00  cjm
+// Added initial pipeline plugin implmentation.
+//
 // Revision 1.5  2005/05/19 12:55:56  cjm
 // Added FITS header handling methods.
 //
