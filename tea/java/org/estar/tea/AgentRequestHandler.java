@@ -107,8 +107,8 @@ public class AgentRequestHandler implements Logging
 	
 		double elev = targ.getAltitude();
 		double tran = targ.getTransitHeight();
-	
-		System.err.println("ARQ:INFO:Target at: "+targ.toString()+
+
+		logger.log(INFO, 1, CLASS, id,"executeScore","INFO:Target at: "+targ.toString()+
 				   "\n Elevation:   "+Position.toDegrees(elev,3)+
 				   "\n Transits at: "+Position.toDegrees(tran,3));
 	
@@ -194,7 +194,7 @@ public class AgentRequestHandler implements Logging
 	
 				// No Window => Default to 90% of interval.
 				if (tf == null) {
-					System.err.println("ARQ::Default window setting to 95% of Interval");
+					logger.log(INFO, 1, CLASS, id,"executeScore","Default window setting to 95% of Interval");
 					tf = new RTMLPeriodFormat();
 					tf.setSeconds(0.95*(double)period/1000.0);
 					scon.setTolerance(tf);	  
@@ -225,14 +225,14 @@ public class AgentRequestHandler implements Logging
 
 		// FG and MG need an EndDate, No StartDate => Now.
 		if (startDate == null) {
-			System.err.println("ARQ::Default start date setting to now");
+			logger.log(INFO, 1, CLASS, id,"executeScore","Default start date setting to now");
 			startDate = new Date(now);
 			sched.setStartDate(startDate);
 		}
 
 		// No End date => StartDate + 1 day (###this is MicroLens -specific).
 		if (endDate == null) {
-			System.err.println("ARQ::Default end date setting to Start + 1 day");
+			logger.log(INFO, 1, CLASS, id,"executeScore","Default end date setting to Start + 1 day");
 			endDate = new Date(startDate.getTime()+24*3600*1000L);
 			sched.setEndDate(endDate);
 		}
@@ -264,7 +264,7 @@ public class AgentRequestHandler implements Logging
 			TocClient client = new TocClient(when, tea.getTocsHost(), tea.getTocsPort());
 
 			setLock();	
-			System.err.println("ARQ:INFO:Sending WHEN request to TOCS");
+			logger.log(INFO, 1, CLASS, id,"executeScore","Sending WHEN request to TOCS");
 			client.run();
 			waitOnLock();
 	    
@@ -306,7 +306,7 @@ public class AgentRequestHandler implements Logging
 					//String instName = tea.getConfig().getProperty("camera.instrument", "Ratcam");
 		    
 					// Check valid filter and map to UL combo
-					System.err.println("Checking for: "+filterString);
+					logger.log(INFO, 1, CLASS, id,"executeScore","Checking for: "+filterString);
 					filter = tea.getFilterMap().
 						getProperty(filterString);
 
@@ -327,7 +327,7 @@ public class AgentRequestHandler implements Logging
 			// We should send a request to the OSS to test-schedule here.
 			if (tran < tea.getDomeLimit()) {     
 				// Never rises at site.
-				System.err.println("ARQ:INFO:Target NEVER RISES");
+				logger.log(INFO, 1, CLASS, id,"executeScore","Target NEVER RISES");
 				sendError(document, 
 					  "Target transit height: "+Position.toDegrees(tran,3)+
 					  " is below dome limit: "+Position.toDegrees(tea.getDomeLimit(),3)+
@@ -389,7 +389,7 @@ public class AgentRequestHandler implements Logging
 
 
 			// ### SCA mode and target visible and p5? so score.
-			System.err.println("ARQ:INFO:Target OK Score = "+(elev/tran));
+			logger.log(INFO, 1, CLASS, id,"executeScore","Target OK Score = "+(elev/tran));
 			//document.setScore(elev/tran);
 			document.setScore(2.0*tran/Math.PI);
 			sendDoc(document, "score");
@@ -508,7 +508,7 @@ public class AgentRequestHandler implements Logging
 					//String instName = tea.getConfig().getProperty("camera.instrument", "Ratcam");
 		    
 					// Check valid filter and map to UL combo
-					System.err.println("Checking for: "+filterString);
+					logger.log(INFO, 1, CLASS, id,"executeRequest","Checking for: "+filterString);
 					filter = tea.getFilterMap().
 						getProperty(filterString);
 
@@ -565,7 +565,7 @@ public class AgentRequestHandler implements Logging
 		    
 					// No Window => Default to 90% of interval.
 					if (tf == null) {
-						System.err.println("ARQ::Default window setting to 95% of Interval");
+						logger.log(INFO, 1, CLASS, id,"executeRequest","Default window setting to 95% of Interval");
 						tf = new RTMLPeriodFormat();
 						tf.setSeconds(0.95*(double)period/1000.0);
 						scon.setTolerance(tf);	  
@@ -595,14 +595,14 @@ public class AgentRequestHandler implements Logging
 	    
 			// FG and MG need an EndDate, No StartDate => Now.
 			if (startDate == null) {
-				System.err.println("ARQ::Default start date setting to now");
+				logger.log(INFO, 1, CLASS, id,"executeRequest","Default start date setting to now");
 				startDate = new Date(now);
 				sched.setStartDate(startDate);
 			}
 	    
 			// No End date => StartDate + 1 day (###this is MicroLens -specific).
 			if (endDate == null) {
-				System.err.println("ARQ::Default end date setting to Start + 1 day");
+				logger.log(INFO, 1, CLASS, id,"executeRequest","Default end date setting to Start + 1 day");
 				endDate = new Date(startDate.getTime()+24*3600*1000L);
 				sched.setEndDate(endDate);
 			}
@@ -646,7 +646,7 @@ public class AgentRequestHandler implements Logging
 				source.setEpoch(2000.0f);
 				source.setEquinoxLetter('J');
 		
-				System.err.println("ARQ::Creating source: "+source);
+				logger.log(INFO, 1, CLASS, id,"executeRequest","Creating source: "+source);
 		
 				ADD_SOURCE addsource = new ADD_SOURCE("Agent:"+tea.getId()+":"+requestId);
 				addsource.setProposalPath(new Path(proposalPathName));
@@ -665,10 +665,10 @@ public class AgentRequestHandler implements Logging
 				waitOnLock();
 		
 				if (client.isError()) {	
-					System.err.println("ARQ::Reply was: "+client.getReply());
+					logger.log(INFO, 1, CLASS, id,"executeRequest","Reply was: "+client.getReply());
 					if (client.getReply() != null &&
 					    client.getReply().getErrorNum() == ADD_SOURCE.SOURCE_ALREADY_DEFINED) {
-						System.err.println("ARQ::Will be using existing target: "+targetId);
+						logger.log(INFO, 1, CLASS, id,"executeRequest","Will be using existing target: "+targetId);
 					} else {
 						sendError(document, "Internal error during ADD_SOURCE: "+client.getErrorMessage());
 						return;
@@ -795,7 +795,7 @@ public class AgentRequestHandler implements Logging
 	 
 		} catch (Exception ex) {
 	    
-			logger.log(INFO, 1, CLASS, id, "exec", "ARQ:Error occurred: "+ex);   	
+			logger.log(INFO, 1, CLASS, id, "exec", "Error occurred: "+ex);   	
 			logger.dumpStack(1,ex);
 		}
 	
@@ -805,18 +805,18 @@ public class AgentRequestHandler implements Logging
 	/** Waits on a Thread lock.*/
 	private void waitOnLock() {
     	
-		System.err.println("ARQ: Waiting in lock");
+		logger.log(INFO, 1, CLASS, id,"waitOnLock","Waiting in lock");
 		try {
 			lock.waitUntilTrue(0L);
 		} catch (InterruptedException ix) {
-			System.err.println("Interrupted waiting on lock");
+			logger.log(INFO, 1, CLASS, id,"waitOnLock","Interrupted waiting on lock");
 		}
-		System.err.println("ARQ: Lock is free");
+		logger.log(INFO, 1, CLASS, id,"waitOnLock","Lock is free");
 	}
     
 	/** Frees the Thread lock.*/
 	private void freeLock() {
-		System.err.println("ARQ: Releasing lock");
+		logger.log(INFO, 1, CLASS, id,"freeLock"," Releasing lock");
 		lock.setValue(true);
 	}
         
@@ -844,7 +844,7 @@ public class AgentRequestHandler implements Logging
     	
 		io.messageWrite(handle, reply);     
     	
-		System.err.println("ARQ:Sent error message: "+errorMessage);
+		logger.log(INFO, 1, CLASS, id,"sendError","Sent error message: "+errorMessage);
     	
 		io.clientClose(handle);
     	
@@ -865,7 +865,7 @@ public class AgentRequestHandler implements Logging
 
 		io.messageWrite(handle, reply);     
     	
-		System.err.println("ARQ::Sent doc type: "+type);
+		logger.log(INFO, 1, CLASS, id,"sendDoc","Sent doc type: "+type);
     	
 		io.clientClose(handle);
     	
@@ -953,14 +953,14 @@ public class AgentRequestHandler implements Logging
 					new JMSMA_ProtocolClientImpl(this, 
 								     new SocketConnection(tea.getOssHost(), tea.getOssPort()));
 			}
-			System.err.println("ARQ::CMD Client::Connecting to "+tea.getOssHost()+":"+tea.getOssPort());
-			System.err.println("ARQ::CMD Client::Sending ["+command.getClass().getName()+"]");
+		        logger.log(INFO, 1, CLASS, id,"send","CMD Client::Connecting to "+tea.getOssHost()+":"+tea.getOssPort());
+			logger.log(INFO, 1, CLASS, id,"send","CMD Client::Sending ["+command.getClass().getName()+"]");
 			protocol.implement();
 	    
 		}		
 	
 		public void handleAck  (ACK ack) {
-			System.err.println("ARQ::CMD Client::Ack received");
+			logger.log(INFO, 1, CLASS, id,"handleAck","CMD Client::Ack received");
 		}
 	
 		public void handleDone (COMMAND_DONE response) {
@@ -1067,21 +1067,21 @@ public class AgentRequestHandler implements Logging
 		public void run() {
 	    
 			try {
-				System.err.println("ARQ:INFO:TOC Client::Connecting to "+host+":"+port);
+				logger.log(INFO, 1, CLASS, id,"run","TOC Client::Connecting to "+host+":"+port);
 				tc = new TelnetConnection(host, port);
 		
 				try {
 					tc.open();
-					System.err.println("ARQ::TOC Client::Opened connection");
+					logger.log(INFO, 1, CLASS, id,"run","TOC Client::Opened connection");
 				} catch (Exception e) {
 					setError(true, "Failed to open connection to TOCS: "+e);
 					return;
 				}
 				tc.sendLine(command);
-				System.err.println("ARQ::TOC Client::Sent ["+command+"]");
+				logger.log(INFO, 1, CLASS, id,"run","TOC Client::Sent ["+command+"]");
 				try {
 					reply = tc.readLine();
-					System.err.println("ARQ::TOC Client::Reply ["+reply+"]");
+					logger.log(INFO, 1, CLASS, id,"run","TOC Client::Reply ["+reply+"]");
 					if (reply == null ||
 					    reply.equals("")) {
 						setError(true, "Null reply from TOCS");
@@ -1104,14 +1104,14 @@ public class AgentRequestHandler implements Logging
 				setError(true, "Failed to read TOCS response: "+e);
 				return;		
 			} finally {
-				System.err.println("ARQ::TOC Client::Closing connection");
+				logger.log(INFO, 1, CLASS, id,"run","TOC Client::Closing connection");
 				try {
 					tc.close();
 				} catch (Exception e) {
 					// We dont really care..
-					e.printStackTrace();
+					logger.dumpStack(1,e);
 				}
-				System.err.println("ARQ::TOC Client::Freeing lock");
+				logger.log(INFO, 1, CLASS, id,"run","TOC Client::Freeing lock");
 				freeLock();
 			}
 		}
