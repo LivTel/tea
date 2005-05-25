@@ -167,7 +167,7 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 				{
 					logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 						   "TELH::Failed to create UH for: "+oid);
-					e.printStackTrace();
+					logger.dumpStack(1,e);
 					// send telemetry reply to RCS
 					done.setSuccessful(true);	
 					sendDone(done);
