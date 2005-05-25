@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.5 2005-05-25 10:25:27 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.6 2005-05-25 11:09:08 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
 
@@ -341,7 +341,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 				     "Setup SSL Image Transfer client:"+
 				     "Image TransferRelay: "+relayHost+" : "+relayPort);
 		} catch (Exception e) {
-			e.printStackTrace();
+			traceLog.dumpStack(1,e);
 			sslClient = null;
 		}
 	
@@ -368,7 +368,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		} catch (Exception e) {
 			traceLog.log(INFO, 1, CLASS, id, "init",
 				     "Failed to load current documents from persistence store: "+e);
-			e.printStackTrace();
+			traceLog.dumpStack(1,e);
 		}
 
 		telemetryServer.start();	
@@ -1153,8 +1153,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 		catch(Exception e)
 		{
-			System.err.println("main:Error reading properties file: "+e);
-			e.printStackTrace(System.err);
+			tea.traceLog.log(INFO, 1, CLASS, tea.id, "main","Error reading properties file: "+e);
+			tea.traceLog.dumpStack(1,e);
 		}
 
 		if (filterMapFileName != null) {
@@ -1162,7 +1162,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			try {
 				tea.configureFilters(file);
 			} catch (IOException iox) {
-				System.err.println("main:Error reading filter combo map: "+iox);	
+				tea.traceLog.log(INFO, 1, CLASS, tea.id, "main","Error reading filter combo map: "+iox);
+				tea.traceLog.dumpStack(1,iox);
 			}
 		}
 
@@ -1171,7 +1172,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		try {
 			tea.start();
 		} catch (Exception e) {
-			e.printStackTrace();
+			tea.traceLog.dumpStack(1,e);
 		} finally {	    
 			tea.shutdown();
 		}
