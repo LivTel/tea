@@ -1,0 +1,21 @@
+#!/bin/csh
+
+if (${#argv} < 1) then
+    echo "Usage: telescope_agent <model> "
+    echo "   model: the args to use"
+    exit 1
+endif
+
+set model = $1
+source ${model}_setup
+
+set ASTRO = "-Dastrometry.impl=ngat.astrometry.TestCalculator"
+set EGD   = "-Djava.security.egd=file:/dev/urandom"
+set DEBUG = "-Djavax.net.debug=all"
+
+# set http proxy for RTMLParser DTD fetch
+#set HTTP_PROXY = "-Dhttp.proxyHost=wwwcache.livjm.ac.uk -Dhttp.proxyPort=8080"
+set HTTP_PROXY = ""
+
+java $ASTRO $EGD $HTTP_PROXY org.estar.tea.TelescopeEmbeddedAgent ${model} ../config/tea.properties
+
