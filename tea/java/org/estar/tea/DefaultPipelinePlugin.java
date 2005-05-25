@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.2 2005-05-25 15:12:13 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.3 2005-05-25 15:55:16 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.2 2005-05-25 15:12:13 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.3 2005-05-25 15:55:16 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -147,6 +147,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	{
 		RTMLImageData imageData = null;
 		String inputLeafName = null;
+		String s = null;
 		String clusterLeafName = null;
 		File outputFile = null;
 		File outputClusterFile = null;
@@ -155,7 +156,10 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 			   ":processFile("+inputFile+") started.");
 		// construct output FITS filename in outputDirectory
 		inputLeafName = inputFile.getName();
-		outputFile = new File(outputDirectory,inputLeafName);
+		s = stripExtension(inputLeafName);
+		if(s.endsWith("_1"))
+			s = s.substring(0,s.length()-2);
+		outputFile = new File(outputDirectory,s+"_2"+".fits");
 		// construct output cluster file
 		clusterLeafName = stripExtension(inputLeafName);
 		clusterLeafName = clusterLeafName+".cluster";
@@ -336,6 +340,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2005/05/25 15:12:13  cjm
+// Moved output/error string logging so it's logged even if the script fails.
+//
 // Revision 1.1  2005/05/23 16:00:15  cjm
 // Initial revision
 //
