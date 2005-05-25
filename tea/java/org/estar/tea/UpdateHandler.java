@@ -25,10 +25,8 @@ import ngat.message.GUI_RCS.*;
 import ngat.message.OSS.*;
 
 /** 
- * Handles updates from the RCS. 
+ * Handles observation updates from the RCS. 
  *
- * The method: setUseDocument(RTMLDocument) tells the UH which base document to use.
- * 
  * When the thread is started it will keep looking in its pending list for any
  * new image file names. If any, these should be pulled across and stored in the
  * processing directory. They should then be pipelined and the data extracted and 
@@ -40,7 +38,7 @@ public class UpdateHandler extends ControlThread implements Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: UpdateHandler.java,v 1.7 2005-05-25 11:15:44 cjm Exp $";
+	public final static String RCSID = "$Id: UpdateHandler.java,v 1.8 2005-05-25 14:26:56 snf Exp $";
 	public static final String CLASS = "UpdateHandler";
 
 	/** Polling interval for pending queue.*/
@@ -295,15 +293,14 @@ public class UpdateHandler extends ControlThread implements Logging
 				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask","UH::Processing image filename "+
 					   imageFileName+" for "+observationId+".");
 		
-				// Generate the correct destination file name.
-				//diddly String destDirName = tea.getImageDir();
+				// Generate the correct destination file name.			
 				String destDirName = null;
 				try
 				{
-					destDirName = pipelinePlugin.getInputDirectory();
+				    destDirName = pipelinePlugin.getInputDirectory();
 				}
 				catch(Exception e)
-				{
+				    {
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::Getting input directory failed for pipeline plugin "
 						   +pipelinePlugin+":"+e);
@@ -338,103 +335,112 @@ public class UpdateHandler extends ControlThread implements Logging
 		
 				// pipeline process
 				try
-				{
+				    {
 					imageData = pipelinePlugin.processFile(destFile);
-				}
+				    }
 				catch(Exception e)
-				{
+				    {
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::pipelinePlugin.processFile "+
 						   destFile+" failed:"+e);
 					logger.dumpStack(1,e);
 					return;
-				}
-
+				    }
+				
 				// Add processed data to basedoc
 				RTMLObservation obs = baseDoc.getObservation(0);
 				if (obs != null)
-				{
+				    {
 					try
-					{
+					    {
 						obs.addImageData(imageData);
-					} 
+					    } 
 					catch (Exception e)
-					{
+					    {
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 							   "UH::addImageData "+
-							   imageData+" failed:"+e);
+						       imageData+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
-					}
-				}
+					    }
+				    }
 				// save the base document
 				try
-				{
+				    {
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::Saving document for "+observationId+".");
 					tea.saveDocument(baseDoc);
-				} 
+				    } 
 				catch (Exception e)
-				{
+				    {
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::saveDocument for "+observationId+" failed:"+e);
 					logger.dumpStack(1,e);
 					return;
-				}
-				// Add processed data to updatedoc
+				    }
+
+
+				// Add processed data to updatedoc. 
+				// Note we re-use the same UpdateDoc that got cloned from the BaseDoc 
+				// at the start - we need to clear out any added image data each time we re-use it.
 				obs = updateDoc.getObservation(0);
 				if (obs != null)
-				{
+				    {
 					try
-					{
-						// clear image data except for one just transferred
+					    {
+						// clear any left-over image data. 
 						obs.clearImageDataList();
-						// add reduced image data
+						// add just-received reduced image data.
 						obs.addImageData(imageData);
-					} 
+					    } 
 					catch (Exception e)
-					{
+					    {
 						logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 							   "UH::addImageData for "+observationId+" "+
 							   imageData+" failed:"+e);
 						logger.dumpStack(1,e);
 						return;
-					}
-				}
-		
+					    }
+				    }
+				
 				// Now try to send the update to the UA.
 				// this is a mess - need global comms method like
 				// tea.sendDoc(doc); This may need to go in athread
 				// as it may block for a while if the connection is blocked
 				try
-				{
+				    {
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::Sending update document for "+observationId+".");
 					AgentRequestHandler arq = new AgentRequestHandler(tea);
 					arq.sendDocUpdate(updateDoc, "update");
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::Sent update document for "+observationId+".");
-				} 
+				    } 
 				catch (Exception e)
-				{
+				    {
 					logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 						   "UH::sendDocUpdate failed for "+observationId+":"+e);
 					logger.dumpStack(1,e);
 					return;
-				}
+				    }
+
 				// add to list of processed filenames
 				processed.add(imageFileName);
-			} // while not empty
+
+			} // while pending list not empty
+
 		} // test (state)
+
+
 		// Finally quit
 		if (state == OBS_DONE)
-		{
+		    {
 			logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
 				   "UH::state is now OBS_DONE:terminating for "+observationId+".");
 			terminate();
 			return;
-		}
-
+		    }
+		
 		elapsedTime = System.currentTimeMillis() - startTime;
 
 		// Quit if weve overrun horribly
@@ -453,85 +459,97 @@ public class UpdateHandler extends ControlThread implements Logging
 	}
 
 	/** Called at end-of-run.*/
-	protected void shutdown()
-	{
-		int multrunExposureCount = 0;
-		// if no series constraint present, default to 1 set of multruns (flexibly scheduled)
-		int seriesConstraintCount = 1;
-		int imageDataCount = 0;
+	protected void shutdown() {
 
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-				   "UH::Shutdown for this handler for "+observationId+".");
-		// if we have completed the number of observations requested by the UA,
-		// send a complete.
-		// This should only fire on the last UpdateHandler created for a particular MonitorGroup
-		// if <SeriesConstraint><Count> accurately reflects (end date - start_date) / period.
-		// If a MonitorGroup, we expect <SeriesConstraint><Count>* <Exposure><Count> frames, if a MonitorGroup.
-		// If a FlexibleGroup, we expect <Exposure><Count> frames. 
-		RTMLObservation observation = baseDoc.getObservation(0);
-		if(observation != null)
-		{
-			RTMLSchedule schedule = observation.getSchedule();
-			if(schedule != null)
-			{
-				multrunExposureCount = schedule.getExposureCount();
-				RTMLSeriesConstraint seriesConstraint = schedule.getSeriesConstraint();
-				if(seriesConstraint != null)
-				{
-					seriesConstraintCount = seriesConstraint.getCount();
-					// Note should really check :
-					// (schedule.getEndDate() - schedule.getStartDate())/
-					// seriesConstraint.getInterval() 
-					// does not give a number less than seriesConstraintCount, in which
-					// case it is unlikely seriesConstraintCount monitor period will occur before 
-					// the document expires,
-					// or it does not give a number greater than seriesConstraintCount,
-					// in which case we may provide more data than the UA has asked for.
-				}
-			}
-			imageDataCount = observation.getImageDataCount();
+	    int multrunExposureCount = 0;
+
+	    // if no series constraint present, default to 1 set of multruns (flexibly scheduled)
+	    int seriesConstraintCount = 1;
+	    int imageDataCount = 0;
+	    
+	    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		       "UH::Shutdown for this handler for "+observationId+".");
+	    
+	    // if we have completed the number of observations requested by the UA,
+	    // send a complete.
+	    // This should only fire on the last UpdateHandler created for a particular MonitorGroup
+	    // if <SeriesConstraint><Count> accurately reflects (end date - start_date) / period.
+	    // If a MonitorGroup, we expect <SeriesConstraint><Count>* <Exposure><Count> frames, if a MonitorGroup.
+	    // If a FlexibleGroup, we expect <Exposure><Count> frames. 
+	    RTMLObservation observation = baseDoc.getObservation(0);
+	    
+	    if(observation != null) {
+		
+		RTMLSchedule schedule = observation.getSchedule();
+		
+		if(schedule != null) {
+		
+		    multrunExposureCount = schedule.getExposureCount();
+		    RTMLSeriesConstraint seriesConstraint = schedule.getSeriesConstraint();
+	
+		    if(seriesConstraint != null) {
+			
+			seriesConstraintCount = seriesConstraint.getCount();
+			// Note should really check :
+			// (schedule.getEndDate() - schedule.getStartDate())/
+			// seriesConstraint.getInterval() 
+			// does not give a number less than seriesConstraintCount, in which
+			// case it is unlikely seriesConstraintCount monitor period will occur before 
+			// the document expires,
+			// or it does not give a number greater than seriesConstraintCount,
+			// in which case we may provide more data than the UA has asked for.
+		    }
 		}
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-			   "UH::Testing whether image data count "+imageDataCount+
-			   " is greater than expected number of images "+
-			   (multrunExposureCount*seriesConstraintCount)+" for "+observationId+".");
-		if(imageDataCount >= (multrunExposureCount*seriesConstraintCount))
-		{
-			// we have done at least as many frames as the UA expects
-			try
-			{
-				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-					   "UH::Sending observation complete document for "+observationId+".");
-				// send "observation" type document to complete
-				AgentRequestHandler arq = new AgentRequestHandler(tea);
-				arq.sendDocUpdate(baseDoc, "observation");
-				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-					   "UH::Saving observation complete document for "+observationId+".");
-				// save document
-				tea.saveDocument(baseDoc);
-				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-					   "UH::Deleting observation complete document for "+observationId+
-					   " (to expired directory).");
-				// move document to expired dir
-				// delete document from memory
-				tea.deleteDocument(baseDoc);
-			} 
-			catch (Exception e)
-			{
-				logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-					   "UH::sendDocUpdate failed:"+e);
-				logger.dumpStack(1,e);
-				return;
-			}
+
+		imageDataCount = observation.getImageDataCount();
+
+	    }
+
+	    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		       "UH::Testing whether image data count "+imageDataCount+
+		       " is greater than expected number of images "+
+		       (multrunExposureCount*seriesConstraintCount)+" for "+observationId+".");
+
+	    if(imageDataCount >= (multrunExposureCount*seriesConstraintCount)) {
+		
+		// we have done at least as many frames as the UA expects
+		try {
+		    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+			       "UH::Sending observation complete document for "+observationId+".");
+		    // send "observation" type document to complete
+		    AgentRequestHandler arq = new AgentRequestHandler(tea);
+		    arq.sendDocUpdate(baseDoc, "observation");
+
+		    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+			       "UH::Saving observation complete document for "+observationId+".");
+
+		    // save document - pass the filename aswell
+		    tea.saveDocument(baseDoc); //, file)
+
+		    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+			       "UH::Deleting observation complete document for "+observationId+
+			       " (to expired directory).");
+		    // move document to expired dir
+		    // delete document from memory
+		    tea.deleteDocument(baseDoc);
+		} 
+		catch (Exception e) {
+		    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+			       "UH::sendDocUpdate failed:"+e);
+		    logger.dumpStack(1,e);
+		    return;
 		}
-		// Always pull this UH off the tea.agentMap as its defunct now
-		// #####slightly worrying - the agmap only matches against an obs path
-		// this will be the same if another instantiation of the group
-		// appears before weve done with this one ....aaargh!
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-			   "UH::Deleting update handler for "+observationId+".");
-		tea.deleteUpdateHandler(observationId);
-	}
+	    }
+
+	    // Always pull this UH off the tea.agentMap as its defunct now
+	    // #####slightly worrying - the agmap only matches against an obs path
+	    // this will be the same if another instantiation of the group
+	    // appears before weve done with this one ....aaargh!
+	    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		       "UH::Deleting update handler for "+observationId+".");
+	    tea.deleteUpdateHandler(observationId);
+
+	} // [shutdown]
 
 	/**
 	 * Tries to pull an image file off the OCC and stick it in the appropriate directory.
@@ -549,15 +567,19 @@ public class UpdateHandler extends ControlThread implements Logging
 		if (client == null) 
 			throw new Exception("The transfer client is not available");
 
-		logger.log(INFO, 1, CLASS, tea.getId(),"transfer","UH::Requesting image file: "+
-			   imageFileName+" -> "+destFileName);
-
+		logger.log(INFO, 1, CLASS, tea.getId(),"transfer",
+			   "UH::Requesting image file: "+imageFileName+" -> "+destFileName);
+		
 		client.request(imageFileName, destFileName);
 
 	}
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2005/05/25 11:15:44  cjm
+// Now create logger before calling getPipelinePluginFromDoc in connstrcutor,
+// as getPipelinePluginFromDoc uses logger.
+//
 // Revision 1.6  2005/05/23 16:10:00  cjm
 // Added initial pipeline plugin implmentation.
 //
