@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.1 2005-05-23 16:00:15 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.2 2005-05-25 15:12:13 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.1 2005-05-23 16:00:15 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.2 2005-05-25 15:12:13 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -207,6 +207,12 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		executeCommand = new ExecuteCommand("");
 		executeCommand.setCommandString(scriptFilename+" "+inputFile+" "+outputFile+" "+outputClusterFile);
 		executeCommand.run();
+		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
+			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") produced output:\n"+
+			   executeCommand.getOutputString());
+		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
+			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") produced error string:\n"+
+			   executeCommand.getErrorString());
 		e = executeCommand.getException();
 		if(e != null)
 		{
@@ -225,12 +231,6 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 			      ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") returned exit value "+
 					    exitValue+".");
 		}
-		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") produced output:\n"+
-			   executeCommand.getOutputString());
-		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") produced error string:\n"+
-			   executeCommand.getErrorString());
 		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
 			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") finished.");
 	}
@@ -336,4 +336,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2005/05/23 16:00:15  cjm
+// Initial revision
+//
 //
