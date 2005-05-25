@@ -27,6 +27,10 @@ import ngat.message.OSS.*;
  */
 public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Logging
 {
+	/**
+	 * Revision control system version id.
+	 */
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.5 2005-05-25 10:25:27 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
 
@@ -101,6 +105,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public static final long DEFAULT_EXPIRATOR_OFFSET_TIME    = 1800*1000L;
 
 	public static final int GROUP_PRIORITY = 5;
+
+	/**
+	 * The default filename for the tea properties file.
+	 */
+	public static final String DEFAULT_PROPERTIES_FILENAME   = "../config/tea.properties";
 
 	/** Default maximum observation time (mult*expose) (ms).*/
 	public static final long DEFAULT_MAX_OBS_TIME = 7200;
@@ -217,6 +226,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 */
 	protected long expiratorSleepMs = DEFAULT_EXPIRATOR_POLLING_TIME;
 
+	/**
+	 * Properties loaded from the tea properties file.
+	 */
+	protected NGATProperties properties = null;
 
 	/** Counts connections from UA(s).*/
 	protected int connectionCount;
@@ -275,6 +288,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		logger.setLogLevel(ALL);
 		logger.addHandler(console);
 		logger = LogManager.getLogger("org.estar.tea.AgentRequestHandler");
+		logger.setLogLevel(ALL);
+		logger.addHandler(console);
+		logger = LogManager.getLogger("org.estar.tea.DefaultPipelinePlugin");
 		logger.setLogLevel(ALL);
 		logger.addHandler(console);
 
@@ -508,6 +524,20 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/** Sets the SSL transfer bandwidth (kbyte/s).*/
 	public void setTransferBandwidth(int b) { transferBandwidth = b; }
 
+	/**
+	 * Set the tea properties.
+	 * @param filename A tea property filename.
+	 * @see #properties
+	 * @exception FileNotFoundException Thrown if the file doesn't exist. 
+	 * @exception IOException Thrown if the load failed.
+	 */
+	public void setProperties(String filename) throws java.io.FileNotFoundException,
+                 java.io.IOException
+	{
+		properties = new NGATProperties();
+		properties.load(filename);
+	}
+
 	/** Returns the Id for this TEA.*/
 	public String getId() { return id; }
 
@@ -563,6 +593,94 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public Map getRequestMap() { return requestMap; }
 
 	public long getMaxObservingTime() { return maxObservingTime; }
+
+	/**
+	 * Get an string value using the specified key from the loaded tea properties.
+	 * @param key The key.
+	 * @return The key's value in the properties.
+	 * @see #properties
+	 * @exception NullPointerException Thrown if the properties are null.
+	 */
+	public String getPropertyString(String key) throws NullPointerException
+	{
+		if(properties == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPropertiesString:properties were null.");
+		}
+		return properties.getProperty(key);
+	}
+
+	/**
+	 * Get an integer value using the specified key from the loaded tea properties.
+	 * @param key The key.
+	 * @return The key's value in the properties.
+	 * @see #properties
+	 * @exception NullPointerException Thrown if the properties are null.
+	 * @exception NGATPropertyException Thrown if the get failed.
+	 */
+	public int getPropertyInteger(String key) throws NullPointerException, NGATPropertyException
+	{
+		if(properties == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPropertiesInteger:properties were null.");
+		}
+		return properties.getInt(key);
+	}
+
+	/**
+	 * Get an double value using the specified key from the loaded tea properties.
+	 * @param key The key.
+	 * @return The key's value in the properties.
+	 * @see #properties
+	 * @exception NullPointerException Thrown if the properties are null.
+	 * @exception NGATPropertyException Thrown if the get failed.
+	 */
+	public double getPropertyDouble(String key) throws NullPointerException, NGATPropertyException
+	{
+		if(properties == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPropertiesDouble:properties were null.");
+		}
+		return properties.getDouble(key);
+	}
+
+	/**
+	 * Get an boolean value using the specified key from the loaded tea properties.
+	 * @param key The key.
+	 * @return The key's value in the properties.
+	 * @see #properties
+	 * @exception NullPointerException Thrown if the properties are null.
+	 */
+	public boolean getPropertyBoolean(String key) throws NullPointerException
+	{
+		if(properties == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPropertiesBoolean:properties were null.");
+		}
+		return properties.getBoolean(key);
+	}
+
+	/**
+	 * Get an class value using the specified key from the loaded tea properties.
+	 * @param key The key.
+	 * @return The key's value in the properties.
+	 * @see #properties
+	 * @exception NullPointerException Thrown if the properties are null.
+	 * @exception NGATPropertyException Thrown if the get failed.
+	 */
+	public Class getPropertyClass(String key) throws NullPointerException, NGATPropertyException
+	{
+		if(properties == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":getPropertiesClass:properties were null.");
+		}
+		return properties.getClass(key);
+	}
 
 	/** Handles estar communications.*/
 	public eSTARIO getEstarIo() { return io; }   
@@ -739,8 +857,13 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 	}
 
-	/** Read a document from a file.
+	/**
+	 * Read a document from a file.
 	 * @param file The file to load from.
+	 * @return A Java object structure, representing the document parsed.
+	 * @exception Exception Thrown if the parsing failed.
+	 * @see org.estar.rtml.RTMLDocument
+	 * @see org.estar.rtml.RTMLParser
 	 */
 	public RTMLDocument readDocument(File file) throws Exception {
 
@@ -989,6 +1112,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 								     DEFAULT_EXPIRED_DOCUMENT_DIR);
 		long expiratorSleepMs = config.getLongValue("expirator-sleep", DEFAULT_EXPIRATOR_POLLING_TIME);
 
+		String propertiesFilename = config.getProperty("properties",DEFAULT_PROPERTIES_FILENAME);
+
 		TelescopeEmbeddedAgent tea = new TelescopeEmbeddedAgent(id);
 	
 		tea.setDnPort(dnPort);
@@ -1022,12 +1147,22 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		tea.setExpiredDocumentDirectory(expiredDocumentDirectory);
 		tea.setExpiratorSleepMs(expiratorSleepMs);
 
+		try
+		{
+			tea.setProperties(propertiesFilename);
+		}
+		catch(Exception e)
+		{
+			System.err.println("main:Error reading properties file: "+e);
+			e.printStackTrace(System.err);
+		}
+
 		if (filterMapFileName != null) {
 			File file = new File(filterMapFileName);
 			try {
 				tea.configureFilters(file);
 			} catch (IOException iox) {
-				System.err.println("Error reading filter combo map: "+iox);	
+				System.err.println("main:Error reading filter combo map: "+iox);	
 			}
 		}
 
