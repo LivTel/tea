@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.7 2005-05-25 13:16:46 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.8 2005-05-25 14:27:56 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -540,8 +540,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      * @exception FileNotFoundException Thrown if the file doesn't exist. 
      * @exception IOException Thrown if the load failed.
      */
-    public void setPluginProperties(String filename) throws java.io.FileNotFoundException,
-						      java.io.IOException
+    public void configurePluginProperties(String filename) throws java.io.FileNotFoundException,
+								java.io.IOException
     {
 	pluginProperties = new NGATProperties();
 	pluginProperties.load(filename);
@@ -923,17 +923,17 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    }
     }
 
-    /** Creates a filename for the supplied key.*/
+    /** Creates a new unique filename - the key is not used.*/
     private String createFileName(String key) {
 	return "doc-"+System.currentTimeMillis()+".rtml";
     }
 
     
     /** 
-     * Gets the GroupID from the RTMLDocument supplied.
+     * Gets the ObservationID from the RTMLDocument supplied.
      * @param doc The RTMLDocument.
-     * @return A string unique to a document (group).
-     * @exception Exception Thrown if the document's contact/project,intelligent agent is null.
+     * @return A string unique to a document (observation).
+     * @exception Exception Thrown if any of the document's contact/project/intelligent agent/obs/target are null.
      * @see #getDBRootName
      */
     public String createKeyFromDoc(RTMLDocument doc) throws Exception {
@@ -979,9 +979,12 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 	return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId+"/"+targetIdent;
 	
-    }
+    } // [createKeyFromDoc(RTMLDocument doc)]
     
-    /** Configure the filter combos from a file - ### this is camera only for now..*/
+    /** Load the filter combos from a file.
+     * ### This is camera only for now..
+     * ### Should be replaced with a configured ngat.instrument.Instrument
+     */
     protected void configureFilters(File file) throws IOException {
 	
 	FileInputStream fin = new FileInputStream(file);
@@ -1136,19 +1139,19 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 		String tocsServiceId = config.getProperty("service", DEFAULT_TOCS_SERVICE_ID);
 
-		String rkf = config.getProperty("ssl.keyfile", DEFAULT_SSL_KEY_FILE_NAME);
+		String rkf   = config.getProperty("ssl.keyfile", DEFAULT_SSL_KEY_FILE_NAME);
 		File relayKeyFile = new File(rkf);
 
-		String rtf = config.getProperty("ssl.trustfile", DEFAULT_SSL_TRUST_FILE_NAME);
+		String rtf   = config.getProperty("ssl.trustfile", DEFAULT_SSL_TRUST_FILE_NAME);
 		File relayTrustFile = new File(rtf);
 
-		String rpass = config.getProperty("ssl.pass", DEFAULT_SSL_KEY_FILE_PASSWORD);
+		String rpass = config.getProperty("ssl.pass",   DEFAULT_SSL_KEY_FILE_PASSWORD);
 
-		int band = config.getIntValue("bandwidth", DEFAULT_SSL_FILE_XFER_BANDWIDTH);
+		int    band  = config.getIntValue("bandwidth",  DEFAULT_SSL_FILE_XFER_BANDWIDTH);
 
 		String rhost = config.getProperty("relay.host", DEFAULT_RELAY_HOST);
 
-		int rport = config.getIntValue("relay.port", DEFAULT_RELAY_PORT);
+		int    rport = config.getIntValue("relay.port", DEFAULT_RELAY_PORT);
 
 		String documentDirectory        = config.getProperty("document.dir", DEFAULT_DOCUMENT_DIR);
 		String expiredDocumentDirectory = config.getProperty("expired.document.dir",
@@ -1188,8 +1191,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		setExpiredDocumentDirectory(expiredDocumentDirectory);
 		setExpiratorSleepMs(expiratorSleepMs);
 		
-		setPluginProperties(pluginPropertiesFilename);
-	
+		configurePluginProperties(pluginPropertiesFilename);
+		
 		if (filterMapFileName != null) {
 		    File file = new File(filterMapFileName);		    
 		    configureFilters(file);		    
@@ -1201,17 +1204,19 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
     } // [Configure(ConfigProperties)]
     
+    /** Prints a message and usage instructions.*/
     private static void usage(String message) {
 	System.err.println("TEA initialization: "+message);
-	System.err.println("Usage: java -Djava.security.egd=<entropy-gathering-url> -Dastrometry.impl=<astrometry-class> org.estar.tea.TelescopeEmbeddedAgent [id] [config-file]");
+	System.err.println("Usage: java -Djava.security.egd=<entropy-gathering-url> -Dastrometry.impl=<astrometry-class> \\"+
+			   "\n          org.estar.tea.TelescopeEmbeddedAgent <id> <config-file> "); 
 	
     }
-
-    /** Returns ref to the TEAConnectionFactory.
+    
+    /** Returns a reference to the TEAConnectionFactory.
      * Valid conection IDs are:-
      *
      * <dl>
-     *  <dt>OSS<dd>OSS: For ongoing DB entries and corrections.
+     *  <dt>OSS<dd>OSS Transaction Server: For ongoing DB entries and corrections.
      *  <dt>CTRL<dd>RCS Control Server: For status comands.
      *  <dt>TOCS<dd>RCS TOC Server: For TO control.
      * </dl>
@@ -1227,6 +1232,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    } else if
 		(connId.equals("OSS")) {
 		return new SocketConnection(ossHost, ossPort);
+	    } else if
+		(connId.equals("TOCS")) {
+		return new SocketConnection(tocsHost, tocsPort);
 	    } else
 		throw new UnknownResourceException("Not known: "+connId);
 	}
@@ -1234,3 +1242,5 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     }
     
 }
+
+/** $Log: not supported by cvs2svn $ */
