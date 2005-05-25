@@ -147,7 +147,7 @@ public class TelemetryRequestor extends ControlThread implements Logging
 		{
 	    
 			logger.log(INFO,1,CLASS,tea.getId(),"failed"+command.getId()+"TELEMETRY:CAMP Error: "+e);  
-			e.printStackTrace();
+			logger.dumpStack(1,e);
 			if (connection != null)
 				connection.close();	
 			connection = null;  
