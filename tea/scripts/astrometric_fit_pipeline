@@ -1,6 +1,6 @@
 #!/bin/csh
 # astrometric_fit_pipeline <input FITS> <output FITS> <cluster file>
-# $Header: /space/home/eng/cjm/cvs/tea/scripts/astrometric_fit_pipeline,v 1.2 2005-05-24 15:46:47 cjm Exp $
+# $Header: /space/home/eng/cjm/cvs/tea/scripts/astrometric_fit_pipeline,v 1.3 2005-05-26 16:39:09 cjm Exp $
 # Based on ~dev/bin/grb/astrometric_fit/GRB_pipe_astrometric.csh v 0.9
 # Original version written by AM/CRG/AG/RJS
 if( $#argv != 3) then
@@ -27,6 +27,15 @@ if ( ! ${?MYBIN} ) then
 	setenv MYBIN "/home/dev/Dpol/dpol/CURRENT_VERSION_GRBPIPELINE/bin/"
     endif
 endif
+# MYBIN also needs to be in the PATH, as some scripts do not use MYBIN i.e. get_usnob_hhmmss.sh
+setenv PATH "/bin:"${PATH}
+foreach directory ( "/usr/bin" "${MYBIN}" ) 
+    echo $PATH | /bin/grep -q $directory
+    if ( $status != 0 ) then
+	setenv PATH ${directory}":"${PATH}
+    endif
+end
+echo "PATH : ${PATH}"
 set script_base_directory = `dirname $0`
 
 # TABLE OF POSSIBLE RETURNS OF THIS SCRIPT
@@ -488,5 +497,5 @@ else
 endif
 echo "astrometric_fit_pipeline ${input_fits_filename} ${output_fits_filename} ${output_cluster_filename} finished."
 #
-# $Id: astrometric_fit_pipeline,v 1.2 2005-05-24 15:46:47 cjm Exp $
+# $Id: astrometric_fit_pipeline,v 1.3 2005-05-26 16:39:09 cjm Exp $
 #
