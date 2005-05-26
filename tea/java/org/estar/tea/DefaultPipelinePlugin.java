@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.3 2005-05-25 15:55:16 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.4 2005-05-26 11:01:43 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.3 2005-05-25 15:55:16 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.4 2005-05-26 11:01:43 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -105,20 +105,26 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	{
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() started.");
+		// inputDirectory
 		inputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
 						       ".input_directory");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: input directory: "+inputDirectory+".");
+		// outputDirectory
 		outputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
 							".output_directory");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: output directory: "+outputDirectory+".");
+		// scriptFilename
 		scriptFilename = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
 						       ".script_filename");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: script filename: "+scriptFilename+".");
+		// urlBase - ensure terminated with '/'
 		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
 						       ".http_base");
+		if(urlBase.endsWith("/") == false)
+			urlBase = urlBase.append("/");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: URL base: "+urlBase+".");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
@@ -340,6 +346,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2005/05/25 15:55:16  cjm
+// Changed output filename leaf name.
+//
 // Revision 1.2  2005/05/25 15:12:13  cjm
 // Moved output/error string logging so it's logged even if the script fails.
 //
