@@ -847,7 +847,7 @@ public class AgentRequestHandler implements Logging {
     /** Start the UpdateHandler if its not already running.
      * @throws Exception If the UH does not exist or is already running.
      */
-    public void startUpdateHandler() {
+    public void startUpdateHandler() throws Exception {
 	if (updateHandler == null)
 	    throw new NullPointerException("UpdateHandler thread does not exist");
 	
