@@ -25,17 +25,23 @@ import ngat.message.GUI_RCS.*;
 import ngat.message.OSS.*;
 
 
-/** Handles an observation request to the OSS.*/
+/** Handles an observation request. Target, Group and Observation objects are sent to the
+ * OSS. The AgentRequestHandler (ARQ) is registered with the TEA and it waits for updates
+ * from the RCS as the observations are performed.
+ */
 public class AgentRequestHandler implements Logging {
 
     /** Class name for logging.*/
     public static final String CLASS = "AgentRequestHadler";
 
-    /** Rwference to the TEA.*/
+    /** Reference to the TEA.*/
     private TelescopeEmbeddedAgent tea;
 
-    /** The base requrest document.*/
-    private RTMLDocument document;
+    /** The base request document.*/
+    private RTMLDocument baseDocument;
+
+    /** Where we store the base document persistantly.*/ 
+    private File file;
 
     /** EstarIO for responses.*/
     private eSTARIO io; 
@@ -43,14 +49,17 @@ public class AgentRequestHandler implements Logging {
     /** GLobusIO handle for responses.*/
     private GlobusIOHandle handle;
 
+    /** Handles TelemetryUpdates from RCS.*/
+    private UpdateHandler updateHandler;
+
     /** Lock for synchronization - used by JMSCommandClient. */
     private volatile BooleanLock lock  = new BooleanLock(true);
 
-    /** The filter in use.*/
-    private String filter;
-
     /** The ARQ's ident - do we need this?.*/
     private String id = "ARQ";
+
+    /** The observationID.*/
+    private String oid;
   
     /**
      * The logger.
@@ -58,27 +67,42 @@ public class AgentRequestHandler implements Logging {
     protected Logger logger = null;
     
     /**
-     * Create a RequestHandler. Create a logger.
+     * Create an AgentRequestHandler. This constructor is used to create ARQs on
+     * startup by the TEA during loadDocuments.
      * @param tea The TEA instance.
+     * @param baseDocument The base request document.
      */
-    AgentRequestHandler(TelescopeEmbeddedAgent tea) {
-	this.tea    = tea;
-	
-	io = tea.getEstarIo();
-	
-	logger   = LogManager.getLogger(this);
+    AgentRequestHandler(TelescopeEmbeddedAgent tea, RTMLDocument baseDocument) {
+	this(tea);
+	this.baseDocument = baseDocument;
 	
     }
 
-    /** Called to handle an incoming score document. ####TBD - make static
+    /** Create an AgentRequestHandler linked to TEA. This constructor is generally used 
+     * to create a temporary ARQ for executing <i>score</i> or <i>request</i> RTML requests.
+     * ### This should dissappear later..
+     */
+    public AgentRequestHandler(TelescopeEmbeddedAgent tea) {
+	this.tea = tea;
+        io = tea.getEstarIo();
+
+        logger   = LogManager.getLogger(this);
+
+    }
+
+    /** Set the baseDocument.*/
+    public void setBaseDocument(RTMLDocument doc) { this.baseDocument = doc; }
+
+    /** Set the file to persist the base document to.*/
+    public void setDocumentFile(File file) { this.file = file; }
+
+    /** Called to handle an incoming score document. 
      * Attempts to score the request via the OSS Phase2 DB.
      * @param document The RTML request document.
      * @param handle   Handle for the return connection.
      */
-    public void executeScore(RTMLDocument document, GlobusIOHandle handle)
-    {
+    public void executeScore(RTMLDocument document, GlobusIOHandle handle) {
 	
-	this.document = document;     
 	this.handle   = handle;
 	
 	long now = System.currentTimeMillis();
@@ -134,33 +158,18 @@ public class AgentRequestHandler implements Logging {
 	//### may need to throw a wobbly if the units are not understood.
 	String expy = sched.getExposureType();
 	String expu = sched.getExposureUnits();
-	double expt = sched.getExposureLength();
-
-	if (expu.equals("s") ||
-	    expu.equals("sec") ||
-	    expu.equals("secs") ||
-	    expu.equals("second") ||
-	    expu.equals("seconds"))
-	    expt = expt*1.0;
-	else if
-	    (expu.equals("ms") ||
-	     expu.equals("msec") ||
-	     expu.equals("msecs") ||
-	     expu.equals("millisecond") ||
-	     expu.equals("milliseconds"))
-	    expt = expt/1000.0;
-	else if
-	    (expu.equals("min") ||
-	     expu.equals("mins"))
-	    expt = 60.0*expt;
-	else {
-	    sendError(document, "Did not understand time units: "+expu);
+	double expt = 0.0;
+	
+	try {
+	    expt = sched.getExposureLengthMilliseconds(); 
+	} catch (IllegalArgumentException iax) {
+	    sendError(document, "Unable to extract exposure time: "+iax);
 	    return;
 	}
 	
 	if (sched.isExposureTypeSNR()) {
 	    sendError(document, "Sorry, we cant handle SNR requests at the mo.");
-			return;
+	    return;
 	}
 
 	int expCount = sched.getExposureCount();
@@ -175,19 +184,13 @@ public class AgentRequestHandler implements Logging {
 	Date startDate = null;
 	Date endDate   = null;
 
-	// No SC supplied => FlexGroup.
+	// Check what type of group we are being asked for.
+
 	if (scon == null) {
-	    // Defaults are: 1 exposure with flexible timing.
-	    //  System.err.println("ARQ::Default for missing series constraints");
-	    // 	    try {
-	    // 		scon = new RTMLSeriesConstraint();	
-	    // 		scon.setCount(1);
-	    // 		sched.setSeriesConstraint(scon);
-	    // 	    } catch (Exception e) {
-	    // 		sendError(document, "Unable to set sensible Series Constraint: "+e);
-	    // 		return;
-	    // 	    }
+
+	    // No SC supplied => FlexGroup.
 	    count = 1;
+
 	} else {
 
 	    // SC supplied => MonitorGroup.
@@ -208,7 +211,8 @@ public class AgentRequestHandler implements Logging {
 		// -> small window = good periodicity, low hit count
 
 		if (tf == null) {
-		    logger.log(INFO, 1, CLASS, id,"executeScore","Default window setting to 95% of Interval");
+		    logger.log(INFO, 1, CLASS, id, "executeScore",
+			       "No tolerance supplied, Default window setting to 95% of Interval");
 		    tf = new RTMLPeriodFormat();
 		    tf.setSeconds(0.95*(double)period/1000.0);
 		    scon.setTolerance(tf);	  
@@ -239,31 +243,33 @@ public class AgentRequestHandler implements Logging {
 	
 	// FG and MG need an EndDate, No StartDate => Now.
 	if (startDate == null) {
-	    logger.log(INFO, 1, CLASS, id,"executeScore","Default start date setting to now");
+	    logger.log(INFO, 1, CLASS, id,"executeScore",
+		       "No start date suppled, Default start date setting to now");
 	    startDate = new Date(now);
 	    sched.setStartDate(startDate);
 	}
 	
 	// No End date => StartDate + 1 day (###this is MicroLens -specific).
 	if (endDate == null) {
-	    logger.log(INFO, 1, CLASS, id,"executeScore","Default end date setting to Start + 1 day");
+	    logger.log(INFO, 1, CLASS, id,"executeScore",
+		       "No end date supplied, Default end date setting to Start + 1 day");
 	    endDate = new Date(startDate.getTime()+24*3600*1000L);
 	    sched.setEndDate(endDate);
 	}
 	
 	// Basic and incomplete sanity checks.
 	if (startDate.after(endDate)) {
-	    sendError(document, "Your StartDate and EndDate do not make sense.");
+	    sendError(document, "StartDate and EndDate do not make sense.");
 	    return;	    
 	}
 	
-	if (expt < 1.0) {
-	    sendError(document, "Your Exposure time is too short.");
+	if (expt < 1000.0) {
+	    sendError(document, "Exposure time is too short - at LEAST one second.");
 	    return;
 	}
 	
 	if (expCount < 1) {
-	    sendError(document, "Your Exposure Count is less than 1.");
+	    sendError(document, "Exposure Count is less than 1.");
 	    return;
 	}
 	
@@ -321,7 +327,7 @@ public class AgentRequestHandler implements Logging {
 		    
 		    // Check valid filter and map to UL combo
 		    logger.log(INFO, 1, CLASS, id,"executeScore","Checking for: "+filterString);
-		    filter = tea.getFilterMap().
+		    String filter = tea.getFilterMap().
 			getProperty(filterString);
 		    
 		    if (filter == null) {			
@@ -403,7 +409,7 @@ public class AgentRequestHandler implements Logging {
 	    
 	    
 	    // ### SCA mode and target visible and p5? so score.
-	    logger.log(INFO, 1, CLASS, id,"executeScore","Target OK Score = "+(elev/tran));
+	    logger.log(INFO, 1, CLASS, id,"executeScore","Target OK Score = "+(2.0*tran/Math.PI));
 	    //document.setScore(elev/tran);
 	    document.setScore(2.0*tran/Math.PI);
 	    sendDoc(document, "score");
@@ -419,7 +425,6 @@ public class AgentRequestHandler implements Logging {
      */
     public void executeRequest(RTMLDocument document, GlobusIOHandle handle) {
 	
-	this.document = document;     
 	this.handle   = handle;
 	
 	long now = System.currentTimeMillis();
@@ -479,27 +484,12 @@ public class AgentRequestHandler implements Logging {
     	    
 	    String expy = sched.getExposureType();
 	    String expu = sched.getExposureUnits();
-	    double expt = sched.getExposureLength();
-	    
-	    if (expu.equals("s") ||
-		expu.equals("sec") ||
-		expu.equals("secs") ||
-		expu.equals("second") ||
-		expu.equals("seconds"))
-		expt = expt*1.0;
-	    else if
-		(expu.equals("ms") ||
-		 expu.equals("msec") ||
-		 expu.equals("msecs") ||
-		 expu.equals("millisecond") ||
-		 expu.equals("milliseconds"))
-		expt = expt/1000.0;
-	    else if
-		(expu.equals("min") ||
-		 expu.equals("mins"))
-		expt = 60.0*expt;
-	    else {
-		sendError(document, "Did not understand time units: "+expu);
+	    double expt = 0.0;
+
+	    try {
+		expt = sched.getExposureLengthMilliseconds();
+	    } catch (IllegalArgumentException iax) {
+		sendError(document, "Unable to extract exposure time: "+iax);
 		return;
 	    }
 	    
@@ -507,7 +497,8 @@ public class AgentRequestHandler implements Logging {
 	    
 	    // Extract filter info.
 	    RTMLDevice dev = obs.getDevice();
-    	    
+    	    String filter = null;
+
 	    if (dev == null)
 		dev = document.getDevice();
 	    
@@ -549,23 +540,12 @@ public class AgentRequestHandler implements Logging {
 	    Date startDate = null;
 	    Date endDate   = null;
 	    
-	    // No SC supplied => FlexGroup.
 	    if (scon == null) {
-		// 	// Defaults are: 1 exposure with flexible timing.
-		// 		System.err.println("ARQ::Default for missing series constraints");
-		// 		try {
-		// 		    scon = new RTMLSeriesConstraint();	
-		// 		    scon.setCount(1);
-		// 		    sched.setSeriesConstraint(scon);
-		// 		} catch (Exception e) {
-		// 		    sendError(document, "Unable to set sensible Series Constraint: "+e);
-		// 		    return;
-		// 		}
+		// No SC supplied => FlexGroup.
 		count = 1;
 	    } else {
 		
-		// SC supplied => MonitorGroup.
-		
+		// SC supplied => MonitorGroup.		
 		count = scon.getCount();
 		RTMLPeriodFormat pf = scon.getInterval();
 		RTMLPeriodFormat tf = scon.getTolerance();
@@ -579,7 +559,8 @@ public class AgentRequestHandler implements Logging {
 		    
 		    // No Window => Default to 90% of interval.
 		    if (tf == null) {
-			logger.log(INFO, 1, CLASS, id,"executeRequest","Default window setting to 95% of Interval");
+			logger.log(INFO, 1, CLASS, id,"executeRequest",
+				   "No tolerance supplied, Default window setting to 95% of Interval");
 			tf = new RTMLPeriodFormat();
 			tf.setSeconds(0.95*(double)period/1000.0);
 			scon.setTolerance(tf);	  
@@ -627,7 +608,7 @@ public class AgentRequestHandler implements Logging {
 		return;	    
 	    }
 	    
-	    if (expt < 1.0) {
+	    if (expt < 1000.0) {
 		sendError(document, "Your Exposure time is too short.");
 		return;
 	    }
@@ -662,7 +643,7 @@ public class AgentRequestHandler implements Logging {
 		
 		logger.log(INFO, 1, CLASS, id,"executeRequest","Creating source: "+source);
 		
-		ADD_SOURCE addsource = new ADD_SOURCE("Agent:"+tea.getId()+":"+requestId);
+		ADD_SOURCE addsource = new ADD_SOURCE(tea.getId()+":"+requestId);
 		addsource.setProposalPath(new Path(proposalPathName));
 		addsource.setSource(source);
 		addsource.setReplace(false);
@@ -682,15 +663,21 @@ public class AgentRequestHandler implements Logging {
 		    logger.log(INFO, 1, CLASS, id,"executeRequest","Reply was: "+client.getReply());
 		    if (client.getReply() != null &&
 			client.getReply().getErrorNum() == ADD_SOURCE.SOURCE_ALREADY_DEFINED) {
-			logger.log(INFO, 1, CLASS, id,"executeRequest","Will be using existing target: "+targetId);
+			logger.log(INFO, 1, CLASS, id,"executeRequest",
+				   "Will be using existing target: "+targetId);
 		    } else {
 			sendError(document, "Internal error during ADD_SOURCE: "+client.getErrorMessage());
 			return;
 		    }
 		}
+
+		// ### INSERT ADD_INST_CONFIG code and INST_CFG_ALREADY_DEFINED here.
+		// ### TBD
+		// ### END OF ADD_INST_CFG code.
+
 		
 		// Create the group now.
-		// Try to sort out the group type - good luck...
+		// Try to sort out the group type.
 		
 		// ### USE 1 YEAR FOR NOW =- will come from Schedule constraint thingy
 		// or the proposal end date  which we dont know yet
@@ -729,7 +716,7 @@ public class AgentRequestHandler implements Logging {
 		    group.addObservation(observation);
 		    
 		} else {
-		    // A MonitorGroup, may the gods be with us !
+		    // A MonitorGroup.
 		    
 		    group = new MonitorGroup(requestId);
 		    group.setPath(proposalPathName);
@@ -776,7 +763,7 @@ public class AgentRequestHandler implements Logging {
 		Map tmap = new HashMap();
 		tmap.put(observation, "DEFAULT");
 		
-		ADD_GROUP addgroup = new ADD_GROUP("Agent:"+tea+":Req:"+requestId);
+		ADD_GROUP addgroup = new ADD_GROUP(tea.getId()+":"+requestId);
 		addgroup.setClientDescriptor(new ClientDescriptor("EmbeddedAgent",
 								  ClientDescriptor.ADMIN_CLIENT,
 								  ClientDescriptor.ADMIN_PRIORITY));
@@ -803,37 +790,38 @@ public class AgentRequestHandler implements Logging {
 	    }
 	    
 	    sendDoc(document, "confirmation");
-	    
+  
 	    // TEA will Save this for persistance.
-	    tea.addDocument(document);
+	    //tea.addDocument(document);
 
 
 	    // #### START OF NEW ARCH STUFF - commented out till ready to run
+	    
+	    // Extract the observation path - we already have it anyway.
+	    // observation needs to be declared global.- look at UH which defines on ObsInfo.
+	    oid = observation.getFullPath();
 
-// 	    // Get a unique file Name off the TEA.
-// 	    File file = tea.createNewFileName();
+ 	    // Get a unique file Name off the TEA.
+ 	    File file = new File(tea.createNewFileName(oid));
 
-// 	    // Its the one we will use.
-// 	    setDocumentFile(file);
+ 	    // Its the one we will use.
+ 	    setDocumentFile(file);
 
-// 	    // Set the current request as our basedoc.
-// 	    setBaseDoc(doc);
+ 	    // Set the current request as our basedoc.
+ 	    setBaseDocument(document);
 
-// 	    // Save it to our file - we could do this ourself..
-// 	    tea.saveDocument(doc, file);
+ 	    // Save it to our file - we could do this ourself..
+ 	    tea.saveDocument(document, file);
 
-// 	    // Extract the observation path - we already have it anyway.
-//          // observation needs to be declared global.- look at UH which defines on ObsInfo.
-// 	    oid = observation.getFullPath();
+ 	    // Register as handler for the current obs.
+ 	    tea.registerHandler(oid, this);
 
-// 	    // Register as handler for the current obs.
-// 	    tea.registerHandler(oid, this);
-
-// 	    // Initialize and start the UpdateHandler (which is this). 
-// 	    initializeUpdateHandler();
-// 	    start();
-
-
+ 	    // Initialize and start the UpdateHandler (which is this). 
+	    // these should not fail..but can throw exceptions if called more than once
+	    
+	    createUpdateHandler();
+	    startUpdateHandler();
+	    
 	    // ### END OF NEW ARCH STUFF
 	    
 	} catch (Exception ex) {
@@ -843,8 +831,34 @@ public class AgentRequestHandler implements Logging {
 	}
 	
     }
+
+    /** Returns a reference to the UpdateHandler thread.*/
+    public UpdateHandler getUpdateHandler() { return updateHandler; }
+
+    /** Create the UpdateHandler thread but dont start it.
+     * @throws Exception if the UpdateHandler fails to construct.
+     */
+    public void createUpdateHandler() throws Exception {
+	if (updateHandler != null)
+	    throw new Exception("Updatehandler already created");
+	updateHandler = new UpdateHandler(tea, baseDocument);
+    }
     
-    
+    /** Start the UpdateHandler if its not already running.
+     * @throws Exception If the UH does not exist or is already running.
+     */
+    public void startUpdateHandler() {
+	if (updateHandler == null)
+	    throw new NullPointerException("UpdateHandler thread does not exist");
+	
+	if (updateHandler.isAlive())
+	    throw new IllegalThreadStateException("UpdateHandler is already running");
+
+	updateHandler.start();
+
+    }
+
+
     /** Waits on a Thread lock.*/
     private void waitOnLock() {
     	
@@ -868,7 +882,7 @@ public class AgentRequestHandler implements Logging {
 	lock.setValue(false);
     }
 
-    public RTMLDocument getDocument() { return document; }
+    public RTMLDocument getBaseDocument() { return baseDocument; }
     
     /** Checks the instrument details.*/
     private void checkInstrument() {
