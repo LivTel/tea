@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.9 2005-05-27 09:35:20 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.10 2005-05-27 09:43:39 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -890,13 +890,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
 			 "Registered ARQ for: "+oid+" Using file: "+file.getPath());
 
+		arq.createUpdateHandler();
 		arq.startUpdateHandler();
 		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			     "Started ARQ: "+arq);
+			     "Started ARQ UpdateHandler thread: "+arq);
 		
 	    } catch (Exception e) {
 		traceLog.log(WARNING, 1, CLASS, id, "loadDocuments",
-			     "ObservationID could not be generated for: "+file.getPath()+" : "+e);
+			     "Error during loading for: "+file.getPath()+" : "+e);
+		traceLog.dumpStack(1, e);
 	    }
 	    
 	}
@@ -1283,6 +1285,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.9  2005/05/27 09:35:20  snf
+/** Started modification to attach an AgentRequestHandler to each request over its lifetime.
+/**
 /** Revision 1.8  2005/05/25 14:27:56  snf
 /** Changed handling of plugin properties to allow future porject-specific handling.
 /** */
