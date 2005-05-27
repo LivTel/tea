@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.8 2005-05-25 14:27:56 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.9 2005-05-27 09:35:20 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -176,11 +176,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     
     /** ConnectionFactory.*/
     protected ConnectionFactory connectionFactory;
-    
-    /** Base URL for image server - where generated images will be served from.*/
-    protected String imageWebUrl;
-    
-    /** Base dir where images are placed.*/
+        
+    /** Base dir where images are placed - ####project-specific.*/
     protected String imageDir;
     
     /** Handles estar communications.*/
@@ -208,7 +205,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** DB Root name.*/
     protected String dbRootName;
 
-    /** ### TOCS Service ID - should be a mapping from something in RTML doc to a SvcID.*/
+    /** ### TOCS Service ID - should be a mapping from something in RTML doc to a SvcID###project-specific.*/
     protected String tocsServiceId;
 
     /**
@@ -242,9 +239,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     protected Map requestMap;
     
     protected Map fileMap;
-    
+
+    /** Maps each request to the AgentRequestHandler (ARQ) which will handle its 
+     * <i>update</i> messages from the RCS and <i>abort</i> messages from UA.
+     * Mapping is from the generated ObservationID (oid) to the ARQ.
+     * @see #getOidFromDocument()
+     */    
     protected Map agentMap;
-    
+
+    /** Recieves Telemetry (updates) from the RCs when observations are performed.*/    
     protected TelemetryReceiver telemetryServer;
 
     /** Max observing time - ### this should be determined by the OSS via TEST_SCHEDULEImpl.*/
@@ -297,8 +300,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 	filterMap = new Properties();
 
-	requestMap = new HashMap();
-	fileMap    = new HashMap();
+	requestMap = new HashMap();//kill
+	fileMap    = new HashMap();//kill
 	agentMap   = new HashMap();
 	
 	connectionFactory = new TEAConnectionFactory();
@@ -393,8 +396,6 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		     "Started DocExpirator with polling interval: "+
 		     (expiratorSleepMs/1000)+" secs");
 	
-	traceLog.log(INFO, 1, CLASS, id, "init",
-		     "Starting eSTAR IO server.");
 	io.serverStart(dnPort, this);	
 	traceLog.log(INFO, 1, CLASS, id, "init",
 		     "Started eSTAR IO server.");
@@ -433,7 +434,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
     }
 
-    /** Sets the DN (incoming) port.*/
+    /** Sets the incoming request port ###dn is an old name.*/
     public void setDnPort(int p) { this.dnPort = p; }
     
     /** Sets the OSS port.*/
@@ -457,10 +458,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** Sets the RCS TOCS host address.*/
     public void setTocsHost(String h) { this.tocsHost = h; }
    
-    /** Sets the Telemetry port.*/
+    /** Sets the incoming Telemetry port.*/
     public void setTelemetryPort(int p) { this.telemetryPort = p; }
 
-    /** Sets the Telemetry  host address.*/
+    /** Sets the incoming Telemetry host address (this host as seen by RCS).*/
     public void setTelemetryHost(String h) { this.telemetryHost = h; }
 
     /** Sets the SSL Fileserver host address.*/
@@ -469,7 +470,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** Sets the SSL Fileserver port.*/
     public void setRelayPort(int p) { this.relayPort = p; }
     
-    /** Sets the Base dir where transferred images are placed.*/
+    /** Sets the Base dir where transferred images are placed. ###project-specific*/
     public void setImageDir(String d) { this.imageDir = d; }
     
     /** Sets the site latitude (rads).*/
@@ -484,7 +485,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** Sets the DB rootname.*/
     public void setDBRootName(String r) { this.dbRootName = r; }
     
-    /** Sets the TOCS Service ID.*/
+    /** Sets the TOCS Service ID.###project-specific*/
     public void setTocsServiceId(String s) { this.tocsServiceId = s; }
     
     /** Sets the Maximum allowable observation length (ms).*/
@@ -592,11 +593,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** Base dir where transferred images are placed.*/
     public String getImageDir() { return imageDir; }
 
+    /** Dome limit (rads).*/
     public double getDomeLimit() { return domeLimit; }
     
-    /**Base URL for web image server - where transferred images will be served from.*/
-    public String getImageWebUrl() { return imageWebUrl; }
-    
+    /** Returns a reference to the filter mapping. ###instrument-specific.*/
     public Properties getFilterMap() { return filterMap; }
     
     public Map getRequestMap() { return requestMap; }
@@ -710,26 +710,35 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     // Update mapping Mutators and Extractors.
     // ---------------------------------------------
     
-    /** Add an UH for obsid.*/
-    public void addUpdateHandler(String key, UpdateHandler uh) {
-	agentMap.put(key, uh);
+    /** Add an ARQ for observationID.
+     * @param oid The observationID.
+     * @param arq The ARQ for this oid.
+     */
+    public void registerHandler(String oid, AgentRequestHandler arq) {
+	agentMap.put(oid, arq);
     }
     
-    /** Find an UH for obsid.*/
-    public UpdateHandler getUpdateHandler(String key) {
-	if (agentMap.containsKey(key))
-	    return (UpdateHandler)agentMap.get(key);
+    /** Find an ARQ for observationID.
+     * @param oid The observationID.
+     * @return The ARQ for the specified observationID.
+     */
+    public AgentRequestHandler getUpdateHandler(String oid) {
+	if (agentMap.containsKey(oid))
+	    return (AgentRequestHandler)agentMap.get(oid);
 	return null;
     }
 
-    /** Remove the UH for obsid.*/
-    public void deleteUpdateHandler(String key) {
-	if (agentMap.containsKey(key))
-	    agentMap.remove(key);
+    /** Remove the ARQ for an observationID.
+     * If there is no ARQ registered then fails silently.
+     * @param oid The observationID.
+     */
+    public void deleteUpdateHandler(String oid) {
+	if (agentMap.containsKey(oid))
+	    agentMap.remove(oid);
     }
     
     // ---------------------------------------------
-    // Document Persistance Mutators and Extractors.
+    // Document Persistance Mutators and Extractors. ###deprecate
     // ---------------------------------------------
     
     /** Returns an Iterator over the set of document keys.*/
@@ -816,7 +825,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		fname = (String)(fileMap.get(key));
 	    }
 	else
-	    fname = createFileName(key);
+	    fname = createNewFileName(key);
 	traceLog.log(INFO, 1, CLASS, id, "saveDocument",
 		     "TEA::Document "+key+" has filename "+fname+".");
 	File docFile = new File(documentDirectory, fname);
@@ -832,14 +841,28 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		     "TEA::Saved document for path: "+key+" as file: "+docFile.getPath());	
     }
     
+    /** Save the RTMLDocument to the specified file.
+     * @param document The document to save.
+     * @param file Where to save it.
+     */
+    public void saveDocument(RTMLDocument document, File file) throws Exception {
+	FileOutputStream fos = new FileOutputStream(file);
+        RTMLCreate create = new RTMLCreate();
+        create.create(document);
+        create.toStream(fos);
+	fos.close();
+    }
+
     /** 
-     * Load all current rtml docs as at startup.
+     * Load all current rtml docs from the documentDirectory at startup.
+     * @throws Exception if any really dodgy stuff occurs. We trap basic file errors
+     * whenever possible and keep going. 
      * @see #documentDirectory
      */
-    public void loadDocuments() throws Exception
-    {
+    public void loadDocuments() throws Exception {
+
 	traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-		     "TEA::Started loadDocuments from "+documentDirectory+".");
+		     "TEA::Starting loadDocuments from "+documentDirectory+".");
 	File base = new File(documentDirectory);
 	File[] flist = base.listFiles();
 	for (int i = 0; i < flist.length; i++ ){
@@ -852,15 +875,29 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    RTMLDocument doc = readDocument(file);
 	    traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
 			 "Read document "+file.getPath());
-	    String key = createKeyFromDoc(doc);
-	    traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			 "Created key "+key);
 	    
-	    requestMap.put(key, doc);
-	    fileMap.put(key, fname);
+	    // If we fail to extract an oid, log but keep going.
+	    try {
+
+		String oid = createKeyFromDoc(doc);
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			     "Created ObservationID: "+oid);
 	    
-	    traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			 "Loaded document for path: "+key+" from file: "+file.getPath());
+		AgentRequestHandler arq = new AgentRequestHandler(this, doc);
+		arq.setDocumentFile(file);
+		requestMap.put(oid, arq);
+	    
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			 "Registered ARQ for: "+oid+" Using file: "+file.getPath());
+
+		arq.startUpdateHandler();
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			     "Started ARQ: "+arq);
+		
+	    } catch (Exception e) {
+		traceLog.log(WARNING, 1, CLASS, id, "loadDocuments",
+			     "ObservationID could not be generated for: "+file.getPath()+" : "+e);
+	    }
 	    
 	}
 	
@@ -923,8 +960,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    }
     }
 
-    /** Creates a new unique filename - the key is not used.*/
-    private String createFileName(String key) {
+    /** Creates a new unique filename.
+     * @param oid Not currently used.
+     */
+    public String createNewFileName(String oid) {
 	return "doc-"+System.currentTimeMillis()+".rtml";
     }
 
@@ -1243,4 +1282,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     
 }
 
-/** $Log: not supported by cvs2svn $ */
+/** $Log: not supported by cvs2svn $
+/** Revision 1.8  2005/05/25 14:27:56  snf
+/** Changed handling of plugin properties to allow future porject-specific handling.
+/** */
