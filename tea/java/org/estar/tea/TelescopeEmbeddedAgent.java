@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.10 2005-05-27 09:43:39 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.11 2005-05-27 14:05:39 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -743,7 +743,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     
     /** Returns an Iterator over the set of document keys.*/
     public Iterator listDocumentKeys() { 
-	return requestMap.keySet().iterator();
+	return agentMap.keySet().iterator();
     }
 
     /** 
@@ -885,6 +885,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    
 		AgentRequestHandler arq = new AgentRequestHandler(this, doc);
 		arq.setDocumentFile(file);
+		arq.setOid(oid);
 		requestMap.put(oid, arq);
 	    
 		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
@@ -920,46 +921,20 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	return doc;
 	
     }
-    
+        
     /** 
-     * Delete the document.
-     * First figure out the key from the document using createKeyFromDoc.
-     * @param document The document.
-     * @throws FileNotFoundException if key exists but file does not.
-     * @see #createKeyFromDoc
-     */
-    public void deleteDocument(RTMLDocument document) throws Exception
-    {
-	String key = null;
-	
-	key = createKeyFromDoc(document);
-	deleteDocument(key);
-    }
-    
-    /** 
-     * Delete the document represented by key from persistence store and in-memory.
-     * If key not present fails silently. 
-     * @param key Document's group path.
-     * @throws FileNotFoundException if key exists but file does not.
-     * @see #documentDirectory
+     * Delete the document represented by key from persistence store -
+     * moving to the expired directory.
+     * @param docFile The name of the file.
      * @see #expiredDocumentDirectory
      */
-    public void deleteDocument(String key) throws Exception
-    {
-	if (requestMap.containsKey(key))
-	    {
-		requestMap.remove(key);
-		
-		if (fileMap.containsKey(key))
-		    {
-			String fname = (String)fileMap.get(key);
-			File docFile = new File(documentDirectory, fname);
-			File expiredFile = new File(expiredDocumentDirectory,fname);
-			// rename
-			docFile.renameTo(expiredFile);
-			fileMap.remove(key);
-		    }
-	    }
+    public void expireDocument(File docFile) throws Exception {
+	
+	String fname = docFile.getName();
+	File expiredFile = new File(expiredDocumentDirectory,fname);
+	// rename
+	docFile.renameTo(expiredFile);
+
     }
 
     /** Creates a new unique filename.
@@ -1285,6 +1260,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.10  2005/05/27 09:43:39  snf
+/** Added call to createUpdateHandler before starting it.
+/**
 /** Revision 1.9  2005/05/27 09:35:20  snf
 /** Started modification to attach an AgentRequestHandler to each request over its lifetime.
 /**
