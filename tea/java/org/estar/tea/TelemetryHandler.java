@@ -60,168 +60,186 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 
 	public long getHandlingTime() {return 0L;}
 
-	/** Handle an update in form of: ngat.message.GUI_RCS.TelemetryInfo subclass.
-	 *
-	 * <ul>
-	 *  <li> ObservationInfo       : Record start of group - create UH.
-	 *  <li> ReductionInfo         : Record one exposure   - add image data to existing UH.
-	 *  <li> ObservationStatusInfo : Record end of group   - send the update using info compiled by UH.
-	 * </ul>
-	 *
-	 */
-	public void handleRequest()
-	{
-		UpdateHandler uh = null;
-		TELEMETRY_UPDATE_DONE done = new TELEMETRY_UPDATE_DONE("TestReply");
+    /** Handle an update in form of: ngat.message.GUI_RCS.TelemetryInfo subclass.
+     *
+     * <ul>
+     *  <li> ObservationInfo       : Record start of group - create UH.
+     *  <li> ReductionInfo         : Record one exposure   - add image data to existing UH.
+     *  <li> ObservationStatusInfo : Record end of group   - send the update using info compiled by UH.
+     * </ul>
+     *
+     */
+    public void handleRequest() {
 
-		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest","TELH::Received TelemetryRequest: "+telem);
-		if (telem instanceof ObservationInfo)
-		{
-			// we never get these for some reason.
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "TELH::This is an instance of ObservationInfo.");
+	AgentRequestHandler arq = null;
+	UpdateHandler       uh  = null;
 
-			// Get the oid
-			Observation obs = ((ObservationInfo)telem).getObservation();	    
-			if (obs == null)
-			{
-				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::The observation was null.");
-				// send telemetry reply to RCS
-				done.setSuccessful(true);	
-				sendDone(done);
-				return;
-			}
-			String oid = obs.getFullPath(); 
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "TELH::ObservationInfo had oid "+oid+".");
-			// diddly if we ever got one of these, we could do something here
-			// given we are returning update documents ona per-frame basis, what can we do here? 
-		}
-		else if (telem instanceof ObservationStatusInfo)
-		{
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "TELH::This is instance of ObservationStatusInfo.");
-			// Either a COMPETED or a FAIL
-			String oid = ((ObservationStatusInfo)telem).getObsPathName();
-	    
-			uh      = tea.getUpdateHandler(oid);
-	    
-			if (uh == null) {
-				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::No UpdateHandler found for: "+oid);
-			} else {
-		
-				switch (((ObservationStatusInfo)telem).getCat()) {
-					case ObservationStatusInfo.FAILED:
-						uh.setObservationFailed();
-						break;
-					case ObservationStatusInfo.COMPLETED:
-						uh.setObservationCompleted();
-						break;
-				}
-			}	    
-		}
-		else if(telem instanceof ReductionInfo)
-		{
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "TELH::This is instance of ReductionInfo.");
-	    
-			// get the oid and filename from the telemetry
-			String oid = ((ReductionInfo)telem).getObsPathName(); 
-			// The observation id is the group id with a /obsid on the end e.g.:
-			// /LT_Phase2_001/PATT/keith.horne/PL04B17/000086:UA:v1-15:run#10:user#agent/ExoPlanetMonitor
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "TELH::ReductionInfo has oid: "+oid+".");
-
-			String imageFileName = ((ReductionInfo)telem).getFileName();
-			RTMLDocument document = tea.getDocument(oid);
-
-			// Not one of ours or weve lost it 
-			if (document == null)
-			{
-				logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-					   "TELH::No document found for oid:"+oid+".");
-				// send telemetry reply to RCS
-				done.setSuccessful(true);	
-				sendDone(done);
-				return;
-			}
-
-			// have we already got an undate handler working on this document?
-			// we might have if the next image in a multrun arrives before we have transferred the last one
-			uh = tea.getUpdateHandler(oid);
-
-			// if we don't already have a uh, create one
-			if(uh == null)
-			{
-				try
-				{
-					uh = new UpdateHandler(tea, document);
-					uh.start();
-					// Register the UH against the obspath -- problem if we get multiple
-					// instantiations of an obs (mongroup windows) while still processing
-					tea.addUpdateHandler(oid, uh);
-				} 
-				catch (Exception e)
-				{
-					logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-						   "TELH::Failed to create UH for: "+oid);
-					logger.dumpStack(1,e);
-					// send telemetry reply to RCS
-					done.setSuccessful(true);	
-					sendDone(done);
-					return;
-				}
-			}
-			// Add one to the Number of exposures we should get.
-			uh.incrementNumberExposures();
-
-			// Try to predict time until obs done message.
-			long total = uh.getNumberExposures()* (READOUT + DPRT);
-			uh.setExpectedTime(total);
-			uh.setObservationId(oid);
-	    
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "TELH::UpdateHandler located: Adding image:"+imageFileName);
-			uh.addImageFileName(imageFileName);
-		}
-		else
-		{
-			// Handle other types of TelemetryInfo here if any....
-		}
+	TELEMETRY_UPDATE_DONE done = new TELEMETRY_UPDATE_DONE("TestReply");
 	
+	logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest","TELH::Received TelemetryRequest: "+telem);
+	if (telem instanceof ObservationInfo) {
+	    
+	    // we never seem to get these for some reason.
+	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		       "TELH::This is an instance of ObservationInfo.");
+	    
+	    // Get the oid
+	    Observation obs = ((ObservationInfo)telem).getObservation();	    
+	    if (obs == null){
+		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			   "TELH::The observation was null.");
 		// send telemetry reply to RCS
 		done.setSuccessful(true);	
 		sendDone(done);
+		return;
+	    }
+	    String oid = obs.getFullPath(); 
+	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		       "TELH::ObservationInfo had oid "+oid+".");
+	    // diddly if we ever got one of these, we could do something here
+	    // given we are returning update documents ona per-frame basis, what can we do here? 
+	    
+	} else if (telem instanceof ObservationStatusInfo) {
+	    
+	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		       "TELH::This is instance of ObservationStatusInfo.");
+	    
+	    // Either a COMPETED or a FAIL
+	    String oid = ((ObservationStatusInfo)telem).getObsPathName();
+	    
+	    arq      = tea.getUpdateHandler(oid);
+	    if (arq == null) {
+		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			   "TELH::No AgentRequestHandler found for: "+oid);
+	    } else {
+		uh = arq.getUpdateHandler();
+		if (uh == null) {
+		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			       "TELH::No UpdateHandler found for: "+oid);
+		} else {
+		    
+		    switch (((ObservationStatusInfo)telem).getCat()) {
+		    case ObservationStatusInfo.FAILED:
+			uh.setObservationFailed();
+			break;
+		    case ObservationStatusInfo.COMPLETED:
+			uh.setObservationCompleted();
+			break;
+		    }
+		}
+	    }
+	    
+	} else if 
+	    (telem instanceof ReductionInfo) {
+	    
+	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		       "TELH::This is instance of ReductionInfo.");
+	    
+	    // get the oid and filename from the telemetry
+	    String oid = ((ReductionInfo)telem).getObsPathName();
+	    
+	    // The observation id is the group id with a /obsid on the end e.g.:
+	    // /LT_Phase2_001/PATT/keith.horne/PL04B17/000086:UA:v1-15:run#10:user#agent/ExoPlanetMonitor
+	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		       "TELH::ReductionInfo has oid: "+oid+".");
+	    
+	    String imageFileName = ((ReductionInfo)telem).getFileName();
+	    //RTMLDocument document = tea.getDocument(oid);
+	    
+	    // Not one of ours or weve lost it 
+	    //if (document == null)
+	    //{
+	    //logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+	    //		   "TELH::No document found for oid:"+oid+".");
+	    //	// send telemetry reply to RCS
+	    //	done.setSuccessful(true);	
+	    //	sendDone(done);
+	    //	return;
+	    //}
+	    
+	    // have we already got an update handler working on this document?
+	    
+	    arq      = tea.getUpdateHandler(oid);
+	    if (arq == null) {
+		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			   "TELH::No AgentRequestHandler found for: "+oid+" - Not one of ours");
+	    } else {
+		uh = arq.getUpdateHandler();
+		
+		// if we don't already have a uh then something weird is occurring -
+		// i.e. the ARQ was generated off the document but UH could not start
+		if (uh == null) {
+		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			       "TELH::No UpdateHandler found for: "+oid);
+		} else {
+		    //    try
+		    //	{
+		    //	uh = new UpdateHandler(tea, document);
+		    //	uh.start();
+		    // Register the UH against the obspath -- problem if we get multiple
+		    // instantiations of an obs (mongroup windows) while still processing
+		    //	tea.addUpdateHandler(oid, uh);
+		    //} 
+		    //catch (Exception e)
+		    //{
+		    //	logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		    //		   "TELH::Failed to create UH for: "+oid);
+		    //	logger.dumpStack(1,e);
+		    // send telemetry reply to RCS
+		    //	done.setSuccessful(true);	
+		    //	sendDone(done);
+		    //	return;
+		    //}
+		    //}
+		    // Add one to the Number of exposures we should get.
+		    uh.incrementNumberExposures();
+		    
+		    // Try to predict time until obs done message.
+		    long total = uh.getNumberExposures()* (READOUT + DPRT);
+		    uh.setExpectedTime(total);
+		    uh.setObservationId(oid);
+		    
+		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			       "TELH::UpdateHandler located: Adding image:"+imageFileName);
+		    uh.addImageFileName(imageFileName);
+		}
+	    }
+	} else {
+	    // Handle other types of TelemetryInfo here if any....
+	}
 	
-	}
+	// send telemetry reply to RCS
+	done.setSuccessful(true);	
+	sendDone(done);
+	
+    }
     
-	public void dispose() {
-		if (connection != null) {
-			connection.close();
-		}
-		connection = null;
-		telem      = null;
+    /** Dispose this handler and close connection from RCS Telemtry sender.*/
+    public void dispose() {
+	if (connection != null) {
+	    connection.close();
 	}
-
-	/** Sends a done message back to client. Breaks conection if any IO errors.*/
-	protected void sendDone(TELEMETRY_UPDATE_DONE done) {
-		try {
-			connection.send(done);
-		} catch (IOException iox) {
-			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-				   "Error sending done: "+iox);
-			dispose();
-		}
+	connection = null;
+	telem      = null;
+    }
+    
+    /** Sends a done message back to client. Breaks conection if any IO errors.*/
+    protected void sendDone(TELEMETRY_UPDATE_DONE done) {
+	try {
+	    connection.send(done);
+	} catch (IOException iox) {
+	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+		       "Error sending done: "+iox);
+	    dispose();
 	}
-
-	/** Sends an error message back to client.*/
-	protected void sendError(TELEMETRY_UPDATE_DONE done, int errNo, String errMsg) {
-		done.setErrorNum(errNo);
-		done.setErrorString(errMsg);
-		sendDone(done);
-	}
+    }
+    
+    /** Sends an error message back to client.*/
+    protected void sendError(TELEMETRY_UPDATE_DONE done, int errNo, String errMsg) {
+	done.setErrorNum(errNo);
+	done.setErrorString(errMsg);
+	sendDone(done);
+    }
 
 }
 
