@@ -90,11 +90,21 @@ public class AgentRequestHandler implements Logging {
 
     }
 
+    /** Sets the ObservationID.*/
+    public void setOid(String oid) { this.oid = oid; }
+
     /** Set the baseDocument.*/
     public void setBaseDocument(RTMLDocument doc) { this.baseDocument = doc; }
 
     /** Set the file to persist the base document to.*/
     public void setDocumentFile(File file) { this.file = file; }
+    
+    /** Returns the base document.*/
+    public RTMLDocument getBaseDocument() { return baseDocument; }
+
+    /** Returns the document file.*/
+    public File getDocumentFile() { return file; }
+
 
     /** Called to handle an incoming score document. 
      * Attempts to score the request via the OSS Phase2 DB.
@@ -799,7 +809,7 @@ public class AgentRequestHandler implements Logging {
 	    
 	    // Extract the observation path - we already have it anyway.
 	    // observation needs to be declared global.- look at UH which defines on ObsInfo.
-	    oid = observation.getFullPath();
+	    setOid(observation.getFullPath());
 
  	    // Get a unique file Name off the TEA.
  	    File file = new File(tea.createNewFileName(oid));
@@ -832,6 +842,15 @@ public class AgentRequestHandler implements Logging {
 	
     }
 
+    /** ###TEMP Called from DocExirator - 
+     * Makes the base document expire and removes this ARQ from the agent list.*/
+    public void expireDocument() throws Exception {
+
+	tea.expireDocument(file);	
+	tea.deleteUpdateHandler(oid);
+
+    }
+
     /** Returns a reference to the UpdateHandler thread.*/
     public UpdateHandler getUpdateHandler() { return updateHandler; }
 
@@ -841,7 +860,7 @@ public class AgentRequestHandler implements Logging {
     public void createUpdateHandler() throws Exception {
 	if (updateHandler != null)
 	    throw new Exception("Updatehandler already created");
-	updateHandler = new UpdateHandler(tea, baseDocument);
+	updateHandler = new UpdateHandler(tea, this, baseDocument);
     }
     
     /** Start the UpdateHandler if its not already running.
@@ -882,8 +901,7 @@ public class AgentRequestHandler implements Logging {
 	lock.setValue(false);
     }
 
-    public RTMLDocument getBaseDocument() { return baseDocument; }
-    
+       
     /** Checks the instrument details.*/
     private void checkInstrument() {
 	
