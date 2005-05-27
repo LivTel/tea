@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.4 2005-05-26 11:01:43 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.5 2005-05-27 09:51:40 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.4 2005-05-26 11:01:43 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.5 2005-05-27 09:51:40 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -124,7 +124,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
 						       ".http_base");
 		if(urlBase.endsWith("/") == false)
-			urlBase = urlBase.append("/");
+			urlBase = urlBase+"/";
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: URL base: "+urlBase+".");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
@@ -346,6 +346,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2005/05/26 11:01:43  cjm
+// Added termination check to urlBase.
+//
 // Revision 1.3  2005/05/25 15:55:16  cjm
 // Changed output filename leaf name.
 //
