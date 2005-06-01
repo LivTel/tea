@@ -38,7 +38,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     private static final long SLEEP_TIME = 5000L;
 
     /** Polling interval while awaiting first data.*/
-    private static final long LONG_SLEEP_TIME = 90*1000L;
+    private static final long LONG_SLEEP_TIME = 1800*1000L;
     
     /** Time margin above expected execution time when we give up as a lost cause.*/
     private static final long TIME_MARGIN = 2*3600*1000L;
