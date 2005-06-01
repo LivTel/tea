@@ -25,41 +25,46 @@ import ngat.message.GUI_RCS.*;
 /** 
  * Handles the data returned by the RCS when an observation/group is started, completed, exposes.
  */
-public class TelemetryHandler implements CAMPRequestHandler, Logging
-{
-	public static final String CLASS = "TelemetryHandler";
+public class TelemetryHandler implements CAMPRequestHandler, Logging {
 
-	/** Default readout time (ms).*/
-	private static final long READOUT = 10000L;
+    public static final String CLASS = "TelemetryHandler";
+    
+    /** Default readout time (ms).*/
+    private static final long READOUT = 10000L;
+    
+    /** Default dprt time (ms).*/
+    private static final long DPRT = 5000L;
 
-	/** Default dprt time (ms).*/
-	private static final long DPRT = 5000L;
+    /** CAMP Connection used.*/
+    IConnection connection;
+    
+    /** Reference to the TEA.*/
+    TelescopeEmbeddedAgent tea;
+    
+    /** The encapsulated Telemetry Info.*/
+    TelemetryInfo telem;
 
-	IConnection connection;
+    /** Class logger. */
+    Logger logger = null;
 
-	TelescopeEmbeddedAgent tea;
-
-	TelemetryInfo telem;
-	/**
-	 * The logger.
-	 */
-	Logger logger = null;
-
-	/**
-	 * Constructor. Setup logger.
-	 * @see #logger
-	 */
-	public TelemetryHandler(TelescopeEmbeddedAgent tea, 
-				IConnection connection, 
-				TelemetryInfo telem) {
-		this.tea        = tea;
-		this.connection = connection;
-		this.telem      = telem;
-		logger = LogManager.getLogger(this);
-	}
-
-	public long getHandlingTime() {return 0L;}
-
+    /**
+     * Create a TelemetryHandler for the supplied conneciton and telemetry info.
+     * @param connection The Connection to use for reply.
+     * @param telem      The encapsulated Telemetry Info.
+     * @see #logger
+     */
+    public TelemetryHandler(TelescopeEmbeddedAgent tea, 
+			    IConnection            connection, 
+			    TelemetryInfo          telem) {
+	this.tea        = tea;
+	this.connection = connection;
+	this.telem      = telem;
+	logger = LogManager.getLogger(this);
+    }
+    
+    /** Returns the handling time - ### fudged.*/
+    public long getHandlingTime() {return 0L;}
+    
     /** Handle an update in form of: ngat.message.GUI_RCS.TelemetryInfo subclass.
      *
      * <ul>
@@ -72,11 +77,11 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
     public void handleRequest() {
 
 	AgentRequestHandler arq = null;
-	UpdateHandler       uh  = null;
 
 	TELEMETRY_UPDATE_DONE done = new TELEMETRY_UPDATE_DONE("TestReply");
 	
 	logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest","TELH::Received TelemetryRequest: "+telem);
+
 	if (telem instanceof ObservationInfo) {
 	    
 	    // we never seem to get these for some reason.
@@ -107,25 +112,20 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 	    // Either a COMPETED or a FAIL
 	    String oid = ((ObservationStatusInfo)telem).getObsPathName();
 	    
-	    arq      = tea.getUpdateHandler(oid);
+	    arq = tea.getUpdateHandler(oid);
+
 	    if (arq == null) {
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			   "TELH::No AgentRequestHandler found for: "+oid);
+			   "TELH::No AgentRequestHandler found for: "+oid+" - Not one of ours");
 	    } else {
-		uh = arq.getUpdateHandler();
-		if (uh == null) {
-		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			       "TELH::No UpdateHandler found for: "+oid);
-		} else {
-		    
-		    switch (((ObservationStatusInfo)telem).getCat()) {
-		    case ObservationStatusInfo.FAILED:
-			uh.setObservationFailed();
-			break;
-		    case ObservationStatusInfo.COMPLETED:
-			uh.setObservationCompleted();
-			break;
-		    }
+	
+		switch (((ObservationStatusInfo)telem).getCat()) {
+		case ObservationStatusInfo.FAILED:
+		    arq.setObservationFailed();
+		    break;
+		case ObservationStatusInfo.COMPLETED:
+		    arq.setObservationCompleted();
+		    break;
 		}
 	    }
 	    
@@ -144,65 +144,17 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging
 		       "TELH::ReductionInfo has oid: "+oid+".");
 	    
 	    String imageFileName = ((ReductionInfo)telem).getFileName();
-	    //RTMLDocument document = tea.getDocument(oid);
-	    
-	    // Not one of ours or weve lost it 
-	    //if (document == null)
-	    //{
-	    //logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-	    //		   "TELH::No document found for oid:"+oid+".");
-	    //	// send telemetry reply to RCS
-	    //	done.setSuccessful(true);	
-	    //	sendDone(done);
-	    //	return;
-	    //}
-	    
-	    // have we already got an update handler working on this document?
-	    
-	    arq      = tea.getUpdateHandler(oid);
+	   
+	    arq  = tea.getUpdateHandler(oid);
 	    if (arq == null) {
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 			   "TELH::No AgentRequestHandler found for: "+oid+" - Not one of ours");
 	    } else {
-		uh = arq.getUpdateHandler();
 		
-		// if we don't already have a uh then something weird is occurring -
-		// i.e. the ARQ was generated off the document but UH could not start
-		if (uh == null) {
-		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			       "TELH::No UpdateHandler found for: "+oid);
-		} else {
-		    //    try
-		    //	{
-		    //	uh = new UpdateHandler(tea, document);
-		    //	uh.start();
-		    // Register the UH against the obspath -- problem if we get multiple
-		    // instantiations of an obs (mongroup windows) while still processing
-		    //	tea.addUpdateHandler(oid, uh);
-		    //} 
-		    //catch (Exception e)
-		    //{
-		    //	logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-		    //		   "TELH::Failed to create UH for: "+oid);
-		    //	logger.dumpStack(1,e);
-		    // send telemetry reply to RCS
-		    //	done.setSuccessful(true);	
-		    //	sendDone(done);
-		    //	return;
-		    //}
-		    //}
-		    // Add one to the Number of exposures we should get.
-		    uh.incrementNumberExposures();
-		    
-		    // Try to predict time until obs done message.
-		    long total = uh.getNumberExposures()* (READOUT + DPRT);
-		    uh.setExpectedTime(total);
-		    uh.setObservationId(oid);
-		    
-		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			       "TELH::UpdateHandler located: Adding image:"+imageFileName);
-		    uh.addImageFileName(imageFileName);
-		}
+		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+			   "TELH::UpdateHandler located: Adding image:"+imageFileName);
+		arq.addImageFileName(imageFileName);
+		
 	    }
 	} else {
 	    // Handle other types of TelemetryInfo here if any....
