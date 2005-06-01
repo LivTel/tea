@@ -70,6 +70,8 @@ public class DocumentExpirator extends ControlThread implements Logging {
     
     
     protected void mainTask() {	
+	logger.log(INFO,1,CLASS,tea.getId(),"mainTask","Expirator sleeping for "+time+" ms.");
+	try {Thread.sleep(time);} catch (InterruptedException ix) {}
 	try {
 	    logger.log(INFO,1,CLASS,tea.getId(),"mainTask","Running expirator.");
 	    // Check to see if there are any expired docs still kept by the TEA.
@@ -84,6 +86,10 @@ public class DocumentExpirator extends ControlThread implements Logging {
 	    
 	    // Note this is now a list of agents
 	    List keyList = tea.getDocumentKeysList();
+
+	    logger.log(INFO,1,CLASS,tea.getId(),"mainTask",
+		       "EXP::There are currently: "+keyList.size()+" ARQs running");
+
 	    for(int i = 0; i< keyList.size(); i++) {
 		
 		key = (String)(keyList.get(i));
@@ -149,8 +155,7 @@ public class DocumentExpirator extends ControlThread implements Logging {
 		logger.log(INFO,1,CLASS,tea.getId(),"mainTask","Expirator caught un-caught exception "+e+".");
 		logger.dumpStack(1,e);
 	    }
-	logger.log(INFO,1,CLASS,tea.getId(),"mainTask","Expirator sleeping for "+time+" ms.");
-	try {Thread.sleep(time);} catch (InterruptedException ix) {}
+
     }
     
     protected void shutdown() {}
