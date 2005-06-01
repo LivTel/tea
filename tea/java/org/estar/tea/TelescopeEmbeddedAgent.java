@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.11 2005-05-27 14:05:39 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.12 2005-06-01 16:07:24 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -861,6 +861,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      */
     public void loadDocuments() throws Exception {
 
+	int arqCount = 0;
+
 	traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
 		     "TEA::Starting loadDocuments from "+documentDirectory+".");
 	File base = new File(documentDirectory);
@@ -884,17 +886,21 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     "Created ObservationID: "+oid);
 	    
 		AgentRequestHandler arq = new AgentRequestHandler(this, doc);
+		arq.setName("ARQ:"+(++arqCount));
 		arq.setDocumentFile(file);
 		arq.setOid(oid);
-		requestMap.put(oid, arq);
-	    
-		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			 "Registered ARQ for: "+oid+" Using file: "+file.getPath());
+	
+		// If we cant prepare the ARQ for UpdateHandling then it wont be started.
+		arq.prepareUpdateHandler();
+		arq.start();
 
-		arq.createUpdateHandler();
-		arq.startUpdateHandler();
 		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
 			     "Started ARQ UpdateHandler thread: "+arq);
+
+		// Ok, now register it.
+		agentMap.put(oid, arq);	    
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			 "Registered running ARQ for: "+oid+" Using file: "+file.getPath());
 		
 	    } catch (Exception e) {
 		traceLog.log(WARNING, 1, CLASS, id, "loadDocuments",
@@ -1011,7 +1017,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**Create an error (type = 'reject' from scratch).
      * @param errorMessage The error messsage.
      */
-    public String createErrorDocReply(String errorMessage) {
+    public static String createErrorDocReply(String errorMessage) {
 	RTMLDocument document = new RTMLDocument();	
 	return createErrorDocReply(document, errorMessage);
     }
@@ -1020,7 +1026,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      * @param document The document to change to error type.
      * @param errorMessage The error messsage.
      */
-    public String createErrorDocReply(RTMLDocument document, String errorMessage) {
+    public static String createErrorDocReply(RTMLDocument document, String errorMessage) {
 	document.setCompletionTime(new Date());
 	document.setType("reject");
 	try {
@@ -1035,10 +1041,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      * @param document The document to change.
      * @param type The type.
      */
-    public String createDocReply(RTMLDocument document, String type) {
+    public static String createDocReply(RTMLDocument document, String type) {
 	System.err.println("Create doc reply using type: "+type);
 	// diddly error!
-	document.setCompletionTime(new Date());
+	//document.setCompletionTime(new Date());
 	document.setType(type);
 	return createReply(document);
     }
@@ -1047,8 +1053,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      * @param document The document to extract a reply message from.
      * @return A reply message in RTML format.
      */
-    public String createReply(RTMLDocument document) {
-	System.err.println("Create reply for: \n\n\n"+document+"\n\n\n");
+    public static String createReply(RTMLDocument document) {
+	//System.err.println("Create reply for: \n\n\n"+document+"\n\n\n");
 	try {
 	    RTMLCreate createReply = new RTMLCreate();
 	    createReply.create(document);
@@ -1260,6 +1266,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.11  2005/05/27 14:05:39  snf
+/** First phse of upgrade completed.
+/**
 /** Revision 1.10  2005/05/27 09:43:39  snf
 /** Added call to createUpdateHandler before starting it.
 /**
