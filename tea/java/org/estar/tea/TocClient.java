@@ -9,7 +9,7 @@ import java.util.*;
 
 /** Handles responses to commands sent via "Target of Opportunity Control Protocol" (TOCP).
  */
-private class TocClient {
+public class TocClient implements Logging {
     
     /** Classname for logging.*/
     public static final String CLASS = "TOCClient";
@@ -59,21 +59,21 @@ private class TocClient {
     public void run() {
 	
 	try {
-	    logger.log(INFO, 1, CLASS, id,"run","TOCClient::Connecting to "+host+":"+port);
+	    logger.log(INFO, 1, CLASS, "TC","run","TOCClient::Connecting to "+host+":"+port);
 	    tc = new TelnetConnection(host, port);
 	    
 	    try {
 		tc.open();
-		logger.log(INFO, 1, CLASS, id,"run","TOCClient::Opened connection");
+		logger.log(INFO, 1, CLASS, "TC","run","TOCClient::Opened connection");
 	    } catch (Exception e) {
 		setError(true, "Failed to open connection to TOCS: "+e);
 		return;
 	    }
 	    tc.sendLine(command);
-	    logger.log(INFO, 1, CLASS, id,"run","TOCClient::Sent ["+command+"]");
+	    logger.log(INFO, 1, CLASS, "TC","run","TOCClient::Sent ["+command+"]");
 	    try {
 		reply = tc.readLine();
-		logger.log(INFO, 1, CLASS, id,"run","TOCClient::Reply ["+reply+"]");
+		logger.log(INFO, 1, CLASS, "TC","run","TOCClient::Reply ["+reply+"]");
 		if (reply == null ||
 		    reply.equals("")) {
 		    setError(true, "Null reply from TOCS");
@@ -96,7 +96,7 @@ private class TocClient {
 	    setError(true, "Failed to read TOCS response: "+e);
 	    return;		
 	} finally {
-	    logger.log(INFO, 1, CLASS, id,"run","TOCClient::Closing connection");
+	    logger.log(INFO, 1, CLASS, "TC","run","TOCClient::Closing connection");
 	    try {
 		tc.close();
 	    } catch (Exception e) {

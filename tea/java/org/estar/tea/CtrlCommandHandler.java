@@ -1,6 +1,7 @@
 package org.estar.tea;
 
 import ngat.net.*;
+import ngat.net.camp.*;
 import ngat.util.*;
 import ngat.util.logging.*;
 import ngat.message.base.*;
@@ -54,7 +55,7 @@ public class CtrlCommandHandler extends CAMPClient {
 	if (!update.getSuccessful()) {
 	    setError(true, "Error submitting request: "+update.getErrorString()); 	
 	} else 
-	    setError(false, "Command "+command+" accepted");	    
+	    error = false;	    
 	reply = update;	
     }
 

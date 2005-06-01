@@ -7,11 +7,14 @@ import ngat.message.base.*;
 
 import java.io.*;
 import java.util.*;
- 
+import javax.net.ssl.*;
 
 /** Handles responses to commands sent via "Java Message Service (MA) Protocol" (JMS).*/
-private class JMSCommandHandler extends JMSMA_ClientImpl {
+public class JMSCommandHandler extends JMSMA_ClientImpl implements Logging {
     
+    /** Classname for logging.*/
+    public static final String CLASS = "JMSClient";
+
     /** True if the command generated an error.*/
     private volatile boolean error = false;
     
@@ -59,13 +62,14 @@ private class JMSCommandHandler extends JMSMA_ClientImpl {
 	}
 
 	JMSMA_ProtocolClientImpl protocol   = null;
-	SocketConnection         connection = null;
+	IConnection              connection = null;
 
 	if (secure) {
+	    // this will need changes to the CFY interface to allow a secure version to be setup.
 	    try {
 		SSLSocketFactory sf = (SSLSocketFactory)SSLSocketFactory.getDefault();		
-		connection = cfy.createConnection("OSS");		
-		protocol = new JMSMA_ProtocolClientImpl(this, connection, sf);
+		connection = cfy.createConnection("OSS_SECURE");		
+		protocol = new JMSMA_ProtocolClientImpl(this, connection);
 	    } catch (Exception ex) {
 		setError(true, "An error occurred making connection to the OSS: "+ex);
 		return;
@@ -80,14 +84,15 @@ private class JMSCommandHandler extends JMSMA_ClientImpl {
 	    }
 	}
 
-	logger.log(INFO, 1, CLASS, id,"send","JMSCommandClient::Connect:"+connection+", Sending ["+command.getClass().getName()+"]");
+	logger.log(INFO, 1, CLASS, "JMS","send",
+		   "JMSCommandClient::Connect:"+connection+", Sending ["+command.getClass().getName()+"]");
 	protocol.implement();
 	
     } // [send]		
     
     /** Handles an ACK response.*/
     public void handleAck  (ACK ack) {
-	logger.log(INFO, 1, CLASS, id,"handleAck","CMD Client::Ack received");
+	logger.log(INFO, 1, CLASS, "JMS","handleAck","CMD Client::Ack received");
     }
     
     /** Handles the DONE response. Saves reply and internal parameters and sets error flag if failed.*/
