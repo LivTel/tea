@@ -22,7 +22,7 @@ import ngat.message.GUI_RCS.*;
 import ngat.message.OSS.*;
 
 /** Handles a UA Transaction.*/
-public class ConnectionHandler implements Serializable, Logging {
+public class ConnectionHandler implements Logging {
 
     /** The Classname of this class.*/
     public static final String CLASS = "ConnectionHandler";
@@ -33,24 +33,25 @@ public class ConnectionHandler implements Serializable, Logging {
     /** Connection ID.*/
     int connId;
 
+    /** ConnectionHandler ID.*/
     String id;
     
     /** The globus IO handle of the connection.*/
-    transient GlobusIOHandle connectionHandle;
+    GlobusIOHandle handle;
 
     /** The document structure sent by the IA.*/
     RTMLDocument document = null;
 
     /** The document structure (as String) to return to the IA.*/
-    transient String reply = null;
+    String reply = null;
     
     /** Document parser.*/
-    transient RTMLParser parser;
+    RTMLParser parser;
     
     /** Handles estar communications.*/
-    transient eSTARIO io;
+    eSTARIO io;
     
-    transient TelescopeEmbeddedAgent tea;
+    TelescopeEmbeddedAgent tea;
 
     /** Incoming RTML message string.*/
     String message = null;
@@ -62,13 +63,13 @@ public class ConnectionHandler implements Serializable, Logging {
     
     protected Logger connectLog;
     
-    /** Compatibility for java.io.Serializable */
+    /** */
     ConnectionHandler() {}	
     
     /** Create a ConnectionHandler for the specified Agent and GlobusIOHandle.*/
-    ConnectionHandler(TelescopeEmbeddedAgent tea, GlobusIOHandle connectionHandle, int connId) {
+    ConnectionHandler(TelescopeEmbeddedAgent tea, GlobusIOHandle handle, int connId) {
     	this.tea = tea;
-	this.connectionHandle = connectionHandle;     
+	this.handle = handle;     
 	this.connId = connId;
 	id = "CH"+connId;
 
@@ -85,13 +86,15 @@ public class ConnectionHandler implements Serializable, Logging {
 
     	sessionStart = System.currentTimeMillis();
 	
-    	traceLog.log(INFO, 1, CLASS, id, "exec", "CONN: Connection started.");
-    	
+    	traceLog.log(INFO, 1, CLASS, id, "exec", "CH::Connection started.");
+
+	RTMLDocument replyDocument = null;
+
     	try {
     	    
-    	    message = io.messageRead(connectionHandle);
+    	    message = io.messageRead(handle);
 	    
-    	    traceLog.log(INFO, 1, CLASS, id, "exec", "CONN: Recieved RTML message: "+message);
+    	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Recieved RTML message: "+message);
 	    
     	    // Extract document and determine type.
     	    
@@ -104,51 +107,57 @@ public class ConnectionHandler implements Serializable, Logging {
 	   
     	    String type = document.getType();
     	    
-    	    System.err.println("CONN: The doc appears to be a: "+type);    	    
+    	    System.err.println("CH::The doc appears to be a: "+type);    	    
     	    
     	    if (type.equals("score")) {
     		
     		// Do score and return doc.
     			
-		AgentRequestHandler arq = new AgentRequestHandler(tea);
-    		arq.executeScore(document, connectionHandle);
-
+		ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea, io, handle);
+		replyDocument = sdh.handleScore(document);
+		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+		io.messageWrite(handle, reply);
+		
     	    } else if
     		(type.equals("request")) {
     		
-    		// Confirm request is scorable , return doc and start RequestHandler.
-    				
-    		AgentRequestHandler arq = new AgentRequestHandler(tea);
-    		arq.executeRequest(document, connectionHandle);
-		
+    		// Confirm request is scorable , return doc and start AgentRequestHandler.
+    
+		RequestDocumentHandler rdh = new RequestDocumentHandler(tea, io, handle);
+		replyDocument = rdh.handleRequest(document);
+		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+		io.messageWrite(handle, reply);
+				
     	    } else {
     		
     		// Error - reject.
 		
     		reply = tea.createErrorDocReply(document, "Unknown document type: '"+type+"'");
 		
-    		traceLog.log(INFO, 1, CLASS, id, "exec", "CONN: Sending reply RTML message: "+reply);
+    		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sending reply RTML message: "+reply);
 		
-    		io.messageWrite(connectionHandle, reply);
+    		io.messageWrite(handle, reply);
 		
     	    }
 	    
     	} catch (Exception ex) {
-    	    traceLog.log(INFO, 1, CLASS, id, "exec", "SERVER:Error parsing doc: "+ex);
-	    reply = tea.createErrorDocReply("Exception during parsing: "+ex);
-	    io.messageWrite(connectionHandle, reply);
+	    traceLog.dumpStack(1, ex);
+    	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Error while processing doc: "+ex);
+	    reply = TelescopeEmbeddedAgent.createErrorDocReply("Exception during parsing: "+ex);
+	    io.messageWrite(handle, reply);
 
-    	} 
+    	} finally {
 	
-    	traceLog.log(INFO, 1, CLASS, id, "exec", "SERVER:Connection Finished.");
-    	
-    	connectionHandle = null;
-    	document = null;
-    	reply = null;
-	
+	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH:Connection Finished.");
+	    
+	    handle        = null;
+	    document      = null;
+	    replyDocument = null;
+	    reply         = null;
+	}
+
     } // (handleConnection)
-    
-    
+      
    
 } //[ConnectionHandler].
     
