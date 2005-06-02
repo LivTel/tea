@@ -34,6 +34,22 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Class name for logging.*/
     public static final String CLASS = "AgentRequestHadler";
 
+    /** Observation state indicating unable to deduce completion state.*/
+    public static final int OBSERVATION_STATE_UNKNOWN            = 0;
+
+    /** Observation state indicating that the group has expired and there were no frames generated.*/
+    public static final int OBSERVATION_STATE_EXPIRED_FAILED     = 1;     
+    
+    /** Observation state indicating that all image frames were returned.*/
+    public static final int OBSERVATION_STATE_DONE               = 2; 
+        
+    /** Observation state indicating that the group has expired and some of the image frames were done.*/
+    public static final int OBSERVATION_STATE_EXPIRED_INCOMPLETE = 3;
+
+  /** Observation state indicating that the group is still active.*/
+    public static final int OBSERVATION_STATE_ACTIVE             = 4;
+
+
     /** Polling interval for pending queue.*/
     private static final long SLEEP_TIME = 5000L;
 
@@ -43,13 +59,13 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Time margin above expected execution time when we give up as a lost cause.*/
     private static final long TIME_MARGIN = 2*3600*1000L;
     
-    /** Flags completed successful obs.*/
+    /** Flags completed successful obs as notified by RCS Telemetry.*/
     public static final int OBS_DONE = 1;
 
-    /** Flags completed but failed obs.*/
+    /** Flags completed but failed obs as notified by RCS Telemetry.*/
     public static final int OBS_FAILED = 2;
 
-    /** Flags uncompleted obs.*/
+    /** Flags uncompleted obs - Default initial state.*/
     public static final int OBS_NOT_DONE_YET = 0;
 
     /** True if we are able to handle updates.*/
@@ -111,6 +127,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Current sleep setting.*/
     private long sleepTime = LONG_SLEEP_TIME;
 
+    /** ARQ id.*/
+    private String id;
 
     /** Class logger.*/
     private Logger logger = null;
@@ -137,6 +155,14 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	logger = LogManager.getLogger(this);
 
+    }
+
+    /** Overridden to pre-pend the TEA's id onto the thread name to form an ID.
+     * @param name The name to append to the TEA's id as #id.
+     */
+    protected void setName(String name) {
+	super.setName(name);
+	id = tea.getId()+"/"+name;
     }
 
     /** Sets the ObservationID.
@@ -364,7 +390,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    
 	    String imageFileName = (String)pending.remove(0);
 	    
-	    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+	    logger.log(INFO, 1, CLASS, id,"mainTask",
 		       "ARQ::Processing image filename "+imageFileName+" for "+oid+".");
 	    
 	    // Generate the correct destination file name.			
@@ -373,7 +399,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		destDirName = pipelinePlugin.getInputDirectory();
 	    }
 	    catch(Exception e) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Getting input directory failed for pipeline plugin "
 			   +pipelinePlugin+":"+e);
 		logger.dumpStack(1,e);
@@ -388,14 +414,14 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		
 	    // Grab image from OCC/ICC.
 	    try {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Transferring image filename "+
 			   imageFileName+" to "+destFileName+" for "+oid+".");
 		transfer(imageFileName, destFileName);		    
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Transfered image okay");
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Transferring image filename "+
 			   imageFileName+" to "+destFileName+" failed for "+
 			   oid+":"+e);
@@ -407,7 +433,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    try {
 		imageData = pipelinePlugin.processFile(destFile);
 	    } catch(Exception e) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::pipelinePlugin.processFile "+
 			   destFile+" failed:"+e);
 		logger.dumpStack(1,e);
@@ -420,7 +446,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		try {
 		    obs.addImageData(imageData);
 		} catch (Exception e) {
-		    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		    logger.log(INFO, 1, CLASS, id,"mainTask",
 			       "ARQ::addImageData "+
 			       imageData+" failed:"+e);
 		    logger.dumpStack(1,e);
@@ -430,11 +456,11 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		
 	    // Save the modified base document.
 	    try {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Saving document for "+oid+".");
 		tea.saveDocument(baseDocument, getDocumentFile());
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::saveDocument for "+oid+" failed:"+e);
 		logger.dumpStack(1,e);
 		return;
@@ -452,7 +478,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		    // add just-received reduced image data.
 		    obs.addImageData(imageData);
 		} catch (Exception e) {
-		    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		    logger.log(INFO, 1, CLASS, id,"mainTask",
 			       "ARQ::addImageData for "+oid+" "+
 			       imageData+" failed:"+e);
 		    logger.dumpStack(1,e);
@@ -465,13 +491,13 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    // tea.sendDoc(doc); This may need to go in athread
 	    // as it may block for a while if the connection is blocked
 	    try {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sending update document for "+oid+".");
 		sendDocUpdate(updateDoc, "update");
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sent update document for "+oid+".");
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::sendDocUpdate failed for "+oid+":"+e);
 		logger.dumpStack(1,e);
 		return;
@@ -482,74 +508,109 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    
 	} // while pending list not empty
 	
-	// Now we should do the test to see if weve got all the expected images 	
-	boolean done = testCompletion();
-	
-	if (done) {
-	    
-	    // We have done at least as many frames as the UA expects.
-	    
-	    // Deregister immediately.
-	    tea.deleteUpdateHandler(oid);
-	    logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-		       "Deregistering handler: "+getName()+" for "+oid+".");
-	    
-	    try {
-		
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-			   "ARQ::Saving observation complete document for "+oid+".");
-		
-		// save document - pass the filename aswell
-		tea.saveDocument(baseDocument, getDocumentFile());
-		
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-			   "ARQ::Deleting observation complete document for "+oid+
-			   " (to expired directory).");
-		// move document to expired dir
-		// delete document from memory
-		expireDocument();
+	// Now we should do the test to see if weve got all the expected images
+	// and or expired. 	
+	int    observationState = testCompletion();
+	String docType = null;
 
-		// ####Need to sort out the sequence here- e.g. ARQ terminates ARQ on diposal.
-		// probably delete the registeration first to prevent spurious extra updates!
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-			   "ARQ::Deleting ARQ/UH thread for "+oid+".");
-
-		// Terminate this thread...
-
-		terminate();
-		
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-			   "ARQ::Sending observation complete document for "+oid+".");
-		// send "observation" type document to complete
-		sendDocUpdate(baseDocument, "observation");
-		
-	    } 
-	    catch (Exception e) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
-		   "ARQ::sendDocUpdate failed:"+e);
-		logger.dumpStack(1,e);	
-	    }
+	switch (observationState) {
+	case OBSERVATION_STATE_ACTIVE:
+	    logger.log(INFO, 1, CLASS, id,"mainTask",
+		       "ARQ::Observation is still active: "+oid);
+	    break;
+	case OBSERVATION_STATE_UNKNOWN:
+	    logger.log(INFO, 1, CLASS, id,"mainTask",
+		       "ARQ::Unable to determine observation state for: "+oid);
+	    break;
+	case OBSERVATION_STATE_DONE:
+	    docType = "observation"
+	    break;
+	case OBSERVATION_STATE_EXPIRED_INCOMPLETE:
+	    docType = "incomplete"
+	    break;
+	case OBSERVATION_STATE_EXPIRED_FAILED:
+	    docType = "failed";
+	    break;
 	}
 
+	// All done, send final document and disengage.
+	if (docType != null) {
+	    try {
+		logger.log(INFO, 1, CLASS, id,"mainTask",
+			   "ARQ::Sending observation final status document ("+docType+") document for "+oid+".");
+		sendDocUpdate(baseDocument, docType);
+		
+		// Only if we succeeded in sending can we disengage the ARQ.
+		
+		// Deregister immediately.
+		tea.deleteUpdateHandler(oid);
+		logger.log(INFO, 1, CLASS, id,"mainTask",
+			   "ARQ::Deregistering handler: "+getName()+" for "+oid+".");
+		
+		try {
+		    
+		    logger.log(INFO, 1, CLASS, id,"mainTask",
+			       "ARQ::Saving observation-completed document for "+oid+".");
+		    
+		    // save document - pass the filename aswell
+		    tea.saveDocument(baseDocument, getDocumentFile());
+		    
+		    logger.log(INFO, 1, CLASS, id,"mainTask",
+			       "ARQ::Moving observation-completed document for "+oid+
+			       " (to expired directory).");
+		    
+		    expireDocument();
+		    
+		    // ####Need to sort out the sequence here- e.g. ARQ terminates ARQ on diposal.
+		    // probably delete the registeration first to prevent spurious extra updates!
+		    logger.log(INFO, 1, CLASS, id,"mainTask",
+			       "ARQ::Terminating ARQ/UH thread for "+oid+".");
+		    
+		    // Terminate this thread.
+		    terminate();
+		    
+		} catch (Exception e) {
+		    logger.log(INFO, 1, CLASS, id,"mainTask",
+			       "ARQ::Failed to disengage correctly on completion of observations:"+e);
+		    logger.dumpStack(1,e);	
+		}
 
+		
+	    } catch (Exception e) {
+		logger.log(INFO, 1, CLASS, id,"mainTask",
+			   "ARQ::Failed to send final document to UA: "+e);
+		logger.dumpStack(1,e);	
+	    }
+	    
+	}
+   
 	// Back round once more at least.	    
 	try {Thread.sleep(sleepTime);} catch (InterruptedException ix) {}
-	    
+	
     }
-    
+	
     /** Called at end-of-run.
      * Nothing to do here now...
      */
     protected void shutdown() {
-	logger.log(INFO, 1, CLASS, tea.getId(),"shutdown",
+	logger.log(INFO, 1, CLASS, id,"shutdown",
 		   "Shutting down "+getName());
     }
 
     /**
      * This test is called from the maintask to test each time round
-     * after the pending list is cleared out.
+     * after the pending list is cleared out. 
+     * @return An int (state) denoting the completion state of the group.
+     *         One of:-
+     *  <dl>
+     *    <dt>OBSERVATION_STATE_EXPIRED_FAILED     <dd>Expired and there were no frames generated.
+     *    <dt>OBSERVATION_STATE_DONE               <dd>All image frames were returned.
+     *    <dt>OBSERVATION_STATE_EXPIRED_INCOMPLETE <dd>Expired and some of the image frames were done.
+     *    <dt>OBSERVATION_STATE_UNKNOWN            <dd>Something weird occured and cannot compute the completion state.
+     *    <dt>OBSERVATION_STATE_ACTIVE             <dd>The document is still active.
+     *  </dl>
      */
-    protected boolean testCompletion() {
+    protected int testCompletion() {
 
 	int multrunExposureCount = 0;
 
@@ -557,7 +618,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	int seriesConstraintCount = 1;
 	int imageDataCount = 0;
 	
-	logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+	logger.log(INFO, 1, CLASS, id,"testCompletion",
 		   "ARQ::Testing for completion of handler for "+oid+".");
 	
 	// if we have completed the number of observations requested by the UA,
@@ -566,18 +627,21 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	// if <SeriesConstraint><Count> accurately reflects (end date - start_date) / period.
 	// If a MonitorGroup, we expect <SeriesConstraint><Count>* <Exposure><Count> frames, if a MonitorGroup.
 	// If a FlexibleGroup, we expect <Exposure><Count> frames. 
+
 	RTMLObservation observation = baseDocument.getObservation(0);
-	
-	if(observation != null) {
+	RTMLSchedule    schedule    = null;
+	Date            endDate     = null;
+
+	if (observation != null) {
 	    
-	    RTMLSchedule schedule = observation.getSchedule();
+	    schedule = observation.getSchedule();
 	    
-	    if(schedule != null) {
+	    if (schedule != null) {
 		
 		multrunExposureCount = schedule.getExposureCount();
 		RTMLSeriesConstraint seriesConstraint = schedule.getSeriesConstraint();
 		
-		if(seriesConstraint != null) {
+		if (seriesConstraint != null) {
 		    // ### what does this have for FGs - they may not have been set,
 		    // ### we just assume 1 in the obs.
 		    seriesConstraintCount = seriesConstraint.getCount();
@@ -590,13 +654,16 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		    // or it does not give a number greater than seriesConstraintCount,
 		    // in which case we may provide more data than the UA has asked for.
 		}
+
+		endDate = sched.getEndDate();
+
 	    }
 	    
 	    imageDataCount = observation.getImageDataCount();
 	    
 	}
 	
-	logger.log(INFO, 1, CLASS, tea.getId(),"mainTask",
+	logger.log(INFO, 1, CLASS, id,"testCompletion",
 		   "ARQ::Testing whether image data count "+imageDataCount+
 		   " is greater than expected number of images "+
 		   (multrunExposureCount*seriesConstraintCount)+" for "+oid+".");
@@ -607,12 +674,29 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	// seriesConstraintCount == Requested no of monitor windows (FG deduced as 1)
 	//
       
-	if(imageDataCount >= (multrunExposureCount*seriesConstraintCount)) 
-	    return true;
+	if (imageDataCount >= (multrunExposureCount*seriesConstraintCount)) 
+	    return OBSERVATION_STATE_DONE;
+
+	// Not complete, check for expiry.
+	if (endDate != null) {
+
+	    long end = endDate.getTime();
+
+	    logger.log(INFO,1,CLASS,id,"testCompletion",
+		       "ARQ::Testing document for expiry against end date "+endDate+".");
+
+	    if (end < (System.currentTimeMillis()-expiryOffset)) {
 	
-	return false;
+		if (imageDataCount() > 0)
+		    return OBSERVATION_STATE_EXPIRED_INCOMPLETE;
+		else
+		    return OBSERVATION_STATE_EXPIRED_FAILED;
+	    } else 
+		return OBSERVATION_STATE_ACTIVE;
+	}
 
-
+	// Unable to deduce..	
+	return OBSERVATION_STATE_UNKNOWN;
      
     } // [testCompletion]
 
@@ -632,7 +716,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	if (client == null) 
 	    throw new Exception("The transfer client is not available");
 	
-	logger.log(INFO, 1, CLASS, tea.getId(),"transfer",
+	logger.log(INFO, 1, CLASS, id,"transfer",
 		   "ARQ::Requesting image file: "+imageFileName+" -> "+destFileName);
 	
 	client.request(imageFileName, destFileName);
@@ -664,7 +748,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	System.err.println("Starting dodgy bit...");
 	
-	logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc","ARQ:: Started.");
+	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc","ARQ:: Started.");
 	
 	System.err.println("Done dodgy bit...");
 	
@@ -691,17 +775,17 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	proposalId = project.getProject();
 	// get pipeline plugin class name
 	key = new String("pipeline.plugin.classname."+userId+"."+proposalId);
-	logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc",
+	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		   "ARQ:: Trying to get pipeline classname using key "+key+".");
 	pipelinePluginClassname = tea.getPropertyString(key);
 	if(pipelinePluginClassname == null)
 	    {
-		logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc",
+		logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 			   "ARQ:: Project specific pipeline does not exist, "+
 			   "trying default pipeline.plugin.classname.default.");
 		pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname.default");
 	    }
-	logger.log(INFO, 1, CLASS, tea.getId(),"getPipelinePluginFromDoc",
+	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		   "ARQ:: Pipeline classname found was "+pipelinePluginClassname+".");
 	// if we could not find a class name to instansiate, fail.
 	if(pipelinePluginClassname == null)
