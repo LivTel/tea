@@ -58,7 +58,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     
     /** Time margin above expected execution time when we give up as a lost cause.*/
     private static final long TIME_MARGIN = 2*3600*1000L;
-    
+
+    /** Time after expiry before we expire the document (ms).*/
+    private static final long DEFAULT_EXPIRY_OFFSET = 2*3600*1000L;
+
     /** Flags completed successful obs as notified by RCS Telemetry.*/
     public static final int OBS_DONE = 1;
 
@@ -127,6 +130,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Current sleep setting.*/
     private long sleepTime = LONG_SLEEP_TIME;
 
+    /** Time after expiry before we decide to expire the document (ms).*/
+    private long expiryOffset;
+
     /** ARQ id.*/
     private String id;
 
@@ -153,16 +159,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	countExposures = 0;
 	//elapsedTime = 0L;
 
+	expiryOffset = DEFAULT_EXPIRY_OFFSET;
+
 	logger = LogManager.getLogger(this);
 
-    }
-
-    /** Overridden to pre-pend the TEA's id onto the thread name to form an ID.
-     * @param name The name to append to the TEA's id as #id.
-     */
-    protected void setName(String name) {
-	super.setName(name);
-	id = tea.getId()+"/"+name;
     }
 
     /** Sets the ObservationID.
@@ -523,10 +523,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		       "ARQ::Unable to determine observation state for: "+oid);
 	    break;
 	case OBSERVATION_STATE_DONE:
-	    docType = "observation"
+	    docType = "observation";
 	    break;
 	case OBSERVATION_STATE_EXPIRED_INCOMPLETE:
-	    docType = "incomplete"
+	    docType = "incomplete";
 	    break;
 	case OBSERVATION_STATE_EXPIRED_FAILED:
 	    docType = "failed";
@@ -655,7 +655,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		    // in which case we may provide more data than the UA has asked for.
 		}
 
-		endDate = sched.getEndDate();
+		endDate = schedule.getEndDate();
 
 	    }
 	    
@@ -687,7 +687,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	    if (end < (System.currentTimeMillis()-expiryOffset)) {
 	
-		if (imageDataCount() > 0)
+		if (imageDataCount > 0)
 		    return OBSERVATION_STATE_EXPIRED_INCOMPLETE;
 		else
 		    return OBSERVATION_STATE_EXPIRED_FAILED;
