@@ -421,6 +421,7 @@ public class RequestDocumentHandler implements Logging {
 	 String oid = observation.getFullPath();
 	 arq.setOid(oid);
 	 arq.setName("ARQNew:"+oid);
+	 arq.setId(tea.getId()+"/"+arq.getName());
 
 	 // Get a unique file Name off the TEA.
 	 File file = new File(tea.createNewFileName(oid));
@@ -433,10 +434,14 @@ public class RequestDocumentHandler implements Logging {
 	 
 	 // Save it to the file - we could do this ourself..
 	 tea.saveDocument(document, file);
+	 logger.log(INFO, 1, CLASS, "RH", "handleRequest",
+		    "Saving base document to: "+file.getPath());
 	 
 	 // Register as handler for the current obs.
 	 tea.registerHandler(oid, arq);
-	 
+	 logger.log(INFO, 1, CLASS, "RH", "handleRequest",
+		    "Registered running ARQ for: "+oid+" Using file: "+file.getPath());
+
 	 // Initialize and start the ARQ as UpdateHandler. If the ARQ does not successfully
 	 // prepare for UpdateHandling it will not be started and we get an exception.
 	 try {
