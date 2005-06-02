@@ -134,6 +134,10 @@ public class DocumentExpirator extends ControlThread implements Logging {
 						arq.sendDocUpdate(doc,"failed");
 	
 					    arq.expireDocument();
+
+					    logger.log(INFO,1,CLASS,tea.getId(),"mainTask",
+						       "Terminating ARQ: "+arq.getName());
+					    arq.terminate();
 				  
 					}
 					catch (Exception e) {
