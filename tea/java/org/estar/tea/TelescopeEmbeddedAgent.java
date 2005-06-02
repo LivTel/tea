@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.15 2005-06-02 08:22:43 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.16 2005-06-02 08:25:00 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -837,6 +837,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    
 		AgentRequestHandler arq = new AgentRequestHandler(this, doc);
 		arq.setName("ARQ:"+(++arqCount));
+		arq.setId(getId()+"/"+arq.getName());
 		arq.setDocumentFile(file);
 		arq.setOid(oid);
 	
@@ -1218,6 +1219,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.15  2005/06/02 08:22:43  snf
+/** Commented out unused methods addDoc, getDoc.
+/**
 /** Revision 1.14  2005/06/02 08:16:01  snf
 /** Disabled the DocExpirator for testing of ARQ's internal checking.
 /**
