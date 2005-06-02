@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.13 2005-06-02 06:29:18 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.14 2005-06-02 08:16:01 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -391,10 +391,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		     "Started Telemetry Requestor with reconnect interval: "+
 		     (DEFAULT_TELEMETRY_RECONNECT_TIME/1000)+" secs");
 	
-	docExpirator.start();
-	traceLog.log(INFO, 1, CLASS, id, "init",
-		     "Started DocExpirator with polling interval: "+
-		     (expiratorSleepMs/1000)+" secs");
+	//docExpirator.start();
+	//traceLog.log(INFO, 1, CLASS, id, "init",
+	//     "Started DocExpirator with polling interval: "+
+	//     (expiratorSleepMs/1000)+" secs");
 	
 	io.serverStart(dnPort, this);	
 	traceLog.log(INFO, 1, CLASS, id, "init",
@@ -1218,6 +1218,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.13  2005/06/02 06:29:18  snf
+/** Changed createNewFileName() to include document-base directory.
+/**
 /** Revision 1.12  2005/06/01 16:07:24  snf
 /** Updated to use new architecture.
 /**
