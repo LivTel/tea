@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.14 2005-06-02 08:16:01 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.15 2005-06-02 08:22:43 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -771,25 +771,25 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	return v;
     }
     
-    /**
-     * Add a document into request map for supplied key and saves to file.
-     * @param document The document to save.
-     * @throws Exception If anything goes horribly wrong.
-     * @see #createKeyFromDoc
-     */
-    public void addDocument(RTMLDocument document) throws Exception
-    {
-	String key = createKeyFromDoc(document);
-	requestMap.put(key, document);
-	saveDocument(key, document);
-    }
+   //  /**
+//      * Add a document into request map for supplied key and saves to file.
+//      * @param document The document to save.
+//      * @throws Exception If anything goes horribly wrong.
+//      * @see #createKeyFromDoc
+//      */
+//     public void addDocument(RTMLDocument document) throws Exception
+//     {
+// 	String key = createKeyFromDoc(document);
+// 	requestMap.put(key, document);
+// 	saveDocument(key, document);
+//     }
     
-    /** Get the Doucument for the supplied key or null.
-     * @param key      Document's group path.
-     */
-    public RTMLDocument getDocument(String key) {
-	return (RTMLDocument)requestMap.get(key);
-    }
+//     /** Get the Doucument for the supplied key or null.
+//      * @param key      Document's group path.
+//      */
+//     public RTMLDocument getDocument(String key) {
+// 	return (RTMLDocument)requestMap.get(key);
+//     }
       
     /** Save the RTMLDocument to the specified file.
      * @param document The document to save.
@@ -1218,6 +1218,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.14  2005/06/02 08:16:01  snf
+/** Disabled the DocExpirator for testing of ARQ's internal checking.
+/**
 /** Revision 1.13  2005/06/02 06:29:18  snf
 /** Changed createNewFileName() to include document-base directory.
 /**
