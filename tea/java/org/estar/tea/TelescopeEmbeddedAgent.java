@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.12 2005-06-01 16:07:24 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.13 2005-06-02 06:29:18 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -790,57 +790,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     public RTMLDocument getDocument(String key) {
 	return (RTMLDocument)requestMap.get(key);
     }
-    
-    /** 
-     * Save the document. Assumes the document already has a key->filename mapping,
-     * which is used to get the filename to save the document into.
-     * @param document The document to save.
-     * @throws Exception If anything goes horribly wrong.
-     * @see #createKeyFromDoc
-     * @see #saveDocument(String,RTMLDocument)
-     */
-    public void saveDocument(RTMLDocument document) throws Exception
-    {
-	String key = createKeyFromDoc(document);
-	saveDocument(key,document);
-    }
-    
-    /** 
-     * Save the document with group path supplied.
-     * Note this creates a new unique key -> filename mapping, if one does not already exist.
-     * @param key      Document's group path.
-     * @param document The document to save.
-     * @throws Exception If anything goes horribly wrong.
-     * @see #createFileName
-     * @see #documentDirectory
-     */
-    public void saveDocument(String key, RTMLDocument document) throws Exception
-    {
-	String fname = null;
-	
-	traceLog.log(INFO, 1, CLASS, id, "saveDocument",
-		     "TEA::Started saving document "+key+".");
-	if (fileMap.containsKey(key))
-	    {
-		fname = (String)(fileMap.get(key));
-	    }
-	else
-	    fname = createNewFileName(key);
-	traceLog.log(INFO, 1, CLASS, id, "saveDocument",
-		     "TEA::Document "+key+" has filename "+fname+".");
-	File docFile = new File(documentDirectory, fname);
-	FileOutputStream fos = new FileOutputStream(docFile);
-	RTMLCreate create = new RTMLCreate();
-	create.create(document);
-	create.toStream(fos);
-	
-	fileMap.put(key, fname);
-	
-	System.err.println("TEA::Saved document for path: "+key+" as file: "+docFile.getPath());
-	traceLog.log(INFO, 1, CLASS, id, "saveDocument",
-		     "TEA::Saved document for path: "+key+" as file: "+docFile.getPath());	
-    }
-    
+      
     /** Save the RTMLDocument to the specified file.
      * @param document The document to save.
      * @param file Where to save it.
@@ -947,7 +897,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      * @param oid Not currently used.
      */
     public String createNewFileName(String oid) {
-	return "doc-"+System.currentTimeMillis()+".rtml";
+	File base    = new File(documentDirectory);
+	File newFile = new File(base, "doc-"+System.currentTimeMillis()+".rtml");
+	return newFile.getPath();
     }
 
     
@@ -1266,6 +1218,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.12  2005/06/01 16:07:24  snf
+/** Updated to use new architecture.
+/**
 /** Revision 1.11  2005/05/27 14:05:39  snf
 /** First phse of upgrade completed.
 /**
