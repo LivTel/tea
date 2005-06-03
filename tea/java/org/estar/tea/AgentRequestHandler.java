@@ -217,6 +217,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     public void addImageFileName(String fileName) {
 	pending.add(fileName);
 	sleepTime = SLEEP_TIME; // short period now
+	interrupt(); // Actually make the long sleep breakout asap
     }
 
     /** ###TEMP Called from DocExpirator - 
@@ -381,6 +382,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * </ul>
      */
     protected void mainTask() {
+
+        // Back round once more at least.
+        try {Thread.sleep(sleepTime);} catch (InterruptedException ix) {}
     
 	System.err.println("ARQ/UH::Polling, entered maintask");
 	
@@ -588,7 +592,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	}
    
 	// Back round once more at least.	    
-	try {Thread.sleep(sleepTime);} catch (InterruptedException ix) {}
+	//try {Thread.sleep(sleepTime);} catch (InterruptedException ix) {}
 	
     }
 	
