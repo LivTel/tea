@@ -315,9 +315,9 @@ public class RequestDocumentHandler implements Logging {
 		 
 		 group.setMinimumLunar(Group.BRIGHT);
 		 group.setMinimumSeeing(Group.POOR);
-		 group.setTwilightUsageMode(Group.TWILIGHT_USAGE_OPTIONAL);
+		 group.setTwilightUsageMode(Group.TWILIGHT_USAGE_NEVER);
 		 
-		 float expose = 1000.0f*(float)expt;
+		 float expose = (float)expt;
 		 // Maybe split into chunks NO NOT YET.
 		 //if ((double)expose > (double)tea.getMaxObservingTime()) {
 		 //int nn = (int)Math.ceil((double)expose/(double)tea.getMaxObservingTime());
@@ -355,7 +355,7 @@ public class RequestDocumentHandler implements Logging {
 		 ((MonitorGroup)group).setPeriod(period);
 		 ((MonitorGroup)group).setFloatFraction((float)((double)window/(double)period));
 		 
-		 float expose = 1000.0f*(float)expt;	
+		 float expose = (float)expt;	
 		 // Maybe split into chunks NO NOT YET.
 		 //if ((double)expose > (double)tea.getMaxObservingTime()) {
 		 //int nn = (int)Math.ceil((double)expose/(double)tea.getMaxObservingTime());
