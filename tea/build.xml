@@ -104,7 +104,8 @@
 	<copy file="${estar.javalib}/org_estar_io_test.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_rtml.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_rtml_test.jar" todir="${dist.dir}/javalib"/>
-
+	<copy file="${estar.javalib}/org_estar_toop.jar todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_toop_test.jar todir="${dist.dir}/javalib"/>
         <copy file="${estar.javalib}/tea.jar" todir="${dist.dir}/javalib"/>
 
         <copy todir="${dist.dir}/scripts">
