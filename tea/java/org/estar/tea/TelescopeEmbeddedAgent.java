@@ -30,7 +30,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /**
      * Revision control system version id.
      */
-    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.16 2005-06-02 08:25:00 snf Exp $";
+    public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.17 2005-06-10 13:57:39 snf Exp $";
 
     public static final String CLASS = "TelescopeEA";
     
@@ -261,7 +261,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
    
     /** Create a TEA with the supplied ID.*/
     public TelescopeEmbeddedAgent(String id) {
-	
+
+	sdf.setTimeZone(UTC);
+	iso8601.setTimeZone(UTC);
+
+
 	Logger logger = null;
 
 	this.id = id;
@@ -595,7 +599,13 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
     /** Dome limit (rads).*/
     public double getDomeLimit() { return domeLimit; }
-    
+
+    /** Returns the site lattude (rads).*/
+    public double getSiteLatitude() { return siteLatitude; }
+
+    /** Returns the site longitude (rads).*/
+    public double getSiteLongitude() { return siteLongitude; }
+
     /** Returns a reference to the filter mapping. ###instrument-specific.*/
     public Properties getFilterMap() { return filterMap; }
     
@@ -1219,6 +1229,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 }
 
 /** $Log: not supported by cvs2svn $
+/** Revision 1.16  2005/06/02 08:25:00  snf
+/** Added call to set the ARQs id using tea.id plus its own.
+/**
 /** Revision 1.15  2005/06/02 08:22:43  snf
 /** Commented out unused methods addDoc, getDoc.
 /**
