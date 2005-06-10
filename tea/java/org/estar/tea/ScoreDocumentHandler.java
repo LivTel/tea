@@ -135,6 +135,12 @@ public class ScoreDocumentHandler implements Logging {
 	Date startDate = null;
 	Date endDate   = null;
 
+	// For calculating whether the target is visible.
+	VisibilityCalculator vc = new VisibilityCalculator(tea.getSiteLatitude(),
+							   tea.getSiteLongitude(),
+							   tea.getDomeLimit(),
+							   Math.toRadians(-12.0));
+	
 	// Check what type of group we are being asked for.
 
 	if (scon == null) {
@@ -283,68 +289,43 @@ public class ScoreDocumentHandler implements Logging {
 	    }
 	    
 	    
-	    // We should send a request to the OSS to test-schedule here.
-	    if (tran < tea.getDomeLimit()) {     
-		// Never rises at site.
-		logger.log(INFO, 1, CLASS, "SH","executeScore","Target NEVER RISES");
-		return setError(document, 
-				"Target transit height: "+Position.toDegrees(tran,3)+
-				" is below dome limit: "+Position.toDegrees(tea.getDomeLimit(),3)+
-				" so will never be visible at this site");
-	    } 
+// 	    // We should send a request to the OSS to test-schedule here.
+// 	    if (tran < tea.getDomeLimit()) {     
+// 		// Never rises at site.
+// 		logger.log(INFO, 1, CLASS, "SH","executeScore","Target NEVER RISES");
+// 		return setError(document, 
+// 				"Target transit height: "+Position.toDegrees(tran,3)+
+// 				" is below dome limit: "+Position.toDegrees(tea.getDomeLimit(),3)+
+// 				" so will never be visible at this site");
+// 	    } 
 	    
-	    
-	    
-	    // else if (elev < Math.toRadians(20.0) ) {
-	    // 		// Currently too low to see.
-	    // 		System.err.println("ARQ:INFO:Target LOW");
-	    // 		return setError(document, 
-	    // 			  "Target currently at elevation: "+Position.toDegrees(elev, 3)+
-	    // 			  " is not visible at this time"); 	
-	    // 		return;
-	    //  } else {    
-	    
-	    // ### COMMENTED OUT AS WE ARE EXPECTING MONITORS FOR NOW
-	    
-	    
-	    // 		// Determine telescope status - maybe this could be done by a regular polling from 
-	    // 		// another thread as if from a GUI. Note we use CAMP rather than JMSMA for GUI commands !
-	    
-	    // 		ID getid = new ID("TEA");
-	    
-	    // 		CtrlCommandHandler client = new CtrlCommandHandler(tea.getConnectionFactory(), getid);
-	    
-	    // 		freeLock();	
-	    // 		client.run();
-	    // 		waitOnLock();
-	    
-	    // 		if (client.isError()) {		    
-	    // 		    return setError(document, 
-	    // 			      "Unable to retrieve RCS operational status: "+client.getErrorMessage());
-	    // 		    return;
-	    // 		}
-	    
-	    // 		ID_DONE idd = (ID_DONE)client.getReply();
-	    
-	    
-	    
-	    // 		if (!idd.getOperational()) {
-	    // 		    return setError(document, "The telescope is not currently operational");
-	    // 		    return;
-	    // 		}
-	    
-	    // 		// This is rather telescope-specific.
-	    
-	    // 		if ("PCA".equals(idd.getAgentInControl()) ||
-	    // 		    "TOCA".equals(idd.getAgentInControl())) {
-	    // 		    return setErryor(document, 
-	    // 			      "A high priority agent is controlling the scope: "+
-	    // 			      idd.getAgentInControl()+", Please try again later");
-	    // 		    return;
-	    // 		}
-	    
-	    // ### END OF COMMENT OUT
-	    
+	    if (scon == null) {
+		// Handle Flexible.
+		double visibility = vc.calculateVisibility(targ,
+							   startDate.getTime(),
+							   endDate.getTime());
+		logger.log(INFO, 1, CLASS, "SH","executeScore",
+			   "Target scored "+visibility+" for specified flexible period");
+		
+		if (visibility <= 0.0) {
+		    return setError(document, "Target is not observable during the specified period");		    
+		}
+		
+	    } else {
+		// Handle Monitor.
+		double visibility = vc.calculateVisibility(targ,
+							   startDate.getTime(),
+							   endDate.getTime(),
+							   period,
+							   window);
+		logger.log(INFO, 1, CLASS, "SH","executeScore",
+			   "Target scored "+visibility+" for specified monitoring program");
+		
+		if (visibility <= 0.0) {
+		    return setError(document, "Target is not observable during the specified monitoring windows");		    
+		}
+		
+	    }
 	    
 	    // ### SCA mode and target visible and p5? so score.
 	    logger.log(INFO, 1, CLASS, "SH","executeScore","Target OK Score = "+(2.0*tran/Math.PI));
