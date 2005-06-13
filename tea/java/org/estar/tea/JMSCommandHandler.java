@@ -48,7 +48,7 @@ public class JMSCommandHandler extends JMSMA_ClientImpl implements Logging {
 	this.cfy     = cfy;
 	this.command = command;
 	this.secure  = secure;	
-	logger = LogManager.getLogger(this);
+	logger = LogManager.getLogger("TRACE");
     }
 
     /** Called to send the command. This method which delegates to a JMS ProtocolClientImpl 
