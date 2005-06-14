@@ -33,7 +33,12 @@ public class VisibilityCalculator {
     private double sunElevation;
 
 
-    /** Create a VisibilityCalculator.*/
+    /** Create a VisibilityCalculator.
+     * @param latitude      Telescope latitude (rads).
+     * @param longitude     Telescope longitude E (rads).
+     * @param domeLimit     Dome low limit (rads).
+     * @param sunElevation  Sun elevation for calculating twilight (-12.0 deg = nautical) (rads).
+    */
     public VisibilityCalculator(double latitude, double longitude, double domeLimit, double sunElevation) {
 	this.latitude  = latitude ;
 	this.longitude = longitude;
@@ -48,38 +53,45 @@ public class VisibilityCalculator {
      * @param endDate   The date to end.
      */
     public double calculateVisibility(Position target, long startDate, long endDate) {
- 
-	    int okcount = 0;
-	    int count   = 0;
-	    
-	    long t = startDate;    
-	    long dt = 60000L;
-	    while (t < endDate) {
-		
-		double targ_elev = target.getAltitude(t);
-		
-		String up = (targ_elev > domeLimit ? " UP" : " DN");
-		
-		Position sun = Astrometry.getSolarPosition(t);
-		
-		double sun_elev = sun.getAltitude(t);
-		
-		String day = (sun_elev > sunElevation ? " DAY" : " NGT");
-		
-		String obs = (sun_elev <  sunElevation && targ_elev > domeLimit ? " OBSRVE" : " NO_OBS");
-		
-		//System.err.println(sdf.format(new Date(t))+" Elevation: "+Position.toDegrees(targ_elev, 3)+up+" : "+day+" : "+obs);
-		    
-		if (sun_elev < sunElevation && targ_elev > domeLimit)
-		    okcount++;
-		
-		count++;
-		
-		t += dt;
-		    
-	    }
+	
+	if (startDate > endDate)
+	    return 0.0;
 
-	    return (double)okcount/(double)count;
+	int okcount = 0;
+	int count   = 0;
+	
+	long t = startDate;    
+	long dt = 60000L;
+
+	//### make DT dependant on ed-sd.
+	//long dt = Math.max(60000L, (endDate-startDate)/1000L);
+
+	while (t < endDate) {
+		
+	    double targ_elev = target.getAltitude(t);
+	    
+	    String up = (targ_elev > domeLimit ? " UP" : " DN");
+		
+	    Position sun = Astrometry.getSolarPosition(t);
+	    
+	    double sun_elev = sun.getAltitude(t);
+	    
+	    String day = (sun_elev > sunElevation ? " DAY" : " NGT");
+	    
+	    String obs = (sun_elev <  sunElevation && targ_elev > domeLimit ? " OBSRVE" : " NO_OBS");
+	    
+	    //System.err.println(sdf.format(new Date(t))+" Elevation: "+Position.toDegrees(targ_elev, 3)+up+" : "+day+" : "+obs);
+	    
+	    if (sun_elev < sunElevation && targ_elev > domeLimit)
+		okcount++;
+	    
+	    count++;
+	    
+	    t += dt;
+	    
+	}
+
+	return (double)okcount/(double)count;
     
     }
 
@@ -107,6 +119,9 @@ public class VisibilityCalculator {
 	    
 	    long t = w1;    
 	    long dt = 60000L;
+
+	    //### make DT dependant on ed-sd.
+
 	    while (t < w2) {
 		
 		double targ_elev = target.getAltitude(t);
