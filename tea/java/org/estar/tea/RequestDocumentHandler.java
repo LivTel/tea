@@ -30,6 +30,9 @@ public class RequestDocumentHandler implements Logging {
     /** Classname for logging.*/
     public static final String CLASS = "RequestDocHandler";
 
+    /** Default maximum (worst) seeing allowed (asec).*/
+    public static final double DEFAULT_SEEING_CONSTRAINT = 1.3;
+
     /** Reference to the TEA.*/
     TelescopeEmbeddedAgent tea;
 
@@ -132,7 +135,16 @@ public class RequestDocumentHandler implements Logging {
 	 }
 	 
 	 int expCount = sched.getExposureCount();
-	 
+
+	 int schedPriority = sched.getPriority();
+
+	 // Phase2 has no concept of "best seeing" so dont use sc.getMinimum()	 
+	 double seeing = DEFAULT_SEEING_CONSTRAINT; // 1.3
+	 RTMLSeeingConstraint sc = sched.getSeeingConstraint();
+	 if (sc != null) {
+	     seeing = sc.getMaximum();
+	 }
+
 	 // Extract filter info.
 	 RTMLDevice dev = obs.getDevice();
 	 String filter = null;
@@ -326,7 +338,7 @@ public class RequestDocumentHandler implements Logging {
 		 group.setMinimumLunar(Group.BRIGHT);
 		 group.setMinimumSeeing(Group.POOR);
 		 group.setTwilightUsageMode(Group.TWILIGHT_USAGE_NEVER);
-		 
+ 
 		 float expose = (float)expt;
 		 // Maybe split into chunks NO NOT YET.
 		 //if ((double)expose > (double)tea.getMaxObservingTime()) {
@@ -386,6 +398,33 @@ public class RequestDocumentHandler implements Logging {
 		 
 	     }
 	     
+	     // map rtml priorities to Phase2 priorities.
+	     int priority = 0;
+	     switch (schedPriority) {
+	     case 0:
+		 priority = 4;
+		 break;
+	     case 1:
+		 priority = 3;
+		 break;
+	     case 2:
+		 priority = 1;
+		 break;
+	     default:
+		 priority = 1;
+	     }
+	     group.setPriority(priority);
+
+	     // set seeing limits.
+	     if (seeing >= 1.3) {
+		 group.setMinimumSeeing(Group.POOR);
+	     } else if
+		 (seeing >= 0.8) {
+		 group.setMinimumSeeing(Group.AVERAGE);
+	     } else {
+		 // this will also catch any with silly values like < 0.0 !
+		 group.setMinimumSeeing(Group.EXCELLENT);
+	     }
 		
 	     Map smap = new HashMap();
 	     smap.put(observation, targetId);
