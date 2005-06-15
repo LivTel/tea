@@ -64,7 +64,7 @@ public class RequestDocumentHandler implements Logging {
 	 long now = System.currentTimeMillis();
 	 
 	 Observation observation = null;
-	 Group       group       = null;
+	 Group       group       = null;	 
 
 	 // Tag/User ID combo is what we expect here.
 	 
@@ -89,13 +89,23 @@ public class RequestDocumentHandler implements Logging {
 	     return setError( document, "Your Project ID was null");
 	 }
 	 
-	 // We will use this as the Group ID.
+	 // We will use this as the Group ID otherwise use 'default agent'.
 	 RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
+	 
+	 if (userAgent == null) {
+	     return setError(document, "No user agent: ###TBD Default UA");
+	 }
+
 	 String requestId = userAgent.getId();
 	 
-	 // Extract the Observation request.
+	 // Extract the Observation request(s) - handle multiple obs per doc.
+
+	 //int nobs = getObservationListCount();
 	 
+	 //for (int iobs = 0; iobs < nobs; iobs++) {
+
 	 RTMLObservation obs = document.getObservation(0);
+	 //RTMLObservation obs = document.getObservation(iobs);
 	 
 	 // Extract params
 	 RTMLTarget target = obs.getTarget();
