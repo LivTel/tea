@@ -1,0 +1,35 @@
+#!/bin/sh
+
+# ----------------------------------------------
+# Startup script for tea
+# ----------------------------------------------
+
+DATE=`date -u +"%j_%H_%M"`
+# Source function library.
+. /etc/rc.d/init.d/functions
+export LD_LIBRARY_PATH=""
+export CLASSPATH=""
+. /occ/etc/env
+
+case "$1" in
+  start)
+	echo "Starting tea."
+	cd /occ/tea/scripts
+	./telescopeagent ftnproxy 1>> tea-${DATE}.log 2>&1 &
+	;;
+  stop)
+	echo "Stoping tea."
+	/occ/tea/scripts/killhup.csh org.estar.tea.TelescopeEmbeddedAgent
+	;;
+  restart)
+	$0 stop
+	echo "Restarting in 30 secs"
+	sleep 30	
+	$0 start
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit 0
