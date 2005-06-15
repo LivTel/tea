@@ -227,32 +227,13 @@ public class ScoreDocumentHandler implements Logging {
 	// but is endDate for now
 	document.setCompletionTime(endDate);
 	
-	if (toop) {
-	    
-	    // ### Send a WHEN based on our serviceID.
-	    String when = "WHEN "+tea.getTocsServiceId();
-	    TocClient client = new TocClient(when, tea.getTocsHost(), tea.getTocsPort());
-	    
-	    //setLock();	
-	    logger.log(INFO, 1, CLASS, "SH","executeScore","Sending WHEN request to TOCS");
-	    client.run();
-	    //waitOnLock();
-	    
-	    if (client.isError()) {		    
-		return setError(document, 
-				"Unable to invoke TO Service:"+tea.getTocsServiceId()+" : "+client.getErrorMessage());
-	    }
-	    
-	    String reply = client.getReply();
-	    
-	    // ### Temp fail these.
-	    return setError(document, "Targets of type toop are not yet implemented");
-	    
-	    // ###  We allow TOOP to take over anyway for now score is MAX.
-	    //document.setScore(0.99);   
-	    //sendDoc(document, "score");
-
-	    
+	if (toop)
+	{
+		// Try and get TOCSessionManager context.
+		TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea,document);
+		// score the document
+		document = sessionManager.scoreDocument(document);
+		return document;
 	} else {
 
 	    // Non toop
