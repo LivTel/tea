@@ -129,10 +129,15 @@ public class DocumentExpirator extends ControlThread implements Logging {
 					    // send failed/incomplete to UA
 					    
 					    if(obs.getImageDataCount() > 0)
-						arq.sendDocUpdate(doc,"incomplete");
+					    {
+						    doc.setType("incomplete");
+						    tea.sendDocumentToIA(doc);
+					    }
 					    else
-						arq.sendDocUpdate(doc,"failed");
-	
+					    {
+						doc.setType("failed");
+						tea.sendDocumentToIA(doc);
+					    }
 					    arq.expireDocument();
 
 					    logger.log(INFO,1,CLASS,tea.getId(),"mainTask",
