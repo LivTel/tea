@@ -317,53 +317,6 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     	
     }
     
-    /** 
-     * Send a reply of specified type. This differs from sendDoc(doc,type) in that
-     * an io client connection is made to the intelligent agent using the information in the
-     * documents intelligen agent tag, rather than replying to an agent request.
-     * This method is used by the UpdateHandler to send update messages.
-     * @param document The document to send.
-     * @param type     A string denoting the type of document to send.
-     */
-    public void sendDocUpdate(RTMLDocument document, String type) throws Exception {
-
-	logger.log(INFO, 1, CLASS, getName(), "sendDocUpdate", "Started.");   	
-	
-	RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
-	if(userAgent == null)
-	    {
-		logger.log(INFO, 1, CLASS, getName(), "sendDocUpdate", "User agent was null.");
-		throw new Exception(this.getClass().getName()+":sendDocUpdate:user agent was null");
-	    }
-	
-	String agid = userAgent.getId();
-	String host = userAgent.getHostname();
-	int    port = userAgent.getPort();
-	
-	logger.log(INFO, 1, CLASS, getName(), "sendDocUpdate", "Opening eSTAR IO client connection to ("+host+
-		   ","+port+").");
-	GlobusIOHandle handle = io.clientOpen(host, port);
-	if(handle == null)
-	    {
-		logger.log(INFO, 1, CLASS, getName(), "sendDocUpdate", "Failed to open client connection to ("+host+
-			   ","+port+").");
-		throw new Exception(this.getClass().getName()+":sendDocUpdate:handle was null");
-	    }
-	
-	
-	String reply = TelescopeEmbeddedAgent.createDocReply(document, type);
-	
-	logger.log(INFO, 1, CLASS, getName(), "sendDocUpdate", "Writing:\n"+reply+
-		   "\n to handle "+handle+".");
-	
-	// how do we check this has failed?
-	io.messageWrite(handle, reply);
-	
-	logger.log(INFO, 1, CLASS, getName(), "sendDocUpdate","ARQ::Sent document "+agid+" type: "+type);
-	
-	io.clientClose(handle);
-	
-    }
 
     /** Initialization.*/
     protected void initialise() {}
@@ -498,12 +451,13 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    try {
 		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sending update document for "+oid+".");
-		sendDocUpdate(updateDoc, "update");
+		updateDoc.setType("update");
+		tea.sendDocumentToIA(updateDoc);
 		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sent update document for "+oid+".");
 	    } catch (Exception e) {
 		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::sendDocUpdate failed for "+oid+":"+e);
+			   "ARQ::sendDocumentToIA failed for "+oid+":"+e);
 		logger.dumpStack(1,e);
 		return;
 	    }
@@ -543,8 +497,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    try {
 		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sending observation final status document ("+docType+") document for "+oid+".");
-		sendDocUpdate(baseDocument, docType);
-		
+		baseDocument.setType(docType);
+		tea.sendDocumentToIA(baseDocument);
 		// Only if we succeeded in sending can we disengage the ARQ.
 		
 		// Deregister immediately.
