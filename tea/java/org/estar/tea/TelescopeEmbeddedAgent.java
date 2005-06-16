@@ -31,7 +31,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.19 2005-06-16 10:06:18 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.20 2005-06-16 17:49:00 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -243,7 +243,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		iso8601.setTimeZone(UTC);
 
 
-		Logger logger = null;
+		Logger l = null;
 
 		this.id = id;
 
@@ -257,30 +257,33 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		traceLog.addHandler(console);
 	
 		// add handler to other loggers used
-		logger = LogManager.getLogger("org.estar.tea.TelemetryRequestor");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.TelemetryHandlerFactory");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.TelemetryHandler");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.UpdateHandler");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.DocumentExpirator");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.AgentRequestHandler");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.DefaultPipelinePlugin");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
-		logger = LogManager.getLogger("org.estar.tea.TOCSessionManager");
-		logger.setLogLevel(ALL);
-		logger.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.TelescopeEmbeddedAgent");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.TelemetryRequestor");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.TelemetryHandlerFactory");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.TelemetryHandler");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.UpdateHandler");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.DocumentExpirator");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.AgentRequestHandler");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.DefaultPipelinePlugin");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.TOCSessionManager");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
 		TOCSession.initLoggers(console,ALL);
 	
 		filterMap = new Properties();
@@ -516,7 +519,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @exception IOException Thrown if the load failed.
 	 */
 	public void configureProperties(File file) throws java.io.FileNotFoundException,
-								java.io.IOException
+							  java.io.IOException
 	{
 		properties = new NGATProperties();
 		properties.load(file);
@@ -987,7 +990,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @param document The document to extract a reply message from.
 	 * @return A reply message in RTML format.
 	 */
-	public static String createReply(RTMLDocument document) {
+	public static String createReply(RTMLDocument document)
+	{
 		//System.err.println("Create reply for: \n\n\n"+document+"\n\n\n");
 		try {
 			RTMLCreate createReply = new RTMLCreate();
@@ -1002,6 +1006,44 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 	}
     
+	/** 
+	 * Send a reply of specified type. This differs from sendDoc(doc,type) in that
+	 * an io client connection is made to the intelligent agent using the information in the
+	 * documents intelligen agent tag, rather than replying to an agent request.
+	 * This method is used by the UpdateHandler to send update messages.
+	 * @param document The document to send.
+	 * @param type     A string denoting the type of document to send.
+	 */
+	public void sendDocumentToIA(RTMLDocument document) throws Exception
+	{
+		traceLog.log(INFO, 1,CLASS, "sendDocumentToIA Started.");
+		RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
+		if(userAgent == null)
+		{
+			traceLog.log(INFO, 1, CLASS, "sendDocumentToIA: User agent was null.");
+			throw new Exception(this.getClass().getName()+":sendDocumentToIA:user agent was null");
+		}
+		String agid = userAgent.getId();
+		String host = userAgent.getHostname();
+		int    port = userAgent.getPort();
+	
+		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA: Opening eSTAR IO client connection to ("+host+
+			   ","+port+").");
+		GlobusIOHandle handle = io.clientOpen(host, port);
+		if(handle == null)
+		{
+			traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Failed to open client connection to ("+host+
+				   ","+port+").");
+			throw new Exception(this.getClass().getName()+":sendDocumentToIA:handle was null");
+		}
+		String reply = TelescopeEmbeddedAgent.createReply(document);
+	
+		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Writing:\n"+reply+"\n to handle "+handle+".");
+		// how do we check this has failed?
+		io.messageWrite(handle, reply);
+		traceLog.log(INFO, 1, CLASS,"sendDocumentToIA:Sent document "+agid+".");
+		io.clientClose(handle);
+	}
 
 
 	/** Configures and starts a Telescope Embedded Agent.*/
@@ -1189,36 +1231,39 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.19  2005/06/16 10:06:18  cjm
+** Javadoc fixes.
+**
 ** Revision 1.18  2005/06/15 15:42:56  cjm
 ** Various changes. Logging upgrades for new TOCSession stuff.
 **
-    /** Revision 1.17  2005/06/10 13:57:39  snf
-    /** Added getters for lat and longitude.
-    /**
-    /** Revision 1.16  2005/06/02 08:25:00  snf
-    /** Added call to set the ARQs id using tea.id plus its own.
-    /**
-    /** Revision 1.15  2005/06/02 08:22:43  snf
-    /** Commented out unused methods addDoc, getDoc.
-    /**
-    /** Revision 1.14  2005/06/02 08:16:01  snf
-    /** Disabled the DocExpirator for testing of ARQ's internal checking.
-    /**
-    /** Revision 1.13  2005/06/02 06:29:18  snf
-    /** Changed createNewFileName() to include document-base directory.
-    /**
-    /** Revision 1.12  2005/06/01 16:07:24  snf
-    /** Updated to use new architecture.
-    /**
-    /** Revision 1.11  2005/05/27 14:05:39  snf
-    /** First phse of upgrade completed.
-    /**
-    /** Revision 1.10  2005/05/27 09:43:39  snf
-    /** Added call to createUpdateHandler before starting it.
-    /**
-    /** Revision 1.9  2005/05/27 09:35:20  snf
-    /** Started modification to attach an AgentRequestHandler to each request over its lifetime.
-    /**
-    /** Revision 1.8  2005/05/25 14:27:56  snf
-    /** Changed handling of plugin properties to allow future porject-specific handling.
-    /** */
+/** Revision 1.17  2005/06/10 13:57:39  snf
+/** Added getters for lat and longitude.
+/**
+/** Revision 1.16  2005/06/02 08:25:00  snf
+/** Added call to set the ARQs id using tea.id plus its own.
+/**
+/** Revision 1.15  2005/06/02 08:22:43  snf
+/** Commented out unused methods addDoc, getDoc.
+/**
+/** Revision 1.14  2005/06/02 08:16:01  snf
+/** Disabled the DocExpirator for testing of ARQ's internal checking.
+/**
+/** Revision 1.13  2005/06/02 06:29:18  snf
+/** Changed createNewFileName() to include document-base directory.
+/**
+/** Revision 1.12  2005/06/01 16:07:24  snf
+/** Updated to use new architecture.
+/**
+/** Revision 1.11  2005/05/27 14:05:39  snf
+/** First phse of upgrade completed.
+/**
+/** Revision 1.10  2005/05/27 09:43:39  snf
+/** Added call to createUpdateHandler before starting it.
+/**
+/** Revision 1.9  2005/05/27 09:35:20  snf
+/** Started modification to attach an AgentRequestHandler to each request over its lifetime.
+/**
+/** Revision 1.8  2005/05/25 14:27:56  snf
+/** Changed handling of plugin properties to allow future porject-specific handling.
+/** */
