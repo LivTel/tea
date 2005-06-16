@@ -534,7 +534,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    docType = "incomplete";
 	    break;
 	case OBSERVATION_STATE_EXPIRED_FAILED:
-	    docType = "failed";
+	    docType = "fail";
 	    break;
 	}
 
