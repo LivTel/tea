@@ -263,9 +263,12 @@ public class RequestDocumentHandler implements Logging {
 	 String proposalPathName = tea.getDBRootName()+"/"+userId+"/"+proposalId;
 	 
 	 if (toop) {
-	     
-	     return setError(document, "Toop targets are not supported yet");
-	     
+		// Try and get TOCSessionManager context.
+		TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea,document);
+		// add the document to the TOCSessionManager
+		// if it succeeds addDocument sets the type to "confirmation".
+		document = sessionManager.addDocument(document);
+		return document;
 	 } else {
 	     
 	     // Non toop
