@@ -57,7 +57,6 @@ public class ScoreDocumentHandler implements Logging {
     /** Called to handle an incoming score document. 
      * Attempts to score the request via the OSS Phase2 DB.
      * @param document The RTML request document.
-     * @param handle   Handle for the return connection.
      * @throws Exception if anything goes wrong.
      */
     public RTMLDocument handleScore(RTMLDocument document) throws Exception {

@@ -200,12 +200,12 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     }
     
     /** Returns the base document.
-     * @returns The base-document..
+     * @return The base-document..
      */
     public RTMLDocument getBaseDocument() { return baseDocument; }
 
     /** Returns the base-document file.
-     * @returns The file used to store the base document.
+     * @return The file used to store the base document.
      */
     public File getDocumentFile() { return file; }
     
@@ -281,10 +281,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     
     /** Send an Error reply with sepcified message.  
      * Uses the already opened eSTAR io handle.
-     * @param io      The eSTARIO.
-     * @param handle  Globus IO Handle for the connection.
      * @param document The document to send.
      * @param errorMessage The error message to include.
+     * @see #io
+     * @see TelescopeEmbeddedAgent#createErrorDocReply
      */
     public void sendError(RTMLDocument document, String errorMessage) {
 
@@ -300,12 +300,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     
     /** Send a reply of specified type.
      * Uses the already opened eSTAR io handle.
-     * @param io      The eSTARIO.
-     * @param handle  Globus IO Handle for the connection.
      * @param document The document to send.
      * @param type     The type of document to send.
      * @see #io
-     * @see #handle
+     * @see TelescopeEmbeddedAgent#createDocReply
      */
     public void sendDoc(RTMLDocument document, String type) {
 	
@@ -713,7 +711,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * @param imageFileName The remote filename path.
      * @param destFileName The local filename path to store the copied file into.
      * @exception Exception Thrown if the transfer failed.
-     * @see #client
+     * @see TelescopeEmbeddedAgent#getImageTransferClient
      * @see #logger
      */
     private void transfer(String imageFileName, String destFileName) throws Exception {

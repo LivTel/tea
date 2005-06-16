@@ -31,7 +31,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.18 2005-06-15 15:42:56 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.19 2005-06-16 10:06:18 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -220,7 +220,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/** Maps each request to the AgentRequestHandler (ARQ) which will handle its 
 	 * <i>update</i> messages from the RCS and <i>abort</i> messages from UA.
 	 * Mapping is from the generated ObservationID (oid) to the ARQ.
-	 * @see #getOidFromDocument()
+	 * @see #getUpdateHandler
 	 */    
 	protected Map agentMap;
 
@@ -1189,6 +1189,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.18  2005/06/15 15:42:56  cjm
+** Various changes. Logging upgrades for new TOCSession stuff.
+**
     /** Revision 1.17  2005/06/10 13:57:39  snf
     /** Added getters for lat and longitude.
     /**
