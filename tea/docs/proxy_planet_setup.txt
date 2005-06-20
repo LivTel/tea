@@ -1,5 +1,5 @@
-$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.1 2005-06-13 14:40:22 cjm Exp $
-$Revision: 1.1 $
+$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.2 2005-06-20 15:11:27 cjm Exp $
+$Revision: 1.2 $
 
 Proxy machines planet account setup
 -----------------------------------
@@ -39,7 +39,21 @@ mkdir microlens
 ln -s /datadisk/microlens/ /microlens
 chown planet:ltdev /datadisk/microlens/ /microlens
 
+pico
+----
+
+rpm is part of pine, so try direct install:
+
+scp /usr/bin/pico root@ltproxy:/usr/bin/
+
+Can't do this! - ftnproxy is on RedHat 7.2!
+Bugger, reinstalled pine from RH7.2 rpm.
+
+
 log
 ---
 
 $Log: not supported by cvs2svn $
+Revision 1.1  2005/06/13 14:40:22  cjm
+Initial revision
+
