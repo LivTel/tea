@@ -1,5 +1,5 @@
-$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.2 2005-06-20 15:11:27 cjm Exp $
-$Revision: 1.2 $
+$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.3 2005-06-21 15:22:40 cjm Exp $
+$Revision: 1.3 $
 
 Proxy machines planet account setup
 -----------------------------------
@@ -49,11 +49,89 @@ scp /usr/bin/pico root@ltproxy:/usr/bin/
 Can't do this! - ftnproxy is on RedHat 7.2!
 Bugger, reinstalled pine from RH7.2 rpm.
 
+copying from St. Andrews to <telescope>proxy
+--------------------------------------------
+
+Change /microlens permissions:
+su
+chmod g+w /microlens
+
+Add a nologin user:
+# If planetnobody's home is NOT /home/planetnobody ssh does not look in ~/.ssh/authorized_keys
+# even though it should!
+# If the shell is set to /sbin/nologin ssh says the account is "not activated" even for single purpose keys
+#/usr/sbin/useradd -c "Planet remote access user" -h /microlens -g ltdev -n -s /sbin/nologin -u 1023 planetnobody
+/usr/sbin/useradd -c "Planet remote access user" -d /home/planetnobody -g ltdev -n -s /bin/csh -u 1023 planetnobody
+
+#mkdir /home/planetnobody
+#chown planetnobody:ltdev /home/planetnobody
+
+(ensure account also exists on ltdevsrv)
+ltdevsrv:
+Iraf user was missing from ltdevsrv (NB home is wrong, but Irsf isn't actually installed on ltdevsrv):
+/usr/sbin/useradd -c "Iraf User" -d / -g ltdev -n -s /sbin/nologin -u 1022 iraf
+/usr/sbin/useradd -c "Planet remote access user" -d /home/planetnobody -g ltdev -n -s /sbin/nologin -u 1023 planetnobody
+
+
+<telescope>proxy:
+mkdir /home/planetnobody/.ssh
+chown planetnobody:ltdev /home/planetnobody/.ssh
+chmod 700 /home/planetnobody/.ssh
+ls -ld /home/planetnobody/.ssh
+
+
+Why not use scp?
+----------------
+Unless planetnobody has /bin/csh as a login command, scp won't work, as it recognizes the account is disabled.
+So you can't get scp functionality without ssh functionality.
+
+Single-purpose keys
+-------------------
+On ltobs9/St. Andrews machine:
+
+ssh-keygen -t dsa -f ~/.ssh/untar
+Generating public/private dsa key pair.
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/cjm/.ssh/untar.
+Your public key has been saved in /home/cjm/.ssh/untar.pub.
+The key fingerprint is:
+81:2f:da:b8:28:e2:08:de:ae:b2:4b:c0:89:00:e5:1c cjm@ltobs9.livjm.ac.uk
+
+cp ~/.ssh/untar.pub ~/.ssh/untar.tmp
+
+cat ~/.ssh/untar.tmp
+Should read:
+
+ssh-dss AAAA... ...Sog= cjm@ltobs9.livjm.ac.uk
+
+Edit in emacs - change to:
+
+# old version:
+#command="/bin/cat - | /bin/tar xvf -",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-dss AAAA... ...Sog= untar
+
+# better version - untars under /microlens:
+command="cd /microlens ; /bin/tar xvf -",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-dss AAAA... ...Sog= untar
+
+scp ~/.ssh/untar.tmp planet@ltproxy:
+
+On <telescope>proxy as root:
+cat ~planet/untar.tmp >> ~planetnobody/.ssh/authorized_keys2
+chown planetnobody:ltdev ~planetnobody/.ssh/authorized_keys2
+chmod 600 ~planetnobody/.ssh/authorized_keys2
+
+On ltobs9/St. Andrews machine:
+ssh-agent sh -c 'ssh-add ~/.ssh/untar < /dev/null && cat temp.tar | ssh planetnobody@ltproxy'
+or
+ssh-agent sh -c 'ssh-add ~/.ssh/untar < /dev/null && cat temp.tar | ssh -C planetnobody@ltproxy'
 
 log
 ---
 
 $Log: not supported by cvs2svn $
+Revision 1.2  2005/06/20 15:11:27  cjm
+pico installation problems.
+
 Revision 1.1  2005/06/13 14:40:22  cjm
 Initial revision
 
