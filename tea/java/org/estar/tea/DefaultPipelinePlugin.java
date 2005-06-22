@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.5 2005-05-27 09:51:40 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.6 2005-06-22 16:05:37 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.5 2005-05-27 09:51:40 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.6 2005-06-22 16:05:37 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -35,12 +35,18 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * Part of property keywords used for defining pipeline plugin properties - the "name" of this plugin.
 	 * This is currently "default".
 	 */
-	protected static String PROPERTY_KEY_PIPELINE_PLUGIN_NAME = "default";
+	protected static String PROPERTY_KEY_PIPELINE_PLUGIN_ID = "default";
 	// fields
 	/**
 	 * tea reference.
 	 */
 	protected TelescopeEmbeddedAgent tea = null;
+	/**
+	 * The id of the pipeline plugin. This is typically "TAG/User.Proposal" of the proposal that
+	 * caused this plugin to be created, of "default" if this is <b>not</b> a proposal specific plugin.
+	 * @see #PROPERTY_KEY_PIPELINE_PLUGIN_ID
+	 */
+	protected String id = PROPERTY_KEY_PIPELINE_PLUGIN_ID;
 	/**
 	 * A string representing a local input directory.
 	 */
@@ -84,15 +90,25 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	}
 
 	/**
-	 * Intialise the plugin. Assumes setTea has already been called.
+	 * Method to set the Id of this instance of the plugin. This is used when searching for the plugin defaults.
+	 * The id is normally the "TAG/User.Proposal" of the proposal this pipeline is for, or "default" for the
+	 * case of the default pipeline.
+	 * @param s The id string.
+	 * @see #id
+	 */
+	public void setId(String s)
+	{
+		id = s;
+	}
+
+	/**
+	 * Intialise the plugin. Assumes setTea and setId have already been called.
 	 * <ul>
-	 * <li>Initialise inputDirectory from the tea property PROPERTY_KEY_HEADER+"."+
-	 *     PROPERTY_KEY_PIPELINE_PLUGIN_NAME+".input_directory".
-	 * <li>Initialise outputDirectory from the tea property PROPERTY_KEY_HEADER+"."+
-	 *     PROPERTY_KEY_PIPELINE_PLUGIN_NAME+".output_directory".
-	 * <li>Initialise scriptFilename from the tea property PROPERTY_KEY_HEADER+"."+
-	 *     PROPERTY_KEY_PIPELINE_PLUGIN_NAME+".script_filename".
+	 * <li>Initialise inputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+".input_directory".
+	 * <li>Initialise outputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+".output_directory".
+	 * <li>Initialise scriptFilename from the tea property PROPERTY_KEY_HEADER+"."+id+".script_filename".
 	 * </ul>
+	 * @see #id
 	 * @see #PROPERTY_KEY_HEADER
 	 * @see #PROPERTY_KEY_PIPELINE_PLUGIN_NAME
 	 * @see #inputDirectory
@@ -106,23 +122,19 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() started.");
 		// inputDirectory
-		inputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
-						       ".input_directory");
+		inputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".input_directory");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: input directory: "+inputDirectory+".");
 		// outputDirectory
-		outputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
-							".output_directory");
+		outputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".output_directory");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: output directory: "+outputDirectory+".");
 		// scriptFilename
-		scriptFilename = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
-						       ".script_filename");
+		scriptFilename = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".script_filename");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: script filename: "+scriptFilename+".");
 		// urlBase - ensure terminated with '/'
-		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+PROPERTY_KEY_PIPELINE_PLUGIN_NAME+
-						       ".http_base");
+		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".http_base");
 		if(urlBase.endsWith("/") == false)
 			urlBase = urlBase+"/";
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
@@ -346,6 +358,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2005/05/27 09:51:40  cjm
+// Fixed urlBase fix.
+//
 // Revision 1.4  2005/05/26 11:01:43  cjm
 // Added termination check to urlBase.
 //
