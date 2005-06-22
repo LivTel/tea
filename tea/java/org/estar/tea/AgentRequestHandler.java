@@ -686,6 +686,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /**
      * Uses the baseDocument to figure out which project this document belong to.
      * Then tries to create the a suitable pipeline processing plugin.
+     * The plugin's ID is set.
      * @return A new instance of a class implementing PipelineProcessingPlugin, suitable for this data.
      * @exception NullPointerException Thrown if baseDocument is null.
      * @exception ClassNotFoundException Thrown if the specified class does not exist.
@@ -697,19 +698,17 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	throws NullPointerException, 
 	       ClassNotFoundException, InstantiationException, IllegalAccessException
     {
+	    PipelineProcessingPlugin plugin = null;
 	RTMLContact contact = null;
 	RTMLProject project = null;
 	String userId = null;
 	String proposalId = null;
 	String pipelinePluginClassname = null;
 	Class pipelinePluginClass = null;
+	String pluginId = null;
 	String key = null;
 
-	System.err.println("Starting dodgy bit...");
-	
 	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc","ARQ:: Started.");
-	
-	System.err.println("Done dodgy bit...");
 	
 	if(baseDocument == null)
 	    {
@@ -733,16 +732,18 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    }
 	proposalId = project.getProject();
 	// get pipeline plugin class name
-	key = new String("pipeline.plugin.classname."+userId+"."+proposalId);
+	pluginId = new String(userId+"."+proposalId);
+	key = new String("pipeline.plugin.classname."+pluginId);
 	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		   "ARQ:: Trying to get pipeline classname using key "+key+".");
 	pipelinePluginClassname = tea.getPropertyString(key);
 	if(pipelinePluginClassname == null)
 	    {
+		    pluginId = new String("default");
 		logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 			   "ARQ:: Project specific pipeline does not exist, "+
-			   "trying default pipeline.plugin.classname.default.");
-		pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname.default");
+			   "trying default pipeline.plugin.classname."+pluginId);
+		pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname."+pluginId);
 	    }
 	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		   "ARQ:: Pipeline classname found was "+pipelinePluginClassname+".");
@@ -755,7 +756,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	// get pipeline plugin class from class name
 	pipelinePluginClass = Class.forName(pipelinePluginClassname);
 	// get pipeline plugin instance from class
-	return  (PipelineProcessingPlugin)(pipelinePluginClass.newInstance());
+	plugin = (PipelineProcessingPlugin)(pipelinePluginClass.newInstance());
+	// set plugin id
+	plugin.setId(pluginId);
+	return  plugin;
     }
     
 } //[AgentRequestHandler]

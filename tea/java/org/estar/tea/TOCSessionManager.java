@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.1 2005-06-17 17:04:05 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.2 2005-06-22 16:06:13 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.1 2005-06-17 17:04:05 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.2 2005-06-22 16:06:13 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -174,7 +174,8 @@ public class TOCSessionManager implements Runnable, Logging
 	 *     <pre>pipeline.plugin.classname.default</pre>.
 	 * <li>If no valid pipeline plugin classname can be found an error is thrown.
 	 * <li>Otherwise an instance of the specified class is constructed.
-	 * <li>The tea instance is set, and the pipeline plugin <pre>initialsie</pre> method called.
+	 * <li>The tea instance is set, the plugin's id is set, 
+	 *     and the pipeline plugin <pre>initialsie</pre> method called.
 	 * @see #logger
 	 * @see #tea
 	 * @see #tagUserProposalInfo
@@ -188,22 +189,25 @@ public class TOCSessionManager implements Runnable, Logging
 	public void setPipeline() throws NullPointerException, ClassNotFoundException, 
 					 InstantiationException, IllegalAccessException, Exception
 	{
+		String id = null;
 		String key = null;
 		String pipelinePluginClassname = null;
 		Class pipelinePluginClass = null;
 
 		// get pipeline plugin class name
-		key = new String("pipeline.plugin.classname."+tagUserProposalInfo.getTagID()+"/"+
+		id = new String(tagUserProposalInfo.getTagID()+"/"+
 				 tagUserProposalInfo.getUserID()+"."+tagUserProposalInfo.getProposalID());
+		key = new String("pipeline.plugin.classname."+id);
 		logger.log(INFO, 1, CLASS,
 			   "TOCSessionManager::setPipeline: Trying to get pipeline classname using key "+key+".");
 		pipelinePluginClassname = tea.getPropertyString(key);
 		if(pipelinePluginClassname == null)
 		{
+			id = new String("default");
 			logger.log(INFO, 1, CLASS,
 				   "TOCSessionManager::setPipeline: Project specific pipeline does not exist, "+
-				   "trying default pipeline.plugin.classname.default.");
-			pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname.default");
+				   "trying default pipeline.plugin.classname."+id);
+			pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname."+id);
 		}
 		logger.log(INFO, 1, CLASS,
 			 "TOCSessionManager::setPipeline: Pipeline classname found was "+pipelinePluginClassname+".");
@@ -223,6 +227,7 @@ public class TOCSessionManager implements Runnable, Logging
 					       ":setPipeline:Pipeline plugin was null.");
 		}
 		pipelinePlugin.setTea(tea);
+		pipelinePlugin.setId(id);
 		pipelinePlugin.initialise();
 	}
 
@@ -1291,4 +1296,7 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2005/06/17 17:04:05  cjm
+** Initial revision
+**
 */
