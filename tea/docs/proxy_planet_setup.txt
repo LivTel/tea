@@ -1,5 +1,5 @@
-$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.3 2005-06-21 15:22:40 cjm Exp $
-$Revision: 1.3 $
+$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.4 2005-06-23 13:06:33 cjm Exp $
+$Revision: 1.4 $
 
 Proxy machines planet account setup
 -----------------------------------
@@ -63,6 +63,12 @@ Add a nologin user:
 #/usr/sbin/useradd -c "Planet remote access user" -h /microlens -g ltdev -n -s /sbin/nologin -u 1023 planetnobody
 /usr/sbin/useradd -c "Planet remote access user" -d /home/planetnobody -g ltdev -n -s /bin/csh -u 1023 planetnobody
 
+change umask for planetnobody so group has write permission
+emacs ~planetnobody/.cshrc
+Add:
+umask 002
+chown planetnobody:ltdev .cshrc
+
 #mkdir /home/planetnobody
 #chown planetnobody:ltdev /home/planetnobody
 
@@ -110,8 +116,8 @@ Edit in emacs - change to:
 # old version:
 #command="/bin/cat - | /bin/tar xvf -",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-dss AAAA... ...Sog= untar
 
-# better version - untars under /microlens:
-command="cd /microlens ; /bin/tar xvf -",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-dss AAAA... ...Sog= untar
+# better version - untars under /microlens using permissions in tar:
+command="cd /microlens ; /bin/tar xvpf -",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-dss AAAA... ...Sog= untar
 
 scp ~/.ssh/untar.tmp planet@ltproxy:
 
@@ -121,14 +127,35 @@ chown planetnobody:ltdev ~planetnobody/.ssh/authorized_keys2
 chmod 600 ~planetnobody/.ssh/authorized_keys2
 
 On ltobs9/St. Andrews machine:
-ssh-agent sh -c 'ssh-add ~/.ssh/untar < /dev/null && cat temp.tar | ssh planetnobody@ltproxy'
-or
 ssh-agent sh -c 'ssh-add ~/.ssh/untar < /dev/null && cat temp.tar | ssh -C planetnobody@ltproxy'
+
+proxied data deleteion
+----------------------
+The tea copies FITS images to /home/estar/data for realtime data reduction.
+This directory is configurable on a per-proposal basis.
+
+For each directory that needs tidying:
+scp ~dev/src/scripts/purge_older estar@ltproxy:scripts
+estar@ltproxy:
+emacs -nw ~/.crontab
+# estar crontab
+# install using crontab ~/.crontab
+# minute hour day_of_month month day_of_week command
+MAILTO=""
+# purge old tea data
+# 2:05 am daily - purge any file in /home/estar/data older than 10 days
+5 2 * * *       $HOME/scripts/purge_older /home/estar/data 10
+
+Install:
+crontab ~/.crontab
 
 log
 ---
 
 $Log: not supported by cvs2svn $
+Revision 1.3  2005/06/21 15:22:40  cjm
+Added single-purpose key stuff.
+
 Revision 1.2  2005/06/20 15:11:27  cjm
 pico installation problems.
 
