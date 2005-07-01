@@ -18,7 +18,7 @@ fi
 DAT=`date -u +"%j_%H_%M"`
 TEA_CONSOLE_LOG_FILE=$DEPLOY_TMP/tea_${target}.log
 
-$DEPLOY_ETC/log_roll $TEA_CONSOLE_LOG_FILE 40000000 5 
+$DEPLOY_ETC/log_roll $TEA_CONSOLE_LOG_FILE 8000000 5 
 
 case "$1" in
   start)
