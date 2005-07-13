@@ -118,26 +118,35 @@ public class ConnectionHandler implements Logging {
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
 		io.messageWrite(handle, reply);
 		
+		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
+			     (replyDocument != null ? replyDocument.getType() : "NULL"));
+
     	    } else if
     		(type.equals("request")) {
     		
-    		// Confirm request is scorable , return doc and start AgentRequestHandler.
+    		// Confirm request is scorable.
     
 		RequestDocumentHandler rdh = new RequestDocumentHandler(tea, io, handle);
 		replyDocument = rdh.handleRequest(document);
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
 		io.messageWrite(handle, reply);
-				
+
+		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
+			     (replyDocument != null ? replyDocument.getType() : "NULL"));
+		
     	    } else {
     		
-    		// Error - reject.
+    		// General Error - reject.
 		
     		reply = tea.createErrorDocReply(document, "Unknown document type: '"+type+"'");
 		
     		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sending reply RTML message: "+reply);
 		
     		io.messageWrite(handle, reply);
-		
+
+		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
+			     (replyDocument != null ? replyDocument.getType() : "NULL"));
+
     	    }
 	    
     	} catch (Exception ex) {
