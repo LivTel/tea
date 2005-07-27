@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.2 2005-06-22 16:06:13 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.3 2005-07-27 16:57:17 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.2 2005-06-22 16:06:13 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.3 2005-07-27 16:57:17 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -567,6 +567,8 @@ public class TOCSessionManager implements Runnable, Logging
 		while(done == false)
 		{
 			// get the lock, wait some time to see if a document arrives for processing
+		       	logger.log(INFO, 1, CLASS,
+				   "TOCSessionManager::run: Waiting for lock on documentList.");
 			synchronized(documentList)
 			{
 				if(documentList.size() == 0)
@@ -583,6 +585,9 @@ public class TOCSessionManager implements Runnable, Logging
 						logger.log(INFO, 1, CLASS,
 							   "TOCSessionManager::run: Wait inerrupted:"+e);
 					}
+					logger.log(INFO, 1, CLASS,
+					      "TOCSessionManager::run: Waited for document: There are "+
+						   documentList.size()+" documents in the list.");
 					if(documentList.size() == 0)// no new document added
 					{
 						if(inSession)// we are still in control of the telescope
@@ -597,7 +602,10 @@ public class TOCSessionManager implements Runnable, Logging
 					else
 						document = (RTMLDocument)(documentList.get(0));
 				}
+		       		else
+			       		document = (RTMLDocument)(documentList.get(0));
 			}// end synchronized (documentList)
+		       	logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Released documentList lock.");
 			// if there is a document available we should process it
 			if(document != null)
 			{
@@ -1296,6 +1304,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2005/06/22 16:06:13  cjm
+** Added ability to set pipeline plugin id.
+**
 ** Revision 1.1  2005/06/17 17:04:05  cjm
 ** Initial revision
 **
