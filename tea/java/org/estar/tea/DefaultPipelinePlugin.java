@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.6 2005-06-22 16:05:37 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.7 2005-08-03 14:01:01 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.6 2005-06-22 16:05:37 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.7 2005-08-03 14:01:01 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -225,7 +225,8 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		int exitValue;
 
 		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") started.");
+			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+
+			   ") started with script filename "+scriptFilename+".");
 		executeCommand = new ExecuteCommand("");
 		executeCommand.setCommandString(scriptFilename+" "+inputFile+" "+outputFile+" "+outputClusterFile);
 		executeCommand.run();
@@ -358,6 +359,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2005/06/22 16:05:37  cjm
+// Added id for per-instance configuration of the default pipeline.
+//
 // Revision 1.5  2005/05/27 09:51:40  cjm
 // Fixed urlBase fix.
 //
