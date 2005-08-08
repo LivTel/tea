@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.3 2005-07-27 16:57:17 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.4 2005-08-08 14:43:37 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.3 2005-07-27 16:57:17 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.4 2005-08-08 14:43:37 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -588,15 +588,15 @@ public class TOCSessionManager implements Runnable, Logging
 					logger.log(INFO, 1, CLASS,
 					      "TOCSessionManager::run: Waited for document: There are "+
 						   documentList.size()+" documents in the list.");
-					if(documentList.size() == 0)// no new document added
+					if(documentList.size() == 0)// no new document added in timeout
 					{
-						if(inSession)// we are still in control of the telescope
-						{
-							done = true;
-							logger.log(INFO, 1, CLASS,
+						//if(inSession)// we are still in control of the telescope
+						//{
+						done = true;
+						logger.log(INFO, 1, CLASS,
 						      "TOCSessionManager::run: Session timeout for Tag/User/Proposal "+
-								   tagUserProposalInfo.getUniqueId()+".");
-						}
+							   tagUserProposalInfo.getUniqueId()+".");
+						//}
 						document = null;
 					}
 					else
@@ -687,6 +687,7 @@ public class TOCSessionManager implements Runnable, Logging
 			{
 				logger.log(INFO, 1, CLASS,
 					   "TOCSessionManager::run: Qutting TOCA session.");
+				// think about session.stop(); here to stop axes tracking into a limit
 				// quit session.
 				session.quit();
 			}
@@ -1304,6 +1305,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.3  2005/07/27 16:57:17  cjm
+** Fixed bug where having a document in documentList when starting run caused an infinite loop.
+**
 ** Revision 1.2  2005/06/22 16:06:13  cjm
 ** Added ability to set pipeline plugin id.
 **
