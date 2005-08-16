@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.4 2005-08-08 14:43:37 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.5 2005-08-16 13:27:44 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.4 2005-08-08 14:43:37 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.5 2005-08-16 13:27:44 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -637,6 +637,9 @@ public class TOCSessionManager implements Runnable, Logging
 					postProcessThread.setRemoteFilenameList(filenameList);
 					t = new Thread(postProcessThread);
 					t.start();
+					logger.log(INFO, 1, CLASS,
+						   "TOCSessionManager::run: Started new post-process thread.");
+
 				}
 				catch(Exception e)
 				{
@@ -1126,17 +1129,34 @@ public class TOCSessionManager implements Runnable, Logging
 			String remoteFilename = null;
 			String localFilename = null;
 
+			logger.log(INFO, 1, CLASS,
+				   "TOCSessionManager:PostProcessThread:run: Started new post-process thread with "+
+				   remoteFilenameList.size()+" filenames to process.");
 			for(int i = 0; i < remoteFilenameList.size(); i++)
 			{
+				logger.log(INFO, 1, CLASS,
+					   "TOCSessionManager:PostProcessThread:run: Processing remote filename "+
+				   remoteFilename+".");
 				try
 				{
 					remoteFilename = (String)(remoteFilenameList.get(i));
+					logger.log(INFO, 1, CLASS,
+						   "TOCSessionManager:PostProcessThread:run:Processing remote filename "+
+						   remoteFilename+".");
 					// data transfer
 					localFilename = dataTransfer(remoteFilename);
+					logger.log(INFO, 1, CLASS,
+						   "TOCSessionManager:PostProcessThread:run:Data tranferred from "+
+						   remoteFilename+" to "+localFilename+".");
 					// pipeline process
 					imageData = pipelineProcess(document,localFilename);
+					logger.log(INFO, 1, CLASS,
+						   "TOCSessionManager:PostProcessThread:run:Pipeline processed "+
+						   localFilename+".");
 					// update doc
 					sendUpdateDocument(document,imageData);
+					logger.log(INFO, 1, CLASS,
+						   "TOCSessionManager:PostProcessThread:run:Sent update document.");
 				}
 				catch(Exception e)
 				{
@@ -1160,8 +1180,12 @@ public class TOCSessionManager implements Runnable, Logging
 			}// end for on exposure documents
 			try
 			{
+				logger.log(INFO, 1, CLASS,
+					   "TOCSessionManager:PostProcessThread:run:Sending observation document.");
 				// observation doc
 				sendObservationDocument(document);
+				logger.log(INFO, 1, CLASS,
+					   "TOCSessionManager:PostProcessThread:run:Sent observation document.");
 				// diddly serialize in expired?
 			}
 			catch(Exception e)
@@ -1305,6 +1329,10 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2005/08/08 14:43:37  cjm
+** Fixed problem with session which no documents are added during 2 minutes,
+** but we are not in an open session. Now quits session manager after timout period.
+**
 ** Revision 1.3  2005/07/27 16:57:17  cjm
 ** Fixed bug where having a document in documentList when starting run caused an infinite loop.
 **
