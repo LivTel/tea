@@ -1,0 +1,56 @@
+Telescope Proxy TEA httpd setup.
+-------------------------------
+$Header: /space/home/eng/cjm/cvs/tea/docs/http_setup.txt,v 1.1 2005-08-19 10:57:34 cjm Exp $
+$Revision: 1.1 $
+ltproxy_tea_args
+
+set WEB = http://161.72.57.3/~estar/data
+
+set BASE = /home/estar/data
+
+ftnproxy_tea_args
+
+set WEB = http://132.160.98.239/~estar/data
+
+set BASE = /home/estar/data
+
+
+estar@<telescope>proxy
+chmod go+rx /home/estar
+mkdir data
+mkdir public_html
+cd public_html
+ln -s ../data data
+
+cd /etc/httpd/conf
+su
+emacs -nw httpd.conf
+Search for IfModule mod_userdir.c
+change:
+UserDir disable
+to
+UserDir enable estar
+Uncomment:
+UserDir public_html
+
+Uncomment section starting:
+<Directory /home/*/public_html>
+
+Restart httpd.
+
+As estar@<telescope>proxy
+
+cd ~/public_html/
+emacs -nw .htaccess
+AuthType Basic
+AuthName "eSTAR Access"
+AuthUserFile /var/www/password/passwords
+Require user estar
+
+As eng:
+htpasswd /var/www/password/passwords estar
+NB Appears to work if done as estar, but in reality fails!
+
+log
+---
+$Log: not supported by cvs2svn $
