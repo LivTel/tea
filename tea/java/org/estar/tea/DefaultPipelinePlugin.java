@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.7 2005-08-03 14:01:01 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.8 2005-08-19 17:26:49 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.7 2005-08-03 14:01:01 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.8 2005-08-19 17:26:49 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -63,6 +63,11 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * A string representing a filename of the script to call.
 	 */
 	protected String scriptFilename = null;
+	/**
+	 * What format the data pipeline returns the data file in. Should be supported by RTML,
+	 * i.e. either "cluster" or "votable-url".
+	 */
+	protected String objectListFormat = null;
 	/**
 	 * The logger.
 	 */
@@ -114,6 +119,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * @see #inputDirectory
 	 * @see #outputDirectory
 	 * @see #scriptFilename
+	 * @see #objectListFormat
 	 * @see #urlBase
 	 * @see #tea
 	 */
@@ -139,6 +145,10 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 			urlBase = urlBase+"/";
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: URL base: "+urlBase+".");
+		// objectListFormat
+		objectListFormat = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".object_list_format");
+		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
+			   ":initialise: object list format: "+objectListFormat+".");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() finished.");
 	}
@@ -166,9 +176,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		RTMLImageData imageData = null;
 		String inputLeafName = null;
 		String s = null;
-		String clusterLeafName = null;
+		String objectListLeafName = null;
 		File outputFile = null;
-		File outputClusterFile = null;
+		File outputObjectListFile = null;
 
 		logger.log(INFO, 1, CLASS, tea.getId(),"processFile",this.getClass().getName()+
 			   ":processFile("+inputFile+") started.");
@@ -178,18 +188,18 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		if(s.endsWith("_1"))
 			s = s.substring(0,s.length()-2);
 		outputFile = new File(outputDirectory,s+"_2"+".fits");
-		// construct output cluster file
-		clusterLeafName = stripExtension(inputLeafName);
-		clusterLeafName = clusterLeafName+".cluster";
-		outputClusterFile = new File(outputDirectory,clusterLeafName);
+		// construct output object list file
+		objectListLeafName = stripExtension(inputLeafName);
+		objectListLeafName = objectListLeafName+"."+objectListFormat;
+		outputObjectListFile = new File(outputDirectory,objectListLeafName);
 		// call script
 		logger.log(INFO, 1, CLASS, tea.getId(),"processFile",this.getClass().getName()+
 			   ":processFile calling callScript.");
-		callScript(inputFile,outputFile,outputClusterFile);
+		callScript(inputFile,outputFile,outputObjectListFile);
 		// copy results into imageData
 		logger.log(INFO, 1, CLASS, tea.getId(),"processFile",this.getClass().getName()+
 			   ":processFile calling createImageData.");
-		imageData = createImageData(outputFile,outputClusterFile);
+		imageData = createImageData(outputFile,outputObjectListFile);
 		logger.log(INFO, 1, CLASS, tea.getId(),"processFile",this.getClass().getName()+
 			   ":processFile("+inputFile+") returned image data:"+imageData+".");
 		return imageData;
@@ -214,33 +224,35 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * Call a script with the specified input and output filenames.
 	 * @param inputFile The local input filename.
 	 * @param outputFile The local output filename.
-	 * @param outputClusterFile The local output cluster filename.
+	 * @param outputObjectListFile The local output object list filename.
 	 * @exception Exception Thrown if the script execution failed.
 	 * @see #scriptFilename
 	 */
-	protected void callScript(File inputFile,File outputFile,File outputClusterFile) throws Exception
+	protected void callScript(File inputFile,File outputFile,File outputObjectListFile) throws Exception
 	{
 		ExecuteCommand executeCommand = null;
 		Exception e = null;
 		int exitValue;
 
 		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+
+			   ":callScript("+inputFile+","+outputFile+","+outputObjectListFile+
 			   ") started with script filename "+scriptFilename+".");
 		executeCommand = new ExecuteCommand("");
-		executeCommand.setCommandString(scriptFilename+" "+inputFile+" "+outputFile+" "+outputClusterFile);
+		executeCommand.setCommandString(scriptFilename+" "+inputFile+" "+outputFile+" "+outputObjectListFile);
 		executeCommand.run();
 		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") produced output:\n"+
+			   ":callScript("+inputFile+","+outputFile+","+outputObjectListFile+") produced output:\n"+
 			   executeCommand.getOutputString());
 		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") produced error string:\n"+
+			   ":callScript("+inputFile+","+outputFile+","+outputObjectListFile+
+			   ") produced error string:\n"+
 			   executeCommand.getErrorString());
 		e = executeCommand.getException();
 		if(e != null)
 		{
 			logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			  ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") created exception "+e+".");
+			  ":callScript("+inputFile+","+outputFile+","+outputObjectListFile+
+				   ") created exception "+e+".");
 			logger.dumpStack(1,e);
 			throw e;
 		}
@@ -248,31 +260,32 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		if(exitValue != 0)
 		{
 			logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-				":callScript("+inputFile+","+outputFile+","+outputClusterFile+") returned exit value "+
-					    exitValue+".");
+				":callScript("+inputFile+","+outputFile+","+outputObjectListFile+
+				   ") returned exit value "+exitValue+".");
 			throw new Exception(this.getClass().getName()+
-			      ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") returned exit value "+
-					    exitValue+".");
+			      ":callScript("+inputFile+","+outputFile+","+outputObjectListFile+
+					    ") returned exit value "+exitValue+".");
 		}
 		logger.log(INFO, 1, CLASS, tea.getId(),"callScript",this.getClass().getName()+
-			   ":callScript("+inputFile+","+outputFile+","+outputClusterFile+") finished.");
+			   ":callScript("+inputFile+","+outputFile+","+outputObjectListFile+") finished.");
 	}
 
 	/**
 	 * Create an instance of RTMLImageData.
 	 * @param outputFile The file to get the contents of the imageData from.
-	 * @param outputClusterFile The file containing any cluster data.
+	 * @param outputObjectListFile The file containing any object data.
 	 * @return An instance of RTMLImageData with suitable data.
 	 * @see #urlBase
+	 * @see #objectListFormat
 	 * @see #loadClusterFile
 	 */
-	protected RTMLImageData createImageData(File outputFile,File outputClusterFile)
+	protected RTMLImageData createImageData(File outputFile,File outputObjectListFile)
 	{
 		RTMLImageData data = null;
 		FITSHeaderLoader headerLoader = null;
 
 		logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
-			   ":createImageData("+outputFile+","+outputClusterFile+") started.");
+			   ":createImageData("+outputFile+","+outputObjectListFile+") started.");
 		data = new RTMLImageData();
 		if(outputFile != null)
 		{
@@ -286,7 +299,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 			catch(Exception e)
 			{
 				logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
-					   ":createImageData("+outputFile+","+outputClusterFile+
+					   ":createImageData("+outputFile+","+outputObjectListFile+
 					   "): failed to load FITS header "+e+".");
 				logger.dumpStack(1,e);
 				// don't fail data pipeline because of this
@@ -301,31 +314,51 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 			catch(Exception e)
 			{
 				logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
-					   ":createImageData("+outputFile+","+outputClusterFile+
+					   ":createImageData("+outputFile+","+outputObjectListFile+
 					   "): failed to set URL "+e+".");
 				logger.dumpStack(1,e);
 				// don't fail data pipeline because of this
 				// Some data pipelines may fail to produce cluster files.
 			}
 		}
-		if(outputClusterFile != null)
+		if(outputObjectListFile != null)
 		{
-			try
+			if(objectListFormat.equals("cluster"))
 			{
-				loadClusterFile(outputClusterFile,data);
+				try
+				{
+					loadClusterFile(outputObjectListFile,data);
+				}
+				catch(Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
+						   ":createImageData("+outputFile+","+outputObjectListFile+
+						   "): failed to load cluster file "+e+".");
+					logger.dumpStack(1,e);
+					// don't fail data pipeline because of this
+					// Some data pipelines may fail to produce cluster files.
+				}
 			}
-			catch(Exception e)
+			else if(objectListFormat.equals("votable-url"))
 			{
-				logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
-					   ":createImageData("+outputFile+","+outputClusterFile+
-					   "): failed to load cluster file "+e+".");
-				logger.dumpStack(1,e);
-				// don't fail data pipeline because of this
-				// Some data pipelines may fail to produce cluster files.
+				try
+				{
+					data.setObjectListType("votable-url");
+					data.setObjectListVOTableURL(urlBase+outputObjectListFile.getName());
+				}
+				catch(Exception e)
+				{
+					logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
+						   ":createImageData("+outputFile+","+outputObjectListFile+
+						   "): failed to set votable-url "+e+".");
+					logger.dumpStack(1,e);
+					// don't fail data pipeline because of this
+					// Some data pipelines may fail to produce cluster files.
+				}
 			}
 		}
 		logger.log(INFO, 1, CLASS, tea.getId(),"createImageData",this.getClass().getName()+
-			   ":createImageData("+outputFile+","+outputClusterFile+") returned data:"+data+".");
+			   ":createImageData("+outputFile+","+outputObjectListFile+") returned data:"+data+".");
 		return data;
 	}
 
@@ -359,6 +392,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2005/08/03 14:01:01  cjm
+// More logging added.
+//
 // Revision 1.6  2005/06/22 16:05:37  cjm
 // Added id for per-instance configuration of the default pipeline.
 //
