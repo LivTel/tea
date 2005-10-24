@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.8 2005-08-19 17:26:49 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.9 2005-10-24 10:53:06 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.8 2005-08-19 17:26:49 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.9 2005-10-24 10:53:06 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -378,8 +378,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		// load clusterString from outputClusterFile
 		if(outputClusterFile.exists())
 		{
-			cluster = new Cluster();
-			cluster.load(outputClusterFile);
+			cluster = Cluster.load(outputClusterFile);
 			clusterString = cluster.toString();
 		}
 		// set clusterString in image data
@@ -392,6 +391,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2005/08/19 17:26:49  cjm
+// Added ability to handle votable-url's as well as cluster for object list files from the data pipeline.
+//
 // Revision 1.7  2005/08/03 14:01:01  cjm
 // More logging added.
 //
