@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.5 2005-08-16 13:27:44 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.6 2006-02-08 17:24:43 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.5 2005-08-16 13:27:44 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.6 2006-02-08 17:24:43 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -1165,6 +1165,9 @@ public class TOCSessionManager implements Runnable, Logging
 						document.setType("fail");
 						document.setErrorString(this.getClass().getName()+
 								 ":run:An error occured:"+e);
+						logger.log(INFO, 1, CLASS,this.getClass().getName()+
+							   ":run:An error occured:"+e);
+						logger.dumpStack(1,e);
 						// send document back to IA
 						tea.sendDocumentToIA(document);
 					}
@@ -1329,6 +1332,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2005/08/16 13:27:44  cjm
+** Added PostProcessThread logging.
+**
 ** Revision 1.4  2005/08/08 14:43:37  cjm
 ** Fixed problem with session which no documents are added during 2 minutes,
 ** but we are not in an open session. Now quits session manager after timout period.
