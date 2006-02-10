@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.9 2005-10-24 10:53:06 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.10 2006-02-10 15:01:49 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.9 2005-10-24 10:53:06 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.10 2006-02-10 15:01:49 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -339,7 +339,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 					// Some data pipelines may fail to produce cluster files.
 				}
 			}
-			else if(objectListFormat.equals("votable-url"))
+			else if(objectListFormat.equals("votable"))
 			{
 				try
 				{
@@ -391,6 +391,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2005/10/24 10:53:06  cjm
+// Fixed problem in loadClusterFile, which was calling a static load method as if it was an instance method.
+//
 // Revision 1.8  2005/08/19 17:26:49  cjm
 // Added ability to handle votable-url's as well as cluster for object list files from the data pipeline.
 //
