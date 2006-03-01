@@ -116,6 +116,10 @@ public class ConnectionHandler implements Logging {
 		ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea, io, handle);
 		replyDocument = sdh.handleScore(document);
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+
+		traceLog.log(INFO, 1, CLASS, "CH", "exec",
+		     "About to send score response...\n"+reply);
+		
 		io.messageWrite(handle, reply);
 		
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
@@ -129,8 +133,13 @@ public class ConnectionHandler implements Logging {
 		RequestDocumentHandler rdh = new RequestDocumentHandler(tea, io, handle);
 		replyDocument = rdh.handleRequest(document);
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
-		io.messageWrite(handle, reply);
 
+		traceLog.log(INFO, 1, CLASS, "CH", "exec",
+			     "About to send request response...\n"+reply);
+		
+		
+		io.messageWrite(handle, reply);
+		
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
 			     (replyDocument != null ? replyDocument.getType() : "NULL"));
 		
