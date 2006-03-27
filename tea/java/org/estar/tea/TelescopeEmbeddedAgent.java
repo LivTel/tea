@@ -31,7 +31,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.20 2005-06-16 17:49:00 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.21 2006-03-27 13:40:58 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -284,6 +284,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		l = LogManager.getLogger("org.estar.tea.TOCSessionManager");
 		l.setLogLevel(ALL);
 		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.io.eSTARIO");
+                l.setLogLevel(ALL);
+                l.addHandler(console);
+
 		TOCSession.initLoggers(console,ALL);
 	
 		filterMap = new Properties();
@@ -785,6 +789,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		create.create(document);
 		create.toStream(fos);
 		fos.close();
+		traceLog.log(INFO, 1, CLASS, id, "saveDocument",
+			     "Saving document: to file: "+file.getName()+" ...\n"+
+			     create.toXMLString());
 	}
 
 	/** 
@@ -1038,7 +1045,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 		String reply = TelescopeEmbeddedAgent.createReply(document);
 	
-		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Writing:\n"+reply+"\n to handle "+handle+".");
+		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Writing:...\n"+reply+"\n ...to handle "+handle+".");
 		// how do we check this has failed?
 		io.messageWrite(handle, reply);
 		traceLog.log(INFO, 1, CLASS,"sendDocumentToIA:Sent document "+agid+".");
@@ -1231,6 +1238,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.20  2005/06/16 17:49:00  cjm
+** Added sendDocumentToIA (previously sendDocUpdate in AgentRequestHandler.java).
+**
 ** Revision 1.19  2005/06/16 10:06:18  cjm
 ** Javadoc fixes.
 **
