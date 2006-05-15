@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.7 2006-02-27 17:22:24 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.8 2006-05-15 10:04:07 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -312,7 +312,10 @@ public class RequestDocumentHandler implements Logging {
 				   "Exposure Count is less than 1, failing request.");
 			return setError(document, "Your Exposure Count is less than 1.");
 		}
-	 
+		
+	 	logger.log(INFO, 1, CLASS, "RH","executeScore",
+			   "Extracted dates: "+startDate+" -> "+endDate);
+		
 		// Look up proposal details.
 	 
 		String proposalPathName = tea.getDBRootName()+"/"+userId+"/"+proposalId;
@@ -399,7 +402,7 @@ public class RequestDocumentHandler implements Logging {
 		 
 				group.setMinimumLunar(Group.BRIGHT);
 				group.setMinimumSeeing(Group.POOR);
-				group.setTwilightUsageMode(Group.TWILIGHT_USAGE_NEVER);
+				group.setTwilightUsageMode(Group.TWILIGHT_USAGE_OPTIONAL);
  
 				float expose = (float)expt;
 				// Maybe split into chunks NO NOT YET.
@@ -413,7 +416,8 @@ public class RequestDocumentHandler implements Logging {
 		 
 				observation.setExposeTime(expose);
 				observation.setNumRuns(mult);
-		 
+				
+				
 				Mosaic mosaic = new Mosaic();
 				mosaic.setPattern(Mosaic.SINGLE);
 				observation.setMosaic(mosaic);
@@ -465,17 +469,20 @@ public class RequestDocumentHandler implements Logging {
 			// map rtml priorities to Phase2 priorities.
 			int priority = 0;
 			switch (schedPriority) {
-				case 0:
-					priority = 4;
-					break;
-				case 1:
-					priority = 3;
-					break;
-				case 2:
-					priority = 1;
-					break;
-				default:
-					priority = 1;
+			case 0:
+			    priority = 4;
+			    break;
+			case 1:
+			    priority = 3;
+			    break;
+			case 2:
+			    priority = 2;
+			    break;
+			case 3:
+			    priority = 1;
+			    break;
+			default:
+			    priority = 1;
 			}
 			group.setPriority(priority);
 
@@ -599,4 +606,7 @@ public class RequestDocumentHandler implements Logging {
 } // [RequestDocumentHandler]
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2006/02/27 17:22:24  cjm
+// Added more logging.
+//
 //
