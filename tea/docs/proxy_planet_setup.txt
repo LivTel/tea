@@ -1,5 +1,5 @@
-$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.5 2005-08-19 10:58:29 cjm Exp $
-$Revision: 1.5 $
+$Header: /space/home/eng/cjm/cvs/tea/docs/proxy_planet_setup.txt,v 1.6 2006-07-13 16:13:34 cjm Exp $
+$Revision: 1.6 $
 
 Proxy machines planet account setup
 -----------------------------------
@@ -18,6 +18,19 @@ ftnproxy
 df -k
 Filesystem           1K-blocks      Used Available Use% Mounted on
 /dev/cciss/c0d0p2    139983144   2068740 130803576   2% /
+/dev/cciss/c0d0p1        98747      9410     84238  11% /boot
+none                    256924         0    256924   0% /dev/shm
+
+Most space free on /. Therefore:
+mkdir /microlens
+chown planet:ltdev /microlens
+
+ftsproxy
+--------
+
+df -k
+Filesystem           1K-blocks      Used Available Use% Mounted on
+/dev/cciss/c0d0p3     15381040   1802044  12797676  13% /
 /dev/cciss/c0d0p1        98747      9410     84238  11% /boot
 none                    256924         0    256924   0% /dev/shm
 
@@ -155,12 +168,19 @@ MAILTO=""
 Install:
 crontab ~/.crontab
 
+Note the fits images are written in here as root, eng and planet, so
+eng and planets umask must be 002 for estar to be able to delete them.
+Or install purge_older as root.
+
 See also: ltdevsrv:~dev/src/estar/tea/docs/http_setup.txt
 
 log
 ---
 
 $Log: not supported by cvs2svn $
+Revision 1.5  2005/08/19 10:58:29  cjm
+Minor changes to do with ftnproxy disk changes.
+
 Revision 1.4  2005/06/23 13:06:33  cjm
 Added proxy data deletion script.
 
