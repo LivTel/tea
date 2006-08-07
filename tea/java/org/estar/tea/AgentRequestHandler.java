@@ -352,6 +352,14 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		
 	// Always clear out the pending list.
 		    
+	// ### WARNING: There are several spots where the new sleeping flag could cause us not
+	// ### to process a new image immediately beacuse we drop out if the loop and
+	// ### back to the start of maintask - these need changing to 'continue' rather than
+	// ### return (probably).
+
+
+
+
 	// If image filenames in queue, grab and process.
 	while (! pending.isEmpty()) {
 	    
