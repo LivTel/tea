@@ -94,6 +94,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
     /** The observationID.*/
     private String oid;
+
+    /** ARQ is sleeping.*/
+    private volatile boolean sleeping = false;
   
     /** The observation (within the generated Group) which we are expecting to perform.
      * - this is not persisted, i.e. is only visible:-
@@ -217,7 +220,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     public void addImageFileName(String fileName) {
 	pending.add(fileName);
 	sleepTime = SLEEP_TIME; // short period now
-	interrupt(); // Actually make the long sleep breakout asap
+	// Actually make the long sleep breakout asap
+	// but only if its in a sleep, not while its processing.
+	if (sleeping)
+	    interrupt(); 
     }
 
     /** ###TEMP Called from DocExpirator - 
@@ -335,8 +341,11 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     protected void mainTask() {
 
         // Back round once more at least.
+
+	sleeping = true;
         try {Thread.sleep(sleepTime);} catch (InterruptedException ix) {}
-    
+	sleeping = false;
+
 	System.err.println("ARQ/UH::Polling, entered maintask");
 	
 	RTMLImageData imageData = null;
