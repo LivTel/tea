@@ -162,6 +162,7 @@ public class ConnectionHandler implements Logging {
 	    traceLog.dumpStack(1, ex);
     	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Error while processing doc: "+ex);
 	    reply = TelescopeEmbeddedAgent.createErrorDocReply("Exception during parsing: "+ex);
+	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sending reply RTML message: "+reply);
 	    io.messageWrite(handle, reply);
 
     	} finally {
