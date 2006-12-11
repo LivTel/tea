@@ -31,7 +31,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.21 2006-03-27 13:40:58 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.22 2006-12-11 11:49:13 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -145,6 +145,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/** RCS SFX host address.*/
 	protected String relayHost;
 
+    protected boolean relaySecure = true;
+    
 	protected File   relayKeyFile;
 	protected File   relayTrustFile;
 	protected String relayPassword;
@@ -326,12 +328,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     "DocExpirator with polling interval: "+
 			     (expiratorSleepMs/1000)+" secs");
 	
-		sslClient = new SSLFileTransfer.Client("TEA_GRABBER", relayHost, relayPort);
-	
+		traceLog.log(INFO, 1, CLASS, id, "init", "Create SSL File Client...");
+		sslClient = new SSLFileTransfer.Client("TEA_GRABBER", relayHost, relayPort, relaySecure);	
 		sslClient.setBandWidth(transferBandwidth);
+		traceLog.log(INFO, 1, CLASS, id, "init", "OK SSL client is ready and will be "+(relaySecure ? "Secure" : "Nonsecure"));
 
 		// If we fail to setup we just can't grab images back but other stuff will work.
-		try {
+		
+		if (relaySecure) {
+		    try {
 			traceLog.log(INFO, 1, CLASS, id, "init",
 				     "Trying to initialize SSL Image Transfer client:"+
 				     " KF = "+relayKeyFile+" TF="+relayTrustFile+" Pass="+relayPassword);
@@ -340,11 +345,16 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			traceLog.log(INFO, 1, CLASS, id, "init",
 				     "Setup SSL Image Transfer client:"+
 				     "Image TransferRelay: "+relayHost+" : "+relayPort);
-		} catch (Exception e) {
+		    } catch (Exception e) {
 			traceLog.dumpStack(1,e);
 			sslClient = null;
+		    }
+		} else {
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+                                     "Setup NonSecure Image Transfer client:"+
+				 "Image TransferRelay: "+relayHost+" : "+relayPort);		    
 		}
-	
+
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "Starting Telescope Embedded Agent: "+id+
 			     "\n Incoming port: "+dnPort+		     
@@ -501,7 +511,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	{
 		expiratorSleepMs = l;
 	}
-    
+
+    /** Set whether the image relay is secure.*/
+    public void setRelaySecure(boolean r) { this.relaySecure = r;}
     
 	/** Sets the SSL transfer keystore.*/
 	public void setRelayKeyFile(File k) { relayKeyFile = k; }
@@ -881,8 +893,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		String fname = docFile.getName();
 		File expiredFile = new File(expiredDocumentDirectory,fname);
 		// rename
-		docFile.renameTo(expiredFile);
-
+		if (! docFile.renameTo(expiredFile))
+		    throw new IOException("ExpireDoc: Failed to rename "+docFile.getPath()+ "to "+ expiredFile.getPath());
+ 
 	}
 
 	/** Creates a new unique filename.
@@ -1080,7 +1093,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		try {
 			tea.start();
 		} catch (Exception e) {
-			tea.traceLog.dumpStack(1,e);
+			tea.traceLog.dumpStack(1,e);			
 		} finally {	    
 			tea.shutdown();
 		}
@@ -1143,6 +1156,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 		String filterMapFileName = config.getProperty("filter.map.file");
 
+
+		boolean relaySecure = (config.getProperty("relay.secure") != null);
+
 		String rkf   = config.getProperty("ssl.keyfile", DEFAULT_SSL_KEY_FILE_NAME);
 		File relayKeyFile = new File(rkf);
 
@@ -1178,6 +1194,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		setImageDir(bdir);
 		setDBRootName(dbroot);
 
+		setRelaySecure(relaySecure);
 		setRelayKeyFile(relayKeyFile);
 		setRelayTrustFile(relayTrustFile);
 		setRelayPassword(rpass);
@@ -1238,6 +1255,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.21  2006/03/27 13:40:58  snf
+** added estario logging
+**
 ** Revision 1.20  2005/06/16 17:49:00  cjm
 ** Added sendDocumentToIA (previously sendDocUpdate in AgentRequestHandler.java).
 **
