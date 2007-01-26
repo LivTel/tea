@@ -93,8 +93,8 @@ public class ScoreDocumentHandler implements Logging {
 	double tran = targ.getTransitHeight();
 	
 	logger.log(INFO, 1, CLASS, "SH","executeScore","INFO:Target at: "+targ.toString()+
-		   "\n Elevation:   "+Position.toDegrees(elev,3)+
-		   "\n Transits at: "+Position.toDegrees(tran,3));
+		   "\n Current elevation:   "+Position.toDegrees(elev,3)+
+		   "\n Transits elevation:  "+Position.toDegrees(tran,3));
 	
 	RTMLSchedule sched = obs.getSchedule();
 	
@@ -175,6 +175,14 @@ public class ScoreDocumentHandler implements Logging {
 	    }
 	    window = tf.getMilliseconds();
 	    
+	    // Code to make a MonGrp with a count of 1 transmogrify into a FlexGrp
+	    //if (count == 1) {
+	    //set stuff so this becomes an FG or MG with p=[s,e]
+	    // scon = null
+	    // break out this block i.e. need to call this earlier !
+	    //}
+
+
 	    if (count < 1) {
 		return setError(document, "You have supplied (or I deduced) a negative or zero repeat Count.");
 	    }
@@ -222,6 +230,10 @@ public class ScoreDocumentHandler implements Logging {
 	    return setError(document, "Exposure Count is less than 1.");
 	}
 	
+	logger.log(INFO, 1, CLASS, "SH","executeScore",
+		   "Extracted dates: "+startDate+" -> "+endDate);
+	
+
 	// ### This should be when we expect to be able to complete by...
 	// but is endDate for now
 	document.setCompletionTime(endDate);
@@ -278,12 +290,14 @@ public class ScoreDocumentHandler implements Logging {
 // 				" is below dome limit: "+Position.toDegrees(tea.getDomeLimit(),3)+
 // 				" so will never be visible at this site");
 // 	    } 
-	    
+
+	    double visibility = 0.0;
+
 	    if (scon == null) {
 		// Handle Flexible.
-		double visibility = vc.calculateVisibility(targ,
-							   startDate.getTime(),
-							   endDate.getTime());
+		visibility = vc.calculateVisibility(targ,
+						    startDate.getTime(),
+						    endDate.getTime());
 		logger.log(INFO, 1, CLASS, "SH","executeScore",
 			   "Target scored "+visibility+" for specified flexible period");
 		
@@ -293,11 +307,11 @@ public class ScoreDocumentHandler implements Logging {
 		
 	    } else {
 		// Handle Monitor.
-		double visibility = vc.calculateVisibility(targ,
-							   startDate.getTime(),
-							   endDate.getTime(),
-							   period,
-							   window);
+		visibility = vc.calculateVisibility(targ,
+						    startDate.getTime(),
+						    endDate.getTime(),
+						    period,
+						    window);
 		logger.log(INFO, 1, CLASS, "SH","executeScore",
 			   "Target scored "+visibility+" for specified monitoring program");
 		
@@ -308,10 +322,10 @@ public class ScoreDocumentHandler implements Logging {
 	    }
 	    
 	    // ### SCA mode and target visible and p5? so score.
-	    logger.log(INFO, 1, CLASS, "SH","executeScore","Target OK Score = "+(2.0*tran/Math.PI));
+	    logger.log(INFO, 1, CLASS, "SDH","executeScore","Target OK Score = "+(2.0*tran/Math.PI));
 	    //document.setScore(elev/tran);
-
-	    document.setScore(2.0*tran/Math.PI);
+	    
+	    document.setScore(visibility);
 	    return document;
 	    
 	}
@@ -324,8 +338,13 @@ public class ScoreDocumentHandler implements Logging {
      * @return The modified <i>reject</i> document.
      */
     private RTMLDocument setError(RTMLDocument document, String errorMessage) throws Exception {
-	document.setType("reject");
-	document.setErrorString(errorMessage); 
+	//document.setType("reject");
+	document.setType("score");
+	document.setScore(0.0);
+	//	document.setErrorString(errorMessage); 
+	
+	logger.log(INFO, 1, CLASS, "SDH", "setError", "SDH::Setting error to: "+errorMessage);
+	
 	return document;
     }
 

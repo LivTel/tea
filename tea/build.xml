@@ -71,7 +71,7 @@
 	    
     </target>
 
-    <!-- Release for testing -->
+    <!-- Release for deployment -->
 
     <target name  = "release"
       description = "Release to target host"
@@ -81,7 +81,7 @@
 
       <input
         message="Please enter deployment target:"
-        validargs= "ftnproxy,ltproxy"
+        validargs= "ftnproxy,ltproxy,ftsproxy"
         addproperty="scope"
         defaultvalue="ltproxy"
       />
@@ -96,7 +96,8 @@
         <mkdir dir = "${dist.dir}/config"/>
         <mkdir dir = "${dist.dir}/elib"/>
 
-	<copy file="/home/dev/src/estar/jfits/jfits-0.91.jar" todir="${dist.dir}/javalib"/>
+	<!--<copy file="/home/dev/src/estar/jfits/jfits-0.91.jar" todir="${dist.dir}/javalib"/>-->
+
 	<copy file="${estar.javalib}/org_estar_astrometry.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_cluster.jar" todir="${dist.dir}/javalib"/>
 	<copy file="${estar.javalib}/org_estar_fits.jar" todir="${dist.dir}/javalib"/>
@@ -122,7 +123,7 @@
           <fileset dir="${estar.clib}"/>
        </copy>
 
-        <tar tarfile="/home/snf/tea_test.tar" basedir="${dist.dir}"/>
+        <tar tarfile="/home/dev/tmp/tea_${scope}.tar" basedir="${dist.dir}"/>
      
     </target>
 
