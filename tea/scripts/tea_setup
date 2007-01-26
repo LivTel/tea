@@ -1,0 +1,28 @@
+#!/bin/csh
+
+# -------------------------------------------------
+# Environment for: Telescope Embedded Agent (TEA). 
+# -------------------------------------------------
+
+set TEA_HOME   = ${DEPLOY_HOME}/tea
+set TEA_SCRIPT = ${TEA_HOME}/scripts
+set TEA_DOCS   = ${TEA_HOME}/docs
+set TEA_CLASS  = ${TEA_HOME}/javalib
+set TEA_LIB    = ${TEA_HOME}/elib
+set TEA_CONFIG = ${TEA_HOME}/config
+set TEA_CERTS  = ${TEA_HOME}/certs
+
+# Add classes for TEA
+foreach file (${TEA_CLASS}/*.jar)
+    echo $CLASSPATH | grep -q $file > /dev/null
+    if ($status != 0) then
+	setenv CLASSPATH ${CLASSPATH}:$file
+    endif
+end
+
+# Add TEA C Libraries
+echo $LD_LIBRARY_PATH | grep -q $TEA_LIB
+if ($status != 0) then
+    setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:$TEA_LIB
+endif
+ 

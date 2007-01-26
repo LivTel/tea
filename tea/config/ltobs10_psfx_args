@@ -1,0 +1,23 @@
+#!/bin/csh
+
+# ----------------------------------------------------------------------------
+# Environment for: Processing Simulation Framework Launcher (PSFX): (LTOBS10).
+# ----------------------------------------------------------------------------
+
+set NAME      = TEA_PROC_SIM
+
+set CTRL_PORT = 9120
+set OSS_PORT  = 6520
+set TOCS_PORT = 8610
+
+set SFX_BASE  = /home/dev/tmp 
+set SFX_KF    = /home/snf/p2gtmp/certs/SnfWork_FTNProxy.private
+set SFX_TF    = /home/snf/p2gtmp/certs/oar.public
+set SFX_PASS  = gellifor
+
+set USES_PLUGIN
+
+# To enable a Simulator Plugin (other than the DefaultPlugin) change the
+# USES_PLUGIN to the follwing, where 'SomePlugin' is a real plugin class
+
+#	set USES_PLUGIN = "--plugin-class path.to.SomePlugin"
