@@ -47,10 +47,11 @@ public class VisibilityCalculator {
     }
 
     /** Calculate the visibility between the specified start and end dates for a 
-     * Flexibly scheduled group.
+     * Flexibly scheduled group. 
      * @param target    The target position.
      * @param startDate The date to start.
      * @param endDate   The date to end.
+     * @return Fraction of time between start and end when target is observable.
      */
     public double calculateVisibility(Position target, long startDate, long endDate) {
 	
@@ -102,13 +103,17 @@ public class VisibilityCalculator {
      * @param endDate   The date to end.
      * @param period    The monitor period (millis).
      * @param window    The monitor window (millis).
+     * @return Fraction of windows when target is observable for some of time.
      */
     public double calculateVisibility(Position target, long startDate, long endDate, long period, long window) {
 
 	int np = (int)((endDate - startDate)/period);
 
 	int totok = 0;
-	
+
+	int totcount = 0;
+	int totokcount = 0;
+
 	for (int ip = 0; ip < np; ip++) {
 	    
 	    long w1 = startDate + ip*period - window/2;
@@ -138,11 +143,14 @@ public class VisibilityCalculator {
 		
 		//System.err.println(sdf.format(new Date(t))+" Elevation: "+Position.toDegrees(targ_elev, 3)+up+" : "+day+" : "+obs);
 		    
-		if (sun_elev < sunElevation && targ_elev > domeLimit)
+		if (sun_elev < sunElevation && targ_elev > domeLimit) {
 		    okcount++;
-		
+		    totokcount++;
+		}
+
 		count++;
-		
+		totcount++;
+
 		t += dt;
 		    
 	    }
@@ -158,7 +166,7 @@ public class VisibilityCalculator {
 	}
 
 	System.err.println("VC::Moncalc:Target visibility scored >0 for: "+totok+" out of "+np+" windows");
-	return (double)totok/(double)np;
+	return (double)totokcount/(double)totcount;
 
     }
 
