@@ -54,6 +54,7 @@
         
         <exclude name = "**/DNServerTest.java"/>
 	<exclude name = "**/DocChecker.java"/>
+        <exclude name = "**/test/*.java"/>
 
       </javac>
     </target>
