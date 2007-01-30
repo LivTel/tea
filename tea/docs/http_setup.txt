@@ -1,7 +1,7 @@
 Telescope Proxy TEA httpd setup.
 -------------------------------
-$Header: /space/home/eng/cjm/cvs/tea/docs/http_setup.txt,v 1.1 2005-08-19 10:57:34 cjm Exp $
-$Revision: 1.1 $
+$Header: /space/home/eng/cjm/cvs/tea/docs/http_setup.txt,v 1.2 2007-01-30 08:24:42 snf Exp $
+$Revision: 1.2 $
 ltproxy_tea_args
 
 set WEB = http://161.72.57.3/~estar/data
@@ -36,6 +36,13 @@ UserDir public_html
 Uncomment section starting:
 <Directory /home/*/public_html>
 
+Change:
+    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
+to
+    Options MultiViews Indexes FollowSymLinks IncludesNoExec
+This allows the microlensing script to create soft links to the output FITS image from the input FITS image
+and still work.
+
 Restart httpd.
 
 As estar@<telescope>proxy
@@ -54,3 +61,6 @@ NB Appears to work if done as estar, but in reality fails!
 log
 ---
 $Log: not supported by cvs2svn $
+Revision 1.1  2005/08/19 10:57:34  cjm
+Initial revision
+
