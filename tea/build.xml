@@ -8,11 +8,14 @@
     "ESTAR Telescope Embedded Agent"
   </description>
   
-  <property name = "class.dir"     value = "/home/dev/bin/estar/tea/java"/>
-  <property name = "dist.dir"      value = "/home/dev/public_html/estar/tea/deploy"/>
-  <property name = "estar.javalib" value = "/home/dev/bin/estar/javalib"/>
-  <property name = "estar.clib"    value = "/home/dev/bin/estar/lib"/>
-  <property name = "javadoc.dir"   value = "/home/dev/public_html/estar/javadocs/org/estar/tea"/>
+  <property environment="env"/>  
+  <property name = "dev.home"      value = "${env.LT_HOME}/>
+
+  <property name = "class.dir"     value = "${dev.home}/bin/estar/tea/java"/>
+  <property name = "dist.dir"      value = "${dev.home}/public_html/estar/tea/deploy"/>
+  <property name = "estar.javalib" value = "${dev.home}/bin/estar/javalib"/>
+  <property name = "estar.clib"    value = "${dev.home}/bin/estar/lib"/>
+  <property name = "javadoc.dir"   value = "${dev.home}/public_html/estar/javadocs/org/estar/tea"/>
 
     <!-- Prepare build directories -->
     
@@ -44,10 +47,10 @@
 	
 	<classpath>
 	  <pathelement path="${classpath}"/>
-	    <fileset dir="/home/dev/bin/javalib">
+	    <fileset dir="${dev.home}bin/javalib">
 	      <include name = "*.jar"/> 
 	    </fileset>
-	    <fileset dir="/home/dev/bin/estar/javalib">
+	    <fileset dir="${dev.home}/bin/estar/javalib">
 	      <include name = "*.jar"/> 
 	    </fileset>
 	</classpath>
@@ -68,7 +71,7 @@
       description = "Create class JAR">
       <echo message = "Creating deployment jar - Build#: ${BUILD}"/>
 	
-	  <jar jarfile = "/home/dev/bin/estar/javalib/tea.jar" basedir = "${class.dir}" />
+	  <jar jarfile = "${dev.home}/bin/estar/javalib/tea.jar" basedir = "${class.dir}" />
 	    
     </target>
 
@@ -89,7 +92,7 @@
 
       <echo message = "Generating target release for ${scope}"/>
 
-        <delete verbose = "true" file = "/home/snf/tea_test.tar"/>
+        <delete verbose = "true" file = "${dev.home}/tmp/tea_${scope}.tar"/>
 
 	<mkdir dir = "${dist.dir}"/>
 	<mkdir dir = "${dist.dir}/javalib"/>
@@ -124,7 +127,7 @@
           <fileset dir="${estar.clib}"/>
        </copy>
 
-        <tar tarfile="/home/dev/tmp/tea_${scope}.tar" basedir="${dist.dir}"/>
+        <tar tarfile="${dev.home}/tmp/tea_${scope}.tar" basedir="${dist.dir}"/>
      
     </target>
 
@@ -151,10 +154,10 @@
 
 	<classpath>
 	  <pathelement path="${classpath}"/>
-	    <fileset dir="/home/dev/bin/javalib">
+	    <fileset dir="${dev.home}/bin/javalib">
 	      <include name = "*.jar"/> 
 	    </fileset>
-	    <fileset dir="/home/dev/bin/estar/javalib">
+	    <fileset dir="${dev.home}/bin/estar/javalib">
 	      <include name = "*.jar"/> 
 	    </fileset>
 	</classpath>        
