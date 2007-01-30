@@ -1,0 +1,18 @@
+#!/bin/csh
+# active documents
+foreach file ( data/*.rtml )
+	set unique_id = `cat ${file} | grep IntelligentAgent | sed "s#.*<IntelligentAgent.*>\(.*\)</IntelligentAgent>.*#\1#g"`
+	set document_type = `cat ${file} | grep '<RTML.*>' | sed 's#.*<RTML version=".*" type="\(.*\)">.*#\1#g'`
+	set image_data_count = `cat ${file} | grep '<ImageData' | wc -l`
+	echo "${file} ACTIVE ${unique_id} ${document_type} ${image_data_count}"
+end
+# expired documents
+foreach file ( expired/*.rtml )
+	set unique_id = `cat ${file} | grep IntelligentAgent | sed "s#.*<IntelligentAgent.*>\(.*\)</IntelligentAgent>.*#\1#g"`
+	set document_type = `cat ${file} | grep '<RTML.*>' | sed 's#.*<RTML version=".*" type="\(.*\)">.*#\1#g'`
+	set image_data_count = `cat ${file} | grep '<ImageData' | wc -l`
+	echo "${file} EXPIRED ${unique_id} ${document_type} ${image_data_count}"
+end
+#
+# $Log: not supported by cvs2svn $
+#

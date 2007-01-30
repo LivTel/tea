@@ -1,0 +1,43 @@
+#!/bin/csh
+# rcs_send_done --failed    /FTN_Phase2_001/robonet/estar/agent/Single 12345 "something went wrong"
+# rcs_send_done --completed /FTN_Phase2_001/robonet/estar/agent/Single 
+if ( $#argv < 2) then
+    echo "rcs_send_done --completed /FTN_Phase2_001/robonet/estar/agent/Single "
+    echo "rcs_send_done --failed    /FTN_Phase2_001/robonet/estar/agent/Single 12345 'something went wrong'"
+    echo "Must be run from the tea/scripts directory."
+    exit 1
+endif
+
+# source machine setup
+set machine_name = `/bin/hostname --short`
+source ${machine_name}_setup
+
+# source tea args config for telemetry port info
+# see ../config/ftnproxy_tea_args
+# TEL_PORT / TEL_HOST
+source ../config/${machine_name}_tea_args
+#set TELEM_HOST = localhost
+#set TELEM_PORT = 2233
+
+# --failed     means failed
+# --completed  means completed
+# oid          is the obsid
+# code         is the error code
+# reason       is the error message
+
+# rcs_send_done --failed    /FTN_Phase2_001/robonet/estar/agent/Single 12345 "something went wrong"
+
+# rcs_send_done --completed /FTN_Phase2_001/robonet/estar/agent/Single 
+
+if ( $#argv == 2) then
+    java org.estar.tea.test.ObservationUpdateClient \
+	--host $TEL_HOST --port $TEL_PORT \
+	$1 --oid $2
+else
+    java org.estar.tea.test.ObservationUpdateClient \
+	--host $TEL_HOST --port $TEL_PORT \
+	$1 --oid $2 --code $3  --reason $4
+endif
+
+# last 2 args only if its a fail
+	

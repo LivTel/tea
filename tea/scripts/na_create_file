@@ -1,0 +1,21 @@
+#!/bin/csh
+
+# ------------------------------------------------------
+# Create an RTML Doc with preset fields for TEA testing.
+# ------------------------------------------------------
+
+# Usage: na_create_file <request/score> <targetid> <ra> <dec> <expose> <iaid>
+
+if (${#argv} < 6) then
+    echo "Usage: na_create_file <request/score> <targetid> <ra> <+-dec> <expose-secs> <iaid>"
+    exit 1
+endif
+
+source setup
+
+java org.estar.rtml.test.TestCreate -${1} -iahost localhost -iaport 2003 -iaid $6 \
+    -observation -name "${2}" -ra ${3} -dec ${4} -exposure ${5} secs \
+    -device RATCam camera optical R \
+    -contact -contact_user "Robosim-1/Tester-1" -contact_url "http://ltobs10.livjm.ac.uk/" \
+	-contact_telephone "01512312903" -contact_name "Steve Fraser" \
+	-contact_institution "Liverpool John Moores University" -contact_fax "01512312910"

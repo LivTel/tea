@@ -1,0 +1,26 @@
+#!/bin/csh
+
+source setup
+
+
+set ASTRO = "-Dastrometry.impl=ngat.astrometry.TestCalculator"
+
+set KS = "-Djavax.net.ssl.keyStore=/occ/pos/certs/estar_dn.private"
+set KP = "-Djavax.net.ssl.keyStorePassword=estar_dnpw"
+set TS = "-Djavax.net.ssl.trustStore=/occ/pos/certs/rti_servers.public"
+
+set EGD = "-Djavax.security.egd=file:/dev/urandom"
+
+set PCRHOST = ftnproxy
+set PCRPORT = 7940
+
+set LAT_HAWAII = 20.0
+set LON_HAWAII = -150
+
+set DOME = 20.0
+
+set WEB = http://150.204.240.8/~estar/data
+
+set FM = filter-combo.properties
+
+java $ASTRO $KS $KP $TS $EGD DNServerTest @pcr-port $PCRPORT @latitude $LAT_HAWAII @longitude $LON_HAWAII @dome-limit $DOME @image-web-url $WEB @filter-map-file $FM

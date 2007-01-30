@@ -1,0 +1,38 @@
+#!/bin/csh
+
+# ----------------------------------------------
+# Launcher for: Processing Simulation Framework:
+# ----------------------------------------------
+
+if (${#argv} < 1) then
+    echo "Usage: psfx <model> "
+    echo "   model: the args to use"
+    exit 1
+endif
+
+set model = $1
+set afile = ../config/${model}_psfx_args
+if (! -e $afile) then
+    echo "No args file found for model: $model "
+    echo "File does not exist: $afile "
+    exit 1
+endif
+
+source setup
+source $afile
+
+echo
+echo "------------------------------------"
+echo "TEA: Processing Simulation Framework"
+echo "------------------------------------"
+
+java org.estar.tea.test.ProcessingSimulationFramework \
+	--name $NAME --id-port $CTRL_PORT \
+	--oss-port $OSS_PORT --tocs-port $TOCS_PORT \
+	--sfx-base $SFX_BASE --sfx-trustfile $SFX_TF \
+	--sfx-keyfile $SFX_KF --sfx-pass $SFX_PASS \
+	$USES_PLUGIN
+
+
+
+

@@ -1,0 +1,25 @@
+#!/bin/csh
+
+source setup
+
+if (${#argv} < 2) then
+    echo "Usage: na_sim_gui <name> <port>"
+    exit 1
+endif
+
+set UID      = "Robosim-1/Tester-1"
+set SPEC     = "optical"
+set DEV_TYPE = "camera"
+set DEV_NAME = "DillCamN"
+set NA_HOST  = ltobs10
+
+set PROP     = T01
+
+set TEA_HOST = localhost
+set TEA_PORT = 2220
+
+java org.estar.tea.test.NodeAgentSimulationGUI \
+	--name $1 --port $2 \
+	--na-uid $UID  --prop-id $PROP --na-spec $SPEC --na-host $HOST \
+	--na-dev-type $DEV_TYPE --na-dev-name $DEV_NAME \
+	--tea-host $TEA_HOST --tea-port $TEA_PORT

@@ -1,0 +1,11 @@
+#!/bin/csh
+
+source setup
+
+if (${#argv} < 1) then
+    echo "Usage: na_server <port>"
+    exit 1
+endif
+
+java org.estar.tea.test.NodeAgentServer \
+	--port $1

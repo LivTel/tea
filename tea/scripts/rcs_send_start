@@ -1,0 +1,18 @@
+#!/bin/csh
+
+source <SCOPE>_setup
+
+set TELEM_HOST = localhost
+set TELEM_PORT = 2233
+
+# oid    is the group id.
+# name   is the obs name.
+# mult   is multruns
+# expose is in millis as float
+
+# rcs_send_start /FTN_phase2_001/robonet/estar/agent obs1 3 2000.0
+
+java org.estar.tea.test.ObservationUpdateClient \
+	--host $TELEM_HOST --port $TELEM_PORT \
+	--start --oid $1 --name $2 --mult $3 --expose $4 \
+     

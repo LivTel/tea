@@ -1,0 +1,63 @@
+See also ~dev/src/estar/tea/docs/tea_toop_testing.txt for toop testing.
+
+TEA testing
+-----------
+
+Log a couple of terminals into eng@ltproxy.
+
+You should have a estar IO test server running as a fake IA; see /etc/init.d/estariotestserver.
+myps | grep TestServer
+
+Have one tailing the tea log:
+
+tail -f /home/eng/proxy/tmp/tea_lt.log    (LT)
+
+
+Generate a RTML document.
+
+Score document:
+
+LT:
+java org.estar.rtml.test.TestCreate -score -iahost localhost -iaid localtest:2003UB313:1 -iaport 1234 -project "TEA01" -contact -contact_name "Chris Mottram" -contact_user TEST/estar -observation -name 2003UB313at20060207 -target_ident r60 -ra 01:35:27.2 -dec -05:29:06.0 -exposure 60000 ms 1 -series_constraint_count 14 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-07T12:00:00 -end_date 2006-02-17T12:00:00 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoop2003ub313_lt_1_score.rtml
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoop2003ub313_lt_1_score.rtml  > ~/tmp/localtesttoop2003ub313_lt_1_score_reply.rtml
+
+Request document:
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:2003UB313:1 -iaport 1234 -project "TEA01" -contact -contact_name "Chris Mottram" -contact_user TEST/estar -observation -name 2003UB313at20060207 -target_ident r60 -ra 01:35:27.2 -dec -05:29:06.0 -exposure 60000 ms 1 -series_constraint_count 14 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-07T12:00:00 -end_date 2006-02-17T12:00:00 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoop2003ub313_lt_1_request.rtml
+
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoop2003ub313_lt_1_request.rtml  > ~/tmp/localtesttoop2003ub313_lt_1_request_reply.rtml
+
+You should get a confirmation document document back:
+<!DOCTYPE RTML SYSTEM "http://www.estar.org.uk/documents/rtml2.2.dtd">
+<RTML version="2.2" type="confirmation">
+                          ------------
+...
+
+If it all works, an update/completion message will be sent out to the IA. If the IA is set to localhost:1234 (as above)
+and the TestServer is running, the output documents will appear in ltproxy:/home/eng/tmp/test_server_output.txt.
+
+
+
+FTN:
+tail -f /home/eng/proxy/tmp/tea_ftn.log    (FTN)
+
+java org.estar.rtml.test.TestCreate -score -iahost localhost -iaid localtest:2003UB313:1 -iaport 1234 -project "agent_test" -contact -contact_name "Chris Mottram" -contact_user TMC/estar -observation -name 2003UB313at20060207 -target_ident r60 -ra 01:35:27.2 -dec -05:29:06.0 -exposure 60000 ms 1 -series_constraint_count 14 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-07T12:00:00 -end_date 2006-02-17T12:00:00 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoop2003ub313_ftn_1_score.rtml
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoop2003ub313_ftn_1_score.rtml  > ~/tmp/localtesttoop2003ub313_ftn_1_score_reply.rtml
+
+Request document:
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:2003UB313:1 -iaport 1234 -project "agent_test" -contact -contact_name "Chris Mottram" -contact_user TMC/estar -observation -name 2003UB313at20060207 -target_ident r60 -ra 01:35:27.2 -dec -05:29:06.0 -exposure 60000 ms 1 -series_constraint_count 14 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-07T12:00:00 -end_date 2006-02-17T12:00:00 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoop2003ub313_ftn_1_request.rtml
+
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoop2003ub313_ftn_1_request.rtml  > ~/tmp/localtesttoop2003ub313_ftn_1_request_reply.rtml

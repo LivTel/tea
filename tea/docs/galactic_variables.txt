@@ -1,0 +1,45 @@
+Use Vizier:General Catalog of Variable Stars, 4th Ed. (GCVS4)
+
+EZ MON
+Up most of the night at LT and FTN ~30 deg away from the moon.
+Variable : RR Lyr period 0.37 days
+12.9-13.4
+0.73 degrees out of galactic plane
+RA 07 05 26 
+Dec -05 12 00 
+
+LT:
+---
+tail -f /home/eng/proxy/tmp/tea_lt.log    (LT)
+
+Score document:
+
+java org.estar.rtml.test.TestCreate -score -iahost localhost -iaid localtest:ezmon:2 -iaport 1234 -project "PL04B17" -contact -contact_name "Chris Mottram" -contact_user PATT/keith.horne -observation -name "EZ-Mon" -target_ident r10 -ra 07:05:26 -dec -05:12:00 -exposure 10000 ms 1 -series_constraint_count 7 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-14T12:00:00 -end_date 2006-02-21T12:00:00 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtestazmon_lt_2_score.rtml
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile ltproxy 8081 ~/tmp/localtestazmon_lt_2_score.rtml  > ~/tmp/localtestazmon_lt_2_score_reply.rtml
+
+Request document:
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:ezmon:2 -iaport 1234 -project "PL04B17" -contact -contact_name "Chris Mottram" -contact_user PATT/keith.horne -observation -name "EZ-Mon" -target_ident r10 -ra 07:05:26 -dec -05:12:00 -exposure 10000 ms 1 -series_constraint_count 7 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-14T12:00:00 -end_date 2006-02-21T12:00:00 -device ratcam camera optical R -binning 2 2 -document_score 0.62 -completion_time  "2006-02-21T12:00:00" > ~/tmp/localtestazmon_lt_2_request.rtml
+
+java org.estar.io.test.SendFile ltproxy 8081 ~/tmp/localtestazmon_lt_2_request.rtml  > ~/tmp/localtestazmon_lt_2_request_reply.rtml
+
+FTN:
+---
+tail -f /home/eng/proxy/tmp/tea_ftn.log
+
+Score document:
+
+java org.estar.rtml.test.TestCreate -score -iahost localhost -iaid localtest:ezmon:3 -iaport 1234 -project "Planetsearch1" -contact -contact_name "Chris Mottram" -contact_user Robonet/keith.horne -observation -name "EZ-Mon" -target_ident r10 -ra 07:05:26 -dec -05:12:00 -exposure 10000 ms 1 -series_constraint_count 7 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-23T00:00:00 -end_date 2006-02-30T00:00:00 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtestazmon_ftn_3_score.rtml
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile ftnproxy 8081 ~/tmp/localtestazmon_ftn_3_score.rtml  > ~/tmp/localtestazmon_ftn_3_score_reply.rtml
+
+Request document:
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:ezmon:3 -iaport 1234 -project "Planetsearch1" -contact -contact_name "Chris Mottram" -contact_user Robonet/keith.horne -observation -name "EZ-Mon" -target_ident r10 -ra 07:05:26 -dec -05:12:00 -exposure 10000 ms 1 -series_constraint_count 7 -series_constraint_interval P1D -series_constraint_tolerance PT24H -start_date 2006-02-23T00:00:00 -end_date 2006-03-02T00:00:00 -device ratcam camera optical R -binning 2 2 -document_score 0.71 -completion_time  "2006-03-02T10:00:00" > ~/tmp/localtestazmon_ftn_3_request.rtml
+
+java org.estar.io.test.SendFile ftnproxy 8081 ~/tmp/localtestazmon_ftn_3_request.rtml  > ~/tmp/localtestazmon_ftn_3_request_reply.rtml

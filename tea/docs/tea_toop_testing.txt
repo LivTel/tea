@@ -1,0 +1,138 @@
+TEA TOOP Testing Procedure
+--------------------------
+
+Log a couple of terminals into eng@ltproxy.
+
+Have one tailing the tea log:
+
+tail -f /home/eng/proxy/tmp/tea_lt.log    (LT)
+
+Generate a toop RTML document. An example is ltproxy:/home/eng/tmp/localtesttoopm11_1_request.rtml.
+This was generated as follows:
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:toop:m11:1 -iaport 1234 -project "TEA01" -contact -contact_name "Chris Mottram" -contact_user TEST/estar -observation -toop -name m11 -target_ident r10 -ra 18:51:06 -dec -06:16:00.0 -exposure 10000 ms 1 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoopm11_1_request.rtml
+
+Send the file to the tea:
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoopm11_1_request.rtml
+
+You should get a confirmation document document back:
+<!DOCTYPE RTML SYSTEM "http://www.estar.org.uk/documents/rtml2.2.dtd">
+<RTML version="2.2" type="confirmation">
+                          ------------
+...
+
+If you get a reject, it hasn't worked.
+
+Watch the tea logs to see what is going on (also the RCS task log for more details).
+
+Keep an eye out in the tea logs for something like:
+2005-06-07 T 21:40:00.702 WEST : TOCAClient::Sent [HELO Microlensing] <- This will be [HELO Test] in your case
+2005-06-07 T 21:40:45.931 WEST : TOCAClient::Reply [OK sessionID=204045, sessionLimit=3600, timeRemaining=7200, priority=2]
+You will need the sessionID (204045 in this case) if something goes wrong.
+
+If it all works, an update/completion message will be sent out to the IA. If the IA is set to localhost:1234 (as above)
+and the TestServer is running, the output documents will appear in ltproxy:/home/eng/tmp/test_server_output.txt.
+
+When the toop request has been completed, the TEA will keep the RCS in TOOP mode for 120 seconds, before
+quitting the toop session. This is so an IA has chance to analyse the data and send more toop requests 
+(which we arn't going to do in this case). After 2 minutes, the TEA logs should show an attempt to [QUIT <sessionID>].
+
+It's got stuck in TOOP mode
+---------------------------
+
+If something goes wrong and it gets stuck in toop mode, the Target of Oppurtunity Control wiki page can help.
+If you can find the session ID (see above), try:
+socket_text_command -h 192.168.1.30 -p 8610 QUIT <sessionID>
+
+or
+
+telnet 192.168.1.30 8610
+QUIT <sessionID>
+
+from eng@ltproxy. If the RCS has got stuck whilst trying to go into TOCA agent, you can try the Eng' button on the rcsgui, followed by the 'Oper' button to reset the agent in charge, or (more likely) Reboot (Automated).
+
+FTN GRB test postone hour
+-------------------------
+tail -f /home/eng/proxy/tmp/tea_ftn.log
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:toop:grb060206:1 -iaport 1234 -project "robonetgrb" -contact -contact_name "Nial Tanvir" -contact_user Robonet/nial.tanvir -observation -toop -name grb060206 -target_ident 8r120 -ra 13:31:43.4 -dec +35:03:02.0 -exposure 120000 ms 8 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoopgrb060206_1_request.rtml
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoopgrb060206_1_request.rtml
+
+FTN Mirolensing Anomoly example (NOT tested)
+-------------------------------
+
+set doc_number="1"
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid "localtest:toop:ogle-2006-blg-109:${doc_number}" -iaport 1234 -project "Planetsearch1" -contact -contact_name "Keith Horne" -contact_user Robonet/keith.horne -observation -toop -name OGLE-2006-blg-109 -target_ident ExoPlanetAnomoly -ra 17:52:34.51 -dec -30:05:16.00 -exposure 100000 ms 2 -device ratcam camera optical R -binning 2 2 > ~/tmp/localtesttoopogle-2006-blg-109_${doc_number}_request.rtml
+
+java org.estar.io.test.SendFile localhost 8081 ~/tmp/localtesttoopogle-2006-blg-109_${doc_number}_request.rtml
+
+set doc_number="2"
+repeat...
+
+To find monitor obs for the anomoly:
+ssh eng@[lt|ftn]proxy
+cd proxy/tea/scripts/data
+grep -i OGLE-2006-BLG-109 *.rtml
+
+Details (magnitude etc):
+http://www.astrouw.edu.pl/~ogle/ogle3/ews/blg-109.html
+
+TOOP Documents:
+
+Scoring? Optional! Checks we can take control of telescope, suitable mapping to a TOCA agent, object
+is above horizon - then returns 1.
+
+Needs TAG/User/Proposal
+
+one <Observation> per doc (of course, multiple exposures are OK)
+No <SeriesConstraint> in <Schedule>
+
+No <SeeingConstraint> in <Schedule>
+
+Must be above horizon etc to observe (it checks and returns a sensible error if it isn't)
+
+Telescope must be operational and the relevant TOOP agent must have a high enough priority (it has, so long
+	 as a GRB is not being observed in which case a sensible error is returned).
+
+Things to note: 
+- Scoring is optional. TOOP scoring checks we can take control of
+telescope, suitable mapping to a TOCA agent, object is above horizon -
+then returns 1.
+
+- One <Observation> per document submitted (Can, of course, have a
+<Schedule> <Exposure> <Count>).
+
+- No <SeriesConstraint> allowed in <Schedule> (makes no sense for TOOP).
+
+- No <SeeingConstraint> in <Schedule> (makes no sense for TOOP).
+
+- Telescope must be operational and the relevant TOOP agent must have a
+high enough priority (it has, so long as a GRB is not being observed in
+which case a sensible error is returned).
+
+Submission Philosophy
+---------------------
+The TOCA (Target of oppurtunity control) agent is a session based system,
+when the TEA receives a TOOP document it requests a session from the TOCA.
+TOCA is then in control until:
+1. The TEA QUITs the session
+2. A higher priority agent takes control (GRB, DAYTIME, TCS ERROR...). 
+3. The session expires (nominally after 1 hour, but I think this is
+ignored atm (is this true Steve?).
+
+On completion of a TOOP document the TEA currently holds onto the session
+for 2 minutes before releasing it, this will hopefully give the IA time to
+analyse any results and decide whether or not to submit another TOOP
+document.
+
+However, the TEA can also queue TOOP documents for the same session. So
+the optimum stratgy would be to send two TOOP documents when starting a
+TOOP followup, so the telescope is busy observing the second TOOP document
+whilst the IA is analysing the results of the first document. The IA
+can then add another document so the telescope is continually busy.
+
+When the TEA releases the session, the previous agent than regains control
+and can then slew the telescope elsewhere...
+

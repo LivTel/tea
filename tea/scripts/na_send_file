@@ -1,0 +1,15 @@
+#!/bin/csh
+
+source devsetup
+
+set TEA_HOST = ltproxy
+set TEA_PORT = 8080
+
+if (${#argv} < 1) then
+    echo "Usage: na_send_file <file>"
+    exit 1
+endif
+
+java org.estar.tea.test.NodeAgentClient \
+	--tea-host $TEA_HOST --tea-port $TEA_PORT \
+	--file $1

@@ -1,0 +1,15 @@
+#!/bin/csh
+
+source setup
+
+set PORT = 9120
+
+if (${#argv} < 1) then
+    echo "** WARNING - No port supplied, Using default port $PORT "
+else
+    set PORT = $1
+endif
+
+java org.estar.tea.test.RcsCtrlSimulator \
+	--port $PORT --state OPER --agent $1
+

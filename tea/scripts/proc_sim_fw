@@ -1,0 +1,24 @@
+#!/bin/csh
+
+source setup
+
+set ID_PORT = 9120
+
+set SFX_BASE = /home/dev/tmp 
+set SFX_KF   = /home/snf/p2gtmp/certs/SnfWork_FTNProxy.private
+set SFX_TF   = /home/snf/p2gtmp/certs/oar.public
+set SFX_PASS = gellifor
+
+echo
+echo "-----------------------------------"
+echo "TEA Processing Simulation Framework"
+echo "-----------------------------------"
+
+java org.estar.tea.test.ProcessingSimulationFramework \
+	--name TEA_PROC_SIM --id-port $ID_PORT \
+	--sfx-base $SFX_BASE --sfx-keyfile $SFX_KF --sfx-trustfile $SFX_TF \
+	--sfx-pass $SFX_PASS \
+	--oss-port 6520 
+
+#	--plugin-class org.estar.tea.test.Berty
+

@@ -1,0 +1,30 @@
+#!/bin/csh
+# rcs_send_update /FTN_Phase2_001/robonet/estar/agent/SingleExposure /mnt/rat-image/c_e_222.fits
+
+if ( $#argv != 2) then
+    echo "rcs_send_update <obsid> <filename>"
+    echo "e.g.: rcs_send_update /FTN_Phase2_001/robonet/estar/agent/SingleExposure /mnt/rat-image/c_e_20050511_132_1_1_1.fits"
+    echo "Must be run from the tea/scripts directory."
+    exit 1
+endif
+
+# source machine setup
+set machine_name = `/bin/hostname --short`
+source ${machine_name}_setup
+
+# source tea args config for telemetry port info
+# see ../config/ftnproxy_tea_args
+# TEL_PORT / TEL_HOST
+source ../config/${machine_name}_tea_args
+#set TELEM_HOST = localhost
+#set TELEM_PORT = 9325
+
+# file  is the file name i.e.   /mnt/rat-image/c_e_xxx.fits
+# oid   is the obsid
+
+# rcs_send_update /FTN_Phase2_001/robonet/estar/agent/SingleExposure /mnt/rat-image/c_e_222.fits
+
+java org.estar.tea.test.ObservationUpdateClient \
+	--host $TEL_HOST --port $TEL_PORT \
+	--update --file $2 \
+	--oid $1

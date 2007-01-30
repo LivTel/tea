@@ -1,0 +1,18 @@
+TODO
+----
+
+- Data pipeline integration
+- per project data directories
+- fits headers
+- observation documents not sent when TelemetryHandler receives ObservationStatusInfo,
+	as associated UpdateHandler has not processed last update document (copied file across etc)
+        when setObservationFailed/setObservationCompleted is set, so terminate does not count up the right number of
+	frames.
+- RTML parsing in C version/ers.
+
+DONE
+----
+
+- fix http server/ URLs
+- check eSTARIO java, aa complains of problem documents breaking the parser at line 40, column 4...
+  - added flushes to writeMessage - more testing needed.
