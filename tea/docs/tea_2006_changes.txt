@@ -1,0 +1,21 @@
+Summary of (future) changes for TEA. snf - (July 2006).
+
+1    Telemetry / Update messages.
+1.a. Add queueing for telemetry replies.
+1.b. Replace telemetry update with suitable remote interface.
+1.c. Updates and completion will eventually come from PDAs within OSS/SMS.
+1.d  ARQs to handle persistance of updates ? problems with precedence of updates and 
+     completions as the latter are handled by the Expirator thread at the moment.
+
+2.   Replace various messaged connections with remote i/fs.
+2.a. RCS Control messages via RCSControl i/f.
+2.b. ExecModel i/f will replace some basic scoring/feasibility  information gathering.
+2.c. Phase2Model will replace all OSS calls.
+2.d  Scheduler or ScheduleSimulator i/fs to perform scoring requests using contention and env stats models.
+
+3    Intelligent deletion / archiving (P2concept) of groups which have completed and of unused targets.
+
+4    RTML 3 -> obj model changes. 
+
+5    Change framework to abstract score and request handler to interfaces. Rework the current SDH and RDH as plugins. Same goes for Update mechanism. 
+5.a. Implement manual insertion (GUI) as above plugins.
