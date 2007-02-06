@@ -83,6 +83,8 @@ public class VisibilityCalculator {
 	    
 	    //System.err.println(sdf.format(new Date(t))+" Elevation: "+Position.toDegrees(targ_elev, 3)+up+" : "+day+" : "+obs);
 	    
+
+	    // if the sun is down below twi limit and target is above dome limit
 	    if (sun_elev < sunElevation && targ_elev > domeLimit)
 		okcount++;
 	    
