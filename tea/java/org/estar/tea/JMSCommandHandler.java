@@ -41,7 +41,7 @@ public class JMSCommandHandler extends JMSMA_ClientImpl implements Logging {
      * @param command The JMS COMMAND to send.
      * @param secure True if the connection is to be secure.
      */
-    JMSCommandHandler(ConnectionFactory cfy,
+    public JMSCommandHandler(ConnectionFactory cfy,
 		      COMMAND command,
 		      boolean secure) {
 	super();
