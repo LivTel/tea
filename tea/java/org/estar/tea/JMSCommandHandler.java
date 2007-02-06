@@ -54,7 +54,7 @@ public class JMSCommandHandler extends JMSMA_ClientImpl implements Logging {
     /** Called to send the command. This method which delegates to a JMS ProtocolClientImpl 
      * will block until the reply is received from the server or connection fails for some reason.
      */	
-    protected void send() {
+    public void send() {
 
 	if (command == null) {
 	    setError(true, "Null command");
