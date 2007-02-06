@@ -143,6 +143,21 @@ public class ConnectionHandler implements Logging {
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
 			     (replyDocument != null ? replyDocument.getType() : "NULL"));
 		
+	    } else if
+		(type.equals("abort")) {
+
+		AbortDocumentHandler adh = new AbortDocumentHandler(tea, io, handle);
+		replyDocument = adh.handleAbort(document);
+		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+
+		traceLog.log(INFO, 1, CLASS, "CH", "exec",
+		     "About to send abort response...\n"+reply);
+		
+		io.messageWrite(handle, reply);
+		
+		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
+			     (replyDocument != null ? replyDocument.getType() : "NULL"));
+
     	    } else {
     		
     		// General Error - reject.
