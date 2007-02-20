@@ -31,7 +31,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.22 2006-12-11 11:49:13 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.23 2007-02-20 13:19:27 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -984,27 +984,28 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @param errorMessage The error messsage.
 	 */
 	public static String createErrorDocReply(RTMLDocument document, String errorMessage) {
-		document.setCompletionTime(new Date());
-		document.setType("reject");
-		try {
-			document.setErrorString(errorMessage); 
-		} catch (RTMLException rx) {
-			System.err.println("Error setting error string in doc: "+rx);
-		}
-		return createReply(document);	   
+	    document.setCompletionTime(new Date());
+	    document.setType("reject");
+	    try {
+		document.setErrorString(errorMessage); 
+	    } catch (RTMLException rx) {
+		rx.printStackTrace();
+		System.err.println("Error setting error string in doc: "+rx);
+	    }
+	    return createReply(document);	   
 	}
     
-	/** Create a reply from supplied document of given type.
-	 * @param document The document to change.
-	 * @param type The type.
-	 */
-	public static String createDocReply(RTMLDocument document, String type) {
-		System.err.println("Create doc reply using type: "+type);
-		// diddly error!
-		//document.setCompletionTime(new Date());
-		document.setType(type);
-		return createReply(document);
-	}
+    /** Create a reply from supplied document of given type.
+     * @param document The document to change.
+     * @param type The type.
+     */
+    public static String createDocReply(RTMLDocument document, String type) {
+	System.err.println("Create doc reply using type: "+type);
+	// diddly error!
+	//document.setCompletionTime(new Date());
+	document.setType(type);
+	return createReply(document);
+    }
     
 	/** Creates a reply message from the supplied document.
 	 * @param document The document to extract a reply message from.
@@ -1255,6 +1256,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.22  2006/12/11 11:49:13  snf
+** Added a test for rename doc failure in expireDoc soas to throw an Exception.
+**
 ** Revision 1.21  2006/03/27 13:40:58  snf
 ** added estario logging
 **
