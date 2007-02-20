@@ -1,52 +1,27 @@
 TEA Schedule Priorities
 -----------------------
-Specified as follows:
-    <Schedule priority="3">
-
-			// map rtml priorities to Phase2 priorities.
-			int priority = 0;
-			switch (schedPriority) {
-			case 0:
-			    priority = 4; // TOOP
-			    break;
-			case 1:
-			    priority = 3; // URGENT
-			    break;
-			case 2:
-			    priority = 2; // MEDIUM
-			    break;
-			case 3:
-			    priority = 1; // NORMAL
-			    break;
-			default:
-			    priority = 1; // NORMAL
-			}
-
-Schedule (RTML) priority     PhaseII Priority	Comment			PhaseII GUI
-			     5						Urgent
-0			     4			TOOP (non-interruptive)	(default)Normal!
-1			     3			URGENT			High
-2			     2			MEDIUM			Medium
-3			     1			NORMAL			Normal
-default(other)		     1			NORMAL			Normal
-			     0						Normal
 
 "Comment" is the associated TEA comment (based on the RTML spec???)
 
-Schedule (RTML) priority     PhaseII Priority	PhaseII GUI
+Schedule (RTML) priority     PhaseII (ODB)	PhaseII (GUI)
+-------------------------------------------------------------
 			     5			Urgent
-0			     4			(default)Normal!
+0			     4			Quite urgent
 1			     3			High
 2			     2			Medium
 3			     1			Normal
+
 default(other)		     1			Normal
 			     0			Normal
+(n/a)			     -2			Background
+
 where
 "Schedule (RTML) priority" is the number specified in the RTML:<Schedule priority="n">
-"PhaseII Priority" is the number stored in the PhaseII database
-"PhaseII GUI" is what is displayed in the PhaseII GUI
+"PhaseII (ODB)" is the number stored in the PhaseII database
+"PhaseII (GUI)" is what is displayed in the PhaseII GUI
 
 Note:
-The PhaseII priority 4 can be specified by the TEA but cannot be specified by the PhaseII GUI
-(and displays as the default "Normal" in the GUI).
-The PhaseII priority 5 _cannot_ be specified by the TEA but can be specified by the PhaseII GUI as Urgent.
+The PhaseII priority "5" _cannot_ be specified by the TEA but can be specified by the PhaseII GUI as Urgent.
+The PhaseII priority "-2" is not available to TEA - these obs are done only if nothing else can be executed
+ typically this means very-very bad seeing -if there are a lot of these chaps in the ODB they drown out the
+ background monitoring and prevent the seeing determination from being made - which is not a good idea.
