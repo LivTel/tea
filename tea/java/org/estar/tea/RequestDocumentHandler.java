@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.10 2007-01-26 10:20:27 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.11 2007-02-20 12:39:26 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -471,19 +471,19 @@ public class RequestDocumentHandler implements Logging {
 			int priority = 0;
 			switch (schedPriority) {
 			case 0:
-			    priority = 4; // TOOP
+			    priority = 4; // Phase2 - ODB: QUITE URGENT(4)
 			    break;
 			case 1:
-			    priority = 3; // URGENT
+			    priority = 3; // Phase2 - ODB: HIGH(3)
 			    break;
 			case 2:
-			    priority = 2; // MEDIUM
+			    priority = 2; // Phase2 - ODB: MEDIUM(2)
 			    break;
 			case 3:
-			    priority = 1; // NORMAL
+			    priority = 1; // Phase2 - ODB: NORMAL(1)
 			    break;
 			default:
-			    priority = 1; // NORMAL
+			    priority = 1; // Phase2 - ODB: NORMAL(1)
 			}
 			group.setPriority(priority);
 
@@ -607,6 +607,9 @@ public class RequestDocumentHandler implements Logging {
 } // [RequestDocumentHandler]
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2007/01/26 10:20:27  snf
+// checking
+//
 // Revision 1.9  2006/07/17 07:16:58  snf
 // Added comments.
 //
