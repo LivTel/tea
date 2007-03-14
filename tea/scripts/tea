@@ -9,7 +9,8 @@ if (${#argv} < 1) then
     exit 1
 endif
 
-source ${DEPLOY_BIN}/setup
+source /opt/ngat/etc/cshrc
+
 source ${DEPLOY_BIN}/class_setup
 source ${DEPLOY_BIN}/tea_setup
 
@@ -62,10 +63,18 @@ switch ($1)
 	#set HTTP_PROXY = "-Dhttp.proxyHost=wwwcache.livjm.ac.uk -Dhttp.proxyPort=8080"
 	set HTTP_PROXY = ""
 
-	# should run from TEA_HOME
+	# set if we are using RMI mode.
+	#set REG = -"DregisterHandler=true"
+	set REG
+
+	# These are only needed if using RMI mode - make sure the registry started before TEA.
+        set POLICY = "-Djava.security.policy=/occ/tmp/policy.dat"
+        set SRC = "-Djava.rmi.server.codebase=file:///${TEA_CLASS}/tea.jar"
+
+	# should really run from TEA_HOME
 	cd $TEA_SCRIPT
 
-	java -DTEA $ASTRO $EGD $HTTP_PROXY org.estar.tea.TelescopeEmbeddedAgent ${model} $TEA_CONFIG/tea.properties
+	java -DTEA $POLICY $SRC $ASTRO $EGD $REG $HTTP_PROXY org.estar.tea.TelescopeEmbeddedAgent ${model} $TEA_CONFIG/tea.properties
 
 	set mexit = $status
         echo "TEA (${model}) Process exited with status $mexit "
