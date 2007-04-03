@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.6 2006-02-08 17:24:43 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.7 2007-04-03 14:58:55 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.6 2006-02-08 17:24:43 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.7 2007-04-03 14:58:55 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -797,20 +797,25 @@ public class TOCSessionManager implements Runnable, Logging
 		}
 		// get detector
 		detector = device.getDetector();
-		if(detector == null)
+		//if(detector == null)
+		//{
+		//	throw new NullPointerException(this.getClass().getName()+
+		//	    ":instr:No detector found in observation.");
+		//}
+		if(detector != null)
 		{
-			throw new NullPointerException(this.getClass().getName()+
-			    ":instr:No detector found in observation.");
-		}
-		// binning
-		if(detector.getColumnBinning() != detector.getRowBinning())
-		{
-			throw new IllegalArgumentException(this.getClass().getName()+
+			// binning
+			if(detector.getColumnBinning() != detector.getRowBinning())
+			{
+				throw new IllegalArgumentException(this.getClass().getName()+
 			    ":instr:Row/Column binning must be equal: row: "+detector.getRowBinning()+
-							   " and column: "+detector.getColumnBinning()+".");
+								   " and column: "+detector.getColumnBinning()+".");
+			}
+			bin = detector.getColumnBinning();
+			// instr - default calibrateBefore and calibrateAfter to false for RATCAM/DILLCAM.
 		}
-		bin = detector.getColumnBinning();
-		// instr - default calibrateBefore and calibrateAfter to false for RATCAM/DILLCAM.
+		else
+			bin = 2;
 		session.instrRatcam(lowerFilterType,upperFilterType,bin,false,false);
 	}
 
@@ -1332,6 +1337,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.6  2006/02/08 17:24:43  cjm
+** Added logging for post process thread run failure.
+**
 ** Revision 1.5  2005/08/16 13:27:44  cjm
 ** Added PostProcessThread logging.
 **
