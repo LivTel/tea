@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.12 2007-04-04 08:51:12 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.13 2007-04-04 09:55:56 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -549,7 +549,7 @@ public class RequestDocumentHandler implements Logging {
 		// observation needs to be declared global.- look at UH which defines on ObsInfo.
 		String oid = observation.getFullPath();
 		arq.setOid(oid);
-		arq.setName(""+oid);
+		arq.setName(requestId);
 		arq.setId(tea.getId()+"/"+arq.getName());
 		
 		// Get a unique file Name off the TEA.
@@ -607,6 +607,9 @@ public class RequestDocumentHandler implements Logging {
 } // [RequestDocumentHandler]
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.12  2007/04/04 08:51:12  snf
+// changed arq name to oid
+//
 // Revision 1.11  2007/02/20 12:39:26  snf
 // changed comments around priority settings.
 //
