@@ -32,7 +32,7 @@ import ngat.message.OSS.*;
 public class AgentRequestHandler extends ControlThread implements Logging {
 
     /** Class name for logging.*/
-    public static final String CLASS = "AgentRequestHadler";
+    public static final String CLASS = "ARQ";
 
     /** Observation state indicating unable to deduce completion state.*/
     public static final int OBSERVATION_STATE_UNKNOWN            = 0;
@@ -55,12 +55,13 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
     /** Polling interval while awaiting first data.*/
     private static final long LONG_SLEEP_TIME = 1800*1000L;
-    
+   
     /** Time margin above expected execution time when we give up as a lost cause.*/
     private static final long TIME_MARGIN = 2*3600*1000L;
 
     /** Time after expiry before we expire the document (ms).*/
-    private static final long DEFAULT_EXPIRY_OFFSET = 2*3600*1000L;
+    //    private static final long DEFAULT_EXPIRY_OFFSET = 2*3600*1000L;
+    private static final long DEFAULT_EXPIRY_OFFSET = 600*1000L;
 
     /** Flags completed successful obs as notified by RCS Telemetry.*/
     public static final int OBS_DONE = 1;
@@ -164,18 +165,22 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	expiryOffset = DEFAULT_EXPIRY_OFFSET;
 
-	logger = LogManager.getLogger(this);
+	logger = LogManager.getLogger("TRACE");
 
     }
 
     /** Sets the id from a supplied string. Usually this includes the TEA's id as prepend.*/
     public void setId(String id) { this.id = id; }
 
+    public String getId() { return id;}
+
     /** Sets the ObservationID.
      * @param oid The ObservationID.
      */
     public void setOid(String oid) { this.oid = oid; }
-    
+
+    public String getOid() { return oid;}
+
     /** Set the base-document.
      * @param doc The base-document.
      */
