@@ -27,7 +27,7 @@ import ngat.message.GUI_RCS.*;
  */
 public class TelemetryHandler implements CAMPRequestHandler, Logging {
 
-    public static final String CLASS = "TelemetryHandler";
+    public static final String CLASS = "TELH";
     
     /** Default readout time (ms).*/
     private static final long READOUT = 10000L;
@@ -59,7 +59,7 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 	this.tea        = tea;
 	this.connection = connection;
 	this.telem      = telem;
-	logger = LogManager.getLogger(this);
+	logger = LogManager.getLogger("TRACE");
     }
     
     /** Returns the handling time - ### fudged.*/
