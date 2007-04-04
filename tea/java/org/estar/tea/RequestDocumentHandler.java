@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.11 2007-02-20 12:39:26 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.12 2007-04-04 08:51:12 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -51,11 +51,11 @@ public class RequestDocumentHandler implements Logging {
 	 * @param io      The eSTARIO.
 	 * @param handle  Globus IO Handle for the connection.
 	 */
-	public RequestDocumentHandler(TelescopeEmbeddedAgent tea, eSTARIO io, GlobusIOHandle handle)
-	{
+	public RequestDocumentHandler(TelescopeEmbeddedAgent tea) {
+	    //, eSTARIO io, GlobusIOHandle handle) {
 		this.tea    = tea;
-		this.io     = io;
-		this.handle = handle;
+		//this.io     = io;
+		//cthis.handle = handle;
 		logger = LogManager.getLogger("TRACE");
 	}
 
@@ -549,9 +549,9 @@ public class RequestDocumentHandler implements Logging {
 		// observation needs to be declared global.- look at UH which defines on ObsInfo.
 		String oid = observation.getFullPath();
 		arq.setOid(oid);
-		arq.setName("ARQNew:"+oid);
+		arq.setName(""+oid);
 		arq.setId(tea.getId()+"/"+arq.getName());
-
+		
 		// Get a unique file Name off the TEA.
 		File file = new File(tea.createNewFileName(oid));
 	 
@@ -607,6 +607,9 @@ public class RequestDocumentHandler implements Logging {
 } // [RequestDocumentHandler]
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.11  2007/02/20 12:39:26  snf
+// changed comments around priority settings.
+//
 // Revision 1.10  2007/01/26 10:20:27  snf
 // checking
 //
