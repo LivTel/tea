@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.7 2007-04-03 14:58:55 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.8 2007-04-25 10:39:35 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,18 +15,34 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.7 2007-04-03 14:58:55 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.8 2007-04-25 10:39:35 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
 	public static final String CLASS = "TOCSessionManager";
+	/**
+	 * The type of instrument.
+	 */
+	public final static int INSTRUMENT_TYPE_NONE        = 0;
+	/**
+	 * The type of instrument.
+	 */
+	public final static int INSTRUMENT_TYPE_RATCAM      = 1;
+	/**
+	 * The type of instrument.
+	 */
+	public final static int INSTRUMENT_TYPE_IRCAM       = 2;
+	/**
+	 * The type of instrument.
+	 */
+	public final static int INSTRUMENT_TYPE_POLARIMETER = 3;
 	/**
 	 * Class map of tag/user/proposal -> session managers.
 	 */
@@ -753,6 +769,9 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception TOCException Thrown if the TOCA slew command fails in some way.
 	 * @see #tea
 	 * @see #session
+	 * @see #INSTRUMENT_TYPE_RATCAM
+	 * @see #INSTRUMENT_TYPE_IRCAM
+	 * @see #INSTRUMENT_TYPE_POLARIMETER
 	 */
 	private void instr(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
 							TOCException
@@ -760,10 +779,13 @@ public class TOCSessionManager implements Runnable, Logging
 		RTMLObservation observation = null;
 		RTMLDevice device = null;
 		RTMLDetector detector = null;
+		String deviceType = null;
 		String rtmlFilterType = null;
 		String lowerFilterType = null;
 		String upperFilterType = null;
-		int bin;
+		String irFilterType = null;
+		String spectralRegion = null;
+		int bin,instrumentType;
 
 		// get observation
 		if(document.getObservationListCount() != 1)
@@ -780,28 +802,56 @@ public class TOCSessionManager implements Runnable, Logging
 			throw new NullPointerException(this.getClass().getName()+
 			    ":instr:No device found in observation.");
 		}
-		if(device.getType().equals("camera") == false)
+		deviceType = device.getType();
+		instrumentType = INSTRUMENT_TYPE_NONE;
+		if(deviceType.equals("camera"))
+		{
+			spectralRegion = device.getSpectralRegion();
+			if((spectralRegion == null) || spectralRegion.equals("optical"))
+			{
+				instrumentType = INSTRUMENT_TYPE_RATCAM;
+				// filter types
+				rtmlFilterType = device.getFilterType();
+				lowerFilterType = tea.getFilterMap().getProperty("toop.filter.ratcam.lower."+rtmlFilterType);
+				upperFilterType = tea.getFilterMap().getProperty("toop.filter.ratcam.upper."+rtmlFilterType);
+				if((lowerFilterType == null)||(upperFilterType == null))
+				{
+					throw new IllegalArgumentException(this.getClass().getName()+
+									   ":instr:Failed to map filter type: "+rtmlFilterType+" mapped to lower "+
+									   lowerFilterType+" and upper "+upperFilterType+".");
+				}
+			}
+			else if(spectralRegion.equals("infrared"))
+			{
+				instrumentType = INSTRUMENT_TYPE_IRCAM;
+				// filter types
+				rtmlFilterType = device.getFilterType();
+				irFilterType = tea.getFilterMap().getProperty("toop.filter.ir."+rtmlFilterType);
+				if(irFilterType == null)
+				{
+					throw new IllegalArgumentException(this.getClass().getName()+
+									   ":instr:Failed to map filter type: "+
+									   rtmlFilterType+".");
+				}
+			}
+			else
+			{
+				throw new IllegalArgumentException(this.getClass().getName()+
+								   ":instr: camera spectral region: "+spectralRegion+
+								   " does not map to a known instrument config.");
+			}
+		}
+		else if(deviceType.equals("polarimeter"))
+		{
+			instrumentType = INSTRUMENT_TYPE_POLARIMETER;
+		}
+		else
 		{
 			throw new IllegalArgumentException(this.getClass().getName()+
 			    ":instr:Device "+device.getType()+" not supported for TOCA.");
 		}
-		// filter types
-		rtmlFilterType = device.getFilterType();
-		lowerFilterType = tea.getFilterMap().getProperty("toop.lower."+rtmlFilterType);
-		upperFilterType = tea.getFilterMap().getProperty("toop.upper."+rtmlFilterType);
-		if((lowerFilterType == null)||(upperFilterType == null))
-		{
-			throw new IllegalArgumentException(this.getClass().getName()+
-			    ":instr:Failed to map filter type: "+rtmlFilterType+" mapped to lower "+
-							   lowerFilterType+" and upper "+upperFilterType+".");
-		}
 		// get detector
 		detector = device.getDetector();
-		//if(detector == null)
-		//{
-		//	throw new NullPointerException(this.getClass().getName()+
-		//	    ":instr:No detector found in observation.");
-		//}
 		if(detector != null)
 		{
 			// binning
@@ -816,7 +866,22 @@ public class TOCSessionManager implements Runnable, Logging
 		}
 		else
 			bin = 2;
-		session.instrRatcam(lowerFilterType,upperFilterType,bin,false,false);
+		// actually configure instrument
+		switch(instrumentType)
+		{
+			case INSTRUMENT_TYPE_RATCAM:
+				session.instrRatcam(lowerFilterType,upperFilterType,bin,false,false);
+				break;
+			case INSTRUMENT_TYPE_IRCAM:
+				session.instrIRcam(irFilterType,bin,false,false);
+				break;
+			case INSTRUMENT_TYPE_POLARIMETER:
+				session.instrRingoStar(bin,bin,false,false);
+				break;
+			default:
+				throw new IllegalArgumentException(this.getClass().getName()+
+					":instr:instrument type set to un-implemented value "+instrumentType+".");
+		}
 	}
 
 	/**
@@ -1337,6 +1402,10 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.7  2007/04/03 14:58:55  cjm
+** Changed instr implementation so if there is not Detector in Device
+** the default binning is 2 (rather than an error).
+**
 ** Revision 1.6  2006/02/08 17:24:43  cjm
 ** Added logging for post process thread run failure.
 **
