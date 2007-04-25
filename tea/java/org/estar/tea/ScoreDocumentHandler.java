@@ -45,6 +45,8 @@ public class ScoreDocumentHandler implements Logging {
     /** Handler ID.*/
     private String cid; 
 	
+    public static volatile int scorecount = 0;
+
     private static int cc = 0;
 
     /** Create a ScoreDocumentHandler using the supplied IO parameters.
@@ -70,7 +72,12 @@ public class ScoreDocumentHandler implements Logging {
     public RTMLDocument handleScore(RTMLDocument document) throws Exception {
 
 	// ## START
+	logger.log(INFO,1,CLASS,cid,"handleRequest",
+		   "Starting scoring request, number in queue "+scorecount);
 
+	if (scorecount > 3)	    
+	    return setError( document, "There are too many scoring requests in progress at the moment");
+	
 	long now = System.currentTimeMillis();
 	
 	Observation observation = null;
@@ -313,10 +320,10 @@ public class ScoreDocumentHandler implements Logging {
 		   "Extracted dates: "+startDate+" -> "+endDate);
 	
 	// Look up proposal details.
-	 
+	
 	String proposalPathName = tea.getDBRootName()+"/"+userId+"/"+proposalId;
 	
-
+	
 	ExtraSolarSource source = new ExtraSolarSource(targetId);
 	source.setRA(ra.toRadians());
 	source.setDec(dec.toRadians());
@@ -324,18 +331,18 @@ public class ScoreDocumentHandler implements Logging {
 	source.setEquinox(2000.0f);
 	source.setEpoch(2000.0f);
 	source.setEquinoxLetter('J');
-
+	
 	Position atarg = new Position(ra.toRadians(), dec.toRadians());
-
+	
 	Date completionDate = new Date(System.currentTimeMillis()+365*24*3600*1000L);
 	
-
+	
 	if (scon == null || count == 1) {
-
+	    
 	    // FlexGroup 
 	    
 	    group = new Group(requestId);
-	 
+	    
 	    
 	} else {
 	    
@@ -418,11 +425,11 @@ public class ScoreDocumentHandler implements Logging {
 	double diff[];
 	double cum[];
 	double visibility = 0.0;
-
+	
 	SCHEDULABILITY tsched = new SCHEDULABILITY(tea.getId()+":"+requestId);
 	tsched.setClientDescriptor(new ClientDescriptor("EmbeddedAgent",
-						       ClientDescriptor.ADMIN_CLIENT,
-						       ClientDescriptor.ADMIN_PRIORITY));
+							ClientDescriptor.ADMIN_CLIENT,
+							ClientDescriptor.ADMIN_PRIORITY));
 	tsched.setCrypto(new Crypto("TEA"));
 	
 	tsched.setGroup(group);
@@ -434,7 +441,10 @@ public class ScoreDocumentHandler implements Logging {
 							   Math.toRadians(-12.0));
 	long s1 = 0L;
 	long s2 = 0L;
-
+	long resolution = 1800000L;
+	long delta = 0L;
+	int np = 1;
+	int nw = 1;
 	if (scon == null) {
 	    
 	    // Handle Flexible.
@@ -448,8 +458,15 @@ public class ScoreDocumentHandler implements Logging {
 
             tsched.setStart(s1);
 	    tsched.setEnd(s2);	   
-	    tsched.setResolution(1800000L); // using 30 minute resolution
-	    
+	    np = (int)((s2-s1)/resolution);
+	    if (np > 20) {
+		np = 20;
+		resolution = (s2 - s1)/np;
+	    }
+
+	    tsched.setResolution(resolution); // using 30 minute resolution
+	    delta = resolution;
+
 	    visibility = vc.calculateVisibility(atarg,
 						startDate.getTime(),
 						endDate.getTime());
@@ -470,10 +487,34 @@ public class ScoreDocumentHandler implements Logging {
 
 	    tsched.setStart(s1);
 	    tsched.setEnd(s2);	    
-	    tsched.setResolution(1800000L); // using 30 minute resolution
-	    if (period <= 1800000L)
-		tsched.setResolution(period/3); // using p/3 resolution
+	    np = (int)((s2-s1)/period); 
+	    nw = np; // same at this point
 	    
+	    // try to choose a shorter granularity for short period monitors   
+	    if (period <= 1800000) {
+		resolution = period/3;
+		np = (int)((s2-s1)/resolution);
+		logger.log(INFO, 1, CLASS, cid,"executeScore",
+			   "Setting resolution for short period monitor to "+(resolution/1000)+" S with "+np+" samples");
+		// using p/3 resolution unless too many of them to process
+	    } else {
+		resolution = period;
+		np = (int)((s2-s1)/resolution);
+		logger.log(INFO, 1, CLASS, cid,"executeScore",
+			   "Setting resolution for long period monitor to "+(resolution/1000)+" S with "+np+" samples");
+	    }
+	    // now re-adjust back to a sensible number to avoid overloading the processor.
+	    while (np > 20) {
+		np /= 2;
+		resolution = (s2 - s1)/np;
+		logger.log(INFO, 1, CLASS, cid,"executeScore",
+			   "Adjusting resolution for monitor to "+(resolution/1000)+" S with "+np+" samples");
+	    }
+	    
+	    tsched.setResolution(resolution);
+
+	    delta = resolution;
+
 	    visibility = vc.calculateVisibility(atarg,
 						startDate.getTime(),
 						endDate.getTime(),
@@ -482,11 +523,16 @@ public class ScoreDocumentHandler implements Logging {
 	    logger.log(INFO, 1, CLASS, cid,"executeScore",
 		       "Target scored "+visibility+" visibility for specified monitoring program");
 	
-	}
+	    }
 	
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
-		   "Submit to TscoreCalc using: Start = "+TelescopeEmbeddedAgent.sdf.format(new Date(s1))+
-		   " End = "+TelescopeEmbeddedAgent.sdf.format(new Date(s2)));
+		   "Submit to TscoreCalc using: "+
+		   " S1    = "+TelescopeEmbeddedAgent.sdf.format(new Date(s1))+
+		   " S2    = "+TelescopeEmbeddedAgent.sdf.format(new Date(s2))+
+		   " Intvl = "+((s2-s1)/1000)+" S"+
+		   " Nwin  = "+nw+
+		   " Res   = "+(resolution/1000)+" S"+
+		   " NSamp = "+np);
 	
 	JMSCommandHandler client = new JMSCommandHandler(tea.getConnectionFactory(), 
 							 tsched, 
@@ -510,24 +556,39 @@ public class ScoreDocumentHandler implements Logging {
 	    cum  = sched_done.getCumulativeFunction();
 	}
 	
-	// this will return the highest score for the group in the specified interval...
+	// this will return the average score for the group in the specified interval...
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
 		   "Target achieved rank score "+rankScore+" for specified period after "+((t2-t1)/1000)+"S");
 	
 	for (int in = 0; in < diff.length; in++) {
-	    System.err.println("Differential["+in+"] = "+diff[in]);
+	    System.err.println("Differential["+in+"] = "+(diff != null ? ""+diff[in] : "null")+
+			       " Cumulative["+in+"] = "+(cum != null ? ""+cum[in] : "null"));
+	    RTMLScore dscore = new RTMLScore();
+	    RTMLPeriodFormat dd = new RTMLPeriodFormat();
+	    if (delta > 14400*1000L)		
+		dd.setHours((int)(delta*in/3600000));
+	    else if
+		(delta > 240*1000L)
+		dd.setMinutes((int)(delta*in/60000));
+	    else
+		dd.setSeconds((int)(delta*in/1000));
+	    
+	    dscore.setDelay(dd);
+	    dscore.setProbability(diff[in]);
+	    if (cum != null)
+		dscore.setCumulative(cum[in]);
+	    else
+		dscore.setCumulative(Double.NaN);
+	    document.addScore(dscore);
 	}
 
-	for (int in = 0; in < cum.length; in++) {
-	    System.err.println("Cumulative["+in+"] = "+cum[in]);
-	}
+	//	if (visibility <= 0.0) {
+	//  return setError(document, "Target is not observable or unlikely to be selected during the specified period");		    
+	//}
 	
-       	
-	if (visibility <= 0.0) {
-	    return setError(document, "Target is not observable or unlikely to be selected during the specified period");		    
-	}
-	
-	document.setScore(rankScore);
+	// munged value
+	document.setScore(tea.nf.format(rankScore));
+	       
 	return document;
 	
     }
