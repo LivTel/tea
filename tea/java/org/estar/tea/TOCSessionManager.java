@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.8 2007-04-25 10:39:35 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.9 2007-04-25 10:57:08 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.8 2007-04-25 10:39:35 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.9 2007-04-25 10:57:08 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -862,10 +862,24 @@ public class TOCSessionManager implements Runnable, Logging
 								   " and column: "+detector.getColumnBinning()+".");
 			}
 			bin = detector.getColumnBinning();
+			if((instrumentType == INSTRUMENT_TYPE_IRCAM)&&(bin != 1))
+			{
+				throw new IllegalArgumentException(this.getClass().getName()+
+						  ":instr:SupIRCam (IRCAM) Row/Column binning must be 1.");
+			}
 			// instr - default calibrateBefore and calibrateAfter to false for RATCAM/DILLCAM.
 		}
-		else
-			bin = 2;
+		else 
+		{
+			// we allow device with no Detector, so set a default bin
+			// For RATCam, this should be 2
+			// For RINGO, this should be 2
+			// For IRCAM (SupIRCam) this _must_ be 1
+			if(instrumentType == INSTRUMENT_TYPE_IRCAM)
+				bin = 1;
+			else
+				bin = 2;
+		}
 		// actually configure instrument
 		switch(instrumentType)
 		{
@@ -1402,6 +1416,12 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.8  2007/04/25 10:39:35  cjm
+** RTML TOOP documents with IRCAM and RINGO instruments can now be performed.
+** Changes to instr to detect via <Device type="camera|polarimeter"> whether the instrument is
+** a camera or polarimeter, and via <Device region="optical|infrared"> whether the camera is
+** RATCam and SupIRCam. The correct string is then passed to the TOCA INSTR command.
+**
 ** Revision 1.7  2007/04/03 14:58:55  cjm
 ** Changed instr implementation so if there is not Detector in Device
 ** the default binning is 2 (rather than an error).
