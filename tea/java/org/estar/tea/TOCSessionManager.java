@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.9 2007-04-25 10:57:08 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.10 2007-04-26 18:03:21 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.9 2007-04-25 10:57:08 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.10 2007-04-26 18:03:21 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -766,26 +766,20 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception IllegalArgumentException Thrown if there are the wrong number of observations in the document.
 	 *           Thrown if the filter type failed to map. Thrown if the row and column binning was not equal.
 	 * @exception NullPointerException Thrown if the device or detector was not in the document.
-	 * @exception TOCException Thrown if the TOCA slew command fails in some way.
+	 * @exception TOCException Thrown if the TOCA instr command fails in some way.
+	 * @exception Exception Thrown if the sendInstr method fails.
 	 * @see #tea
 	 * @see #session
 	 * @see #INSTRUMENT_TYPE_RATCAM
 	 * @see #INSTRUMENT_TYPE_IRCAM
 	 * @see #INSTRUMENT_TYPE_POLARIMETER
+	 * @see DeviceInstrumentUtilites#sendInstr
 	 */
 	private void instr(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
-							TOCException
+							 TOCException, Exception
 	{
 		RTMLObservation observation = null;
 		RTMLDevice device = null;
-		RTMLDetector detector = null;
-		String deviceType = null;
-		String rtmlFilterType = null;
-		String lowerFilterType = null;
-		String upperFilterType = null;
-		String irFilterType = null;
-		String spectralRegion = null;
-		int bin,instrumentType;
 
 		// get observation
 		if(document.getObservationListCount() != 1)
@@ -802,100 +796,8 @@ public class TOCSessionManager implements Runnable, Logging
 			throw new NullPointerException(this.getClass().getName()+
 			    ":instr:No device found in observation.");
 		}
-		deviceType = device.getType();
-		instrumentType = INSTRUMENT_TYPE_NONE;
-		if(deviceType.equals("camera"))
-		{
-			spectralRegion = device.getSpectralRegion();
-			if((spectralRegion == null) || spectralRegion.equals("optical"))
-			{
-				instrumentType = INSTRUMENT_TYPE_RATCAM;
-				// filter types
-				rtmlFilterType = device.getFilterType();
-				lowerFilterType = tea.getFilterMap().getProperty("toop.filter.ratcam.lower."+rtmlFilterType);
-				upperFilterType = tea.getFilterMap().getProperty("toop.filter.ratcam.upper."+rtmlFilterType);
-				if((lowerFilterType == null)||(upperFilterType == null))
-				{
-					throw new IllegalArgumentException(this.getClass().getName()+
-									   ":instr:Failed to map filter type: "+rtmlFilterType+" mapped to lower "+
-									   lowerFilterType+" and upper "+upperFilterType+".");
-				}
-			}
-			else if(spectralRegion.equals("infrared"))
-			{
-				instrumentType = INSTRUMENT_TYPE_IRCAM;
-				// filter types
-				rtmlFilterType = device.getFilterType();
-				irFilterType = tea.getFilterMap().getProperty("toop.filter.ir."+rtmlFilterType);
-				if(irFilterType == null)
-				{
-					throw new IllegalArgumentException(this.getClass().getName()+
-									   ":instr:Failed to map filter type: "+
-									   rtmlFilterType+".");
-				}
-			}
-			else
-			{
-				throw new IllegalArgumentException(this.getClass().getName()+
-								   ":instr: camera spectral region: "+spectralRegion+
-								   " does not map to a known instrument config.");
-			}
-		}
-		else if(deviceType.equals("polarimeter"))
-		{
-			instrumentType = INSTRUMENT_TYPE_POLARIMETER;
-		}
-		else
-		{
-			throw new IllegalArgumentException(this.getClass().getName()+
-			    ":instr:Device "+device.getType()+" not supported for TOCA.");
-		}
-		// get detector
-		detector = device.getDetector();
-		if(detector != null)
-		{
-			// binning
-			if(detector.getColumnBinning() != detector.getRowBinning())
-			{
-				throw new IllegalArgumentException(this.getClass().getName()+
-			    ":instr:Row/Column binning must be equal: row: "+detector.getRowBinning()+
-								   " and column: "+detector.getColumnBinning()+".");
-			}
-			bin = detector.getColumnBinning();
-			if((instrumentType == INSTRUMENT_TYPE_IRCAM)&&(bin != 1))
-			{
-				throw new IllegalArgumentException(this.getClass().getName()+
-						  ":instr:SupIRCam (IRCAM) Row/Column binning must be 1.");
-			}
-			// instr - default calibrateBefore and calibrateAfter to false for RATCAM/DILLCAM.
-		}
-		else 
-		{
-			// we allow device with no Detector, so set a default bin
-			// For RATCam, this should be 2
-			// For RINGO, this should be 2
-			// For IRCAM (SupIRCam) this _must_ be 1
-			if(instrumentType == INSTRUMENT_TYPE_IRCAM)
-				bin = 1;
-			else
-				bin = 2;
-		}
-		// actually configure instrument
-		switch(instrumentType)
-		{
-			case INSTRUMENT_TYPE_RATCAM:
-				session.instrRatcam(lowerFilterType,upperFilterType,bin,false,false);
-				break;
-			case INSTRUMENT_TYPE_IRCAM:
-				session.instrIRcam(irFilterType,bin,false,false);
-				break;
-			case INSTRUMENT_TYPE_POLARIMETER:
-				session.instrRingoStar(bin,bin,false,false);
-				break;
-			default:
-				throw new IllegalArgumentException(this.getClass().getName()+
-					":instr:instrument type set to un-implemented value "+instrumentType+".");
-		}
+		// Parse RTMLDevice and send appropriate instr using TOCSession session.
+		DeviceInstrumentUtilites.sendInstr(tea,session,device);
 	}
 
 	/**
@@ -1416,6 +1318,10 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.9  2007/04/25 10:57:08  cjm
+** Fixed binning/default binning for IRCAM(SupIRCam), this must default to 1 or
+** be specified as 1.
+**
 ** Revision 1.8  2007/04/25 10:39:35  cjm
 ** RTML TOOP documents with IRCAM and RINGO instruments can now be performed.
 ** Changes to instr to detect via <Device type="camera|polarimeter"> whether the instrument is
