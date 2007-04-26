@@ -200,8 +200,8 @@ public class ScoreDocumentHandler implements Logging {
 		//String instName = tea.getConfig().getProperty("camera.instrument", "Ratcam");
 		
 		// Check valid filter and map to UL combo
-		logger.log(INFO, 1, CLASS, cid,"executeRequest","Checking for: "+filterString);
-		filter = tea.getFilterMap().getProperty(filterString);
+		logger.log(INFO, 1, CLASS, cid,"executeRequest","Checking for: "+filterString+".instrument");
+		filter = tea.getFilterMap().getProperty(filterString+".instrument");
 		
 		if (filter == null) {			
 		    logger.log(INFO,1,CLASS,cid,"handleRequest","Unknown filter:"+filterString+
