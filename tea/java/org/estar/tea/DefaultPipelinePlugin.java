@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.10 2006-02-10 15:01:49 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.11 2007-04-30 17:10:32 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.10 2006-02-10 15:01:49 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.11 2007-04-30 17:10:32 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -47,6 +47,10 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * @see #PROPERTY_KEY_PIPELINE_PLUGIN_ID
 	 */
 	protected String id = PROPERTY_KEY_PIPELINE_PLUGIN_ID;
+	/**
+	 * The type of instrument this pipeline is for i.e. "ccd","ircam","polarimeter".
+	 */
+	protected String instrumentTypeName = null;
 	/**
 	 * A string representing a local input directory.
 	 */
@@ -107,13 +111,29 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	}
 
 	/**
-	 * Intialise the plugin. Assumes setTea and setId have already been called.
+	 * Method to set the instrument type name of this instance of the plugin. 
+	 * @param s The instrument type name.
+	 * @see #instrumentTypeName
+	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_CCD_STRING
+	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_IRCAM_STRING
+	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_POLARIMETER_STRING
+	 */
+	public void setInstrumentTypeName(String s)
+	{
+		instrumentTypeName = s;
+	}
+
+	/**
+	 * Intialise the plugin. Assumes setTea, setId and setInstrumentTypeName have already been called.
 	 * <ul>
-	 * <li>Initialise inputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+".input_directory".
-	 * <li>Initialise outputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+".output_directory".
-	 * <li>Initialise scriptFilename from the tea property PROPERTY_KEY_HEADER+"."+id+".script_filename".
+	 * <li>Initialise inputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".input_directory".
+	 * <li>Initialise outputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".output_directory".
+	 * <li>Initialise scriptFilename from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".script_filename".
+	 * <li>Initialise urlBase from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base".
+	 * <li>Initialise objectListFormat from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".object_list_format".
 	 * </ul>
 	 * @see #id
+	 * @see #instrumentTypeName
 	 * @see #PROPERTY_KEY_HEADER
 	 * @see #PROPERTY_KEY_PIPELINE_PLUGIN_NAME
 	 * @see #inputDirectory
@@ -128,25 +148,29 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() started.");
 		// inputDirectory
-		inputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".input_directory");
+		inputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
+						       ".input_directory");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: input directory: "+inputDirectory+".");
 		// outputDirectory
-		outputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".output_directory");
+		outputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
+							".output_directory");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: output directory: "+outputDirectory+".");
 		// scriptFilename
-		scriptFilename = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".script_filename");
+		scriptFilename = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
+						       ".script_filename");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: script filename: "+scriptFilename+".");
 		// urlBase - ensure terminated with '/'
-		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".http_base");
+		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base");
 		if(urlBase.endsWith("/") == false)
 			urlBase = urlBase+"/";
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: URL base: "+urlBase+".");
 		// objectListFormat
-		objectListFormat = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+".object_list_format");
+		objectListFormat = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
+							 ".object_list_format");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: object list format: "+objectListFormat+".");
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
@@ -391,6 +415,11 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2006/02/10 15:01:49  cjm
+// objectListFormat now expects "votable" rather than "votable-url".
+// This allows created votables to have extension "votable" but we still pass "votable-url"
+// to the RTML parsing library.
+//
 // Revision 1.9  2005/10/24 10:53:06  cjm
 // Fixed problem in loadClusterFile, which was calling a static load method as if it was an instance method.
 //
