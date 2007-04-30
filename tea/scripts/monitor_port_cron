@@ -1,0 +1,30 @@
+#!/bin/csh
+# Monitor port usage on a proxy machine
+# $Header: /space/home/eng/cjm/cvs/tea/scripts/monitor_port_cron,v 1.1 2007-04-30 11:02:29 cjm Exp $
+set hostname = `/bin/hostname --short`
+set date_string = `/bin/date +"%Y-%m-%d"`
+set now_date_string = `/bin/date +"%Y-%m-%dT%H:%M:%S"`
+set log_file = "/home/eng/tmp/monitor_port_${hostname}_${date_string}.log"
+set tmp_file = "/home/eng/tmp/monitor_port_tmp.txt"
+# timestamp
+echo "Timestamp: ${now_date_string}" >> ${log_file}
+# tcp client connections
+/bin/netstat -t > ${tmp_file}
+set tcp_client_count = `/usr/bin/wc -l ${tmp_file} | /bin/awk ' { print $1}'`
+cat ${tmp_file} >> ${log_file}
+echo "${now_date_string} : TCP client connections : ${tcp_client_count}" >> ${log_file}
+# tcp listen connections
+/bin/netstat -l > ${tmp_file}
+set tcp_listen_count = `/usr/bin/wc -l ${tmp_file} | /bin/awk ' { print $1}'`
+cat ${tmp_file} >> ${log_file}
+echo "${now_date_string} : TCP listen connections : ${tcp_listen_count}" >> ${log_file}
+# all network connections
+/bin/netstat -a > ${tmp_file}
+set tcp_all_count = `/usr/bin/wc -l ${tmp_file} | /bin/awk ' { print $1}'`
+cat ${tmp_file} >> ${log_file}
+echo "${now_date_string} : All connections : ${tcp_all_count}" >> ${log_file}
+echo "${now_date_string} : Totals : TCP client=${tcp_client_count} : TCP listen=${tcp_listen_count} : All=${tcp_all_count}" >> ${log_file}
+
+#
+# $Log: not supported by cvs2svn $
+#
