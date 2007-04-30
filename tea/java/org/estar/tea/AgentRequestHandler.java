@@ -243,17 +243,18 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Prepare the UpdateHandler thread but dont start it.
      * @throws Exception if the UpdateHandler fails to prepare.
      */
-    public void prepareUpdateHandler() throws Exception {
+    public void prepareUpdateHandler() throws Exception
+    {
+
+	    if (updateHandler)
+		    throw new Exception("Updatehandler is already prepared for use");
 	
-	if (updateHandler)
-	    throw new Exception("Updatehandler is already prepared for use");
+	    updateDoc = (RTMLDocument)baseDocument.deepClone();
+	    pipelinePlugin = getPipelinePluginFromDoc();
+	    pipelinePlugin.setTea(tea);
+	    pipelinePlugin.initialise();
 	
-	updateDoc = (RTMLDocument)baseDocument.deepClone();
-	pipelinePlugin = getPipelinePluginFromDoc();
-	pipelinePlugin.setTea(tea);
-	pipelinePlugin.initialise();
-	
-	updateHandler = true;
+	    updateHandler = true;
     }
     
     /** Waits on a Thread lock.*/
@@ -715,73 +716,78 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * @exception InstantiationException Thrown if an instance of the class cannot be created.
      * @exception IllegalAccessException Thrown if an instance of the class cannot be created.
      * @see #baseDocument
+     * @see DeviceInstrumentUtilites#getInstrumentTypeName
      */
     protected PipelineProcessingPlugin getPipelinePluginFromDoc() 
 	throws NullPointerException, 
 	       ClassNotFoundException, InstantiationException, IllegalAccessException
     {
 	    PipelineProcessingPlugin plugin = null;
-	RTMLContact contact = null;
-	RTMLProject project = null;
-	String userId = null;
-	String proposalId = null;
-	String pipelinePluginClassname = null;
-	Class pipelinePluginClass = null;
-	String pluginId = null;
-	String key = null;
-
-	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc","ARQ:: Started.");
+	    RTMLContact contact = null;
+	    RTMLProject project = null;
+	    String userId = null;
+	    String proposalId = null;
+	    String instrumentTypeName = null;
+	    String pipelinePluginClassname = null;
+	    Class pipelinePluginClass = null;
+	    String pluginId = null;
+	    String key = null;
 	
-	if(baseDocument == null)
+	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc","ARQ:: Started.");
+	
+	    if(baseDocument == null)
 	    {
 		throw new NullPointerException(this.getClass().getName()+
 					       ":getPipelinePluginFromDoc:base document was null.");
 	    }
-	// get userId
-	contact = baseDocument.getContact();
-	if(contact == null)
+	    // get userId
+	    contact = baseDocument.getContact();
+	    if(contact == null)
 	    {
-		throw new NullPointerException(this.getClass().getName()+
-					       ":getPipelinePluginFromDoc:Contact was null for document.");
+		    throw new NullPointerException(this.getClass().getName()+
+						   ":getPipelinePluginFromDoc:Contact was null for document.");
 	    }
-	userId = contact.getUser();
-	// get proposalId
-	project = baseDocument.getProject();
-	if(project == null)
+	    userId = contact.getUser();
+	    // get proposalId
+	    project = baseDocument.getProject();
+	    if(project == null)
 	    {
-		throw new NullPointerException(this.getClass().getName()+
-					       ":getPipelinePluginFromDoc:Project was null for document.");
+		    throw new NullPointerException(this.getClass().getName()+
+						   ":getPipelinePluginFromDoc:Project was null for document.");
 	    }
-	proposalId = project.getProject();
-	// get pipeline plugin class name
-	pluginId = new String(userId+"."+proposalId);
-	key = new String("pipeline.plugin.classname."+pluginId);
-	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-		   "ARQ:: Trying to get pipeline classname using key "+key+".");
-	pipelinePluginClassname = tea.getPropertyString(key);
-	if(pipelinePluginClassname == null)
+	    proposalId = project.getProject();
+	    // get instrument type name
+	    instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(baseDocument.getDevice());
+	    // get pipeline plugin class name
+	    pluginId = new String(userId+"."+proposalId+"."+instrumentTypeName);
+	    key = new String("pipeline.plugin.classname."+pluginId);
+	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
+		       "ARQ:: Trying to get pipeline classname using key "+key+".");
+	    pipelinePluginClassname = tea.getPropertyString(key);
+	    if(pipelinePluginClassname == null)
 	    {
-		    pluginId = new String("default");
-		logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-			   "ARQ:: Project specific pipeline does not exist, "+
-			   "trying default pipeline.plugin.classname."+pluginId);
-		pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname."+pluginId);
+		    pluginId = new String("default."+instrumentTypeName);
+		    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
+			       "ARQ:: Project specific pipeline does not exist, "+
+			       "trying default pipeline.plugin.classname."+pluginId);
+		    pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname."+pluginId);
 	    }
-	logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-		   "ARQ:: Pipeline classname found was "+pipelinePluginClassname+".");
-	// if we could not find a class name to instansiate, fail.
-	if(pipelinePluginClassname == null)
+	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
+		       "ARQ:: Pipeline classname found was "+pipelinePluginClassname+".");
+	    // if we could not find a class name to instansiate, fail.
+	    if(pipelinePluginClassname == null)
 	    {
-		throw new NullPointerException(this.getClass().getName()+
-					       ":getPipelinePluginFromDoc:Pipeline classname found was null.");
+		    throw new NullPointerException(this.getClass().getName()+
+						   ":getPipelinePluginFromDoc:Pipeline classname found was null.");
 	    }
-	// get pipeline plugin class from class name
-	pipelinePluginClass = Class.forName(pipelinePluginClassname);
-	// get pipeline plugin instance from class
-	plugin = (PipelineProcessingPlugin)(pipelinePluginClass.newInstance());
-	// set plugin id
-	plugin.setId(pluginId);
-	return  plugin;
+	    // get pipeline plugin class from class name
+	    pipelinePluginClass = Class.forName(pipelinePluginClassname);
+	    // get pipeline plugin instance from class
+	    plugin = (PipelineProcessingPlugin)(pipelinePluginClass.newInstance());
+	    // set plugin id
+	    plugin.setId(pluginId);
+	    plugin.setInstrumentTypeName(instrumentTypeName);
+	    return  plugin;
     }
     
 } //[AgentRequestHandler]
