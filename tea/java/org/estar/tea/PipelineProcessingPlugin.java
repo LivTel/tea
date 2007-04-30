@@ -20,6 +20,14 @@ public interface PipelineProcessingPlugin
 	 */
 	public void setId(String s);
 	/**
+	 * Method to set the instrument type name of this plugin. 
+	 * @param s The instrument type name, usually some thing like "ccd", "ircam", "polarimeter".
+	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_CCD_STRING
+	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_IRCAM_STRING
+	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_POLARIMETER_STRING
+	 */
+	public void setInstrumentTypeName(String s);
+	/**
 	 * Intialise the plugin.
 	 */
 	public void initialise() throws Exception;
