@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.10 2007-04-26 18:03:21 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.11 2007-04-30 17:15:12 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.10 2007-04-26 18:03:21 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.11 2007-04-30 17:15:12 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -178,7 +178,7 @@ public class TOCSessionManager implements Runnable, Logging
 	}
 
 	/**
-	 * Setup the pipeline processing plugin, based upon Tag/User/Proposal information.
+	 * Setup the pipeline processing plugin, based upon Tag/User/Proposal information and instrument type.
 	 * <ul>
 	 * <li>Uses tagUserProposalInfo to construct the keyword :
 	 *     <pre>
@@ -192,6 +192,8 @@ public class TOCSessionManager implements Runnable, Logging
 	 * <li>Otherwise an instance of the specified class is constructed.
 	 * <li>The tea instance is set, the plugin's id is set, 
 	 *     and the pipeline plugin <pre>initialsie</pre> method called.
+	 * </ul>
+	 * @param instrumentTypeName The type of instrument to create the pipeline for.
 	 * @see #logger
 	 * @see #tea
 	 * @see #tagUserProposalInfo
@@ -202,7 +204,7 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception IllegalAccessException Thrown if the pipeline processing class cannot be instantiated.
 	 * @exception Exception Can be thrown when the pipeline plugin is initialised.
 	 */
-	public void setPipeline() throws NullPointerException, ClassNotFoundException, 
+	public void setPipeline(String instrumentTypeName) throws NullPointerException, ClassNotFoundException, 
 					 InstantiationException, IllegalAccessException, Exception
 	{
 		String id = null;
@@ -212,14 +214,15 @@ public class TOCSessionManager implements Runnable, Logging
 
 		// get pipeline plugin class name
 		id = new String(tagUserProposalInfo.getTagID()+"/"+
-				 tagUserProposalInfo.getUserID()+"."+tagUserProposalInfo.getProposalID());
+				tagUserProposalInfo.getUserID()+"."+tagUserProposalInfo.getProposalID()+"."+
+				instrumentTypeName);
 		key = new String("pipeline.plugin.classname."+id);
 		logger.log(INFO, 1, CLASS,
 			   "TOCSessionManager::setPipeline: Trying to get pipeline classname using key "+key+".");
 		pipelinePluginClassname = tea.getPropertyString(key);
 		if(pipelinePluginClassname == null)
 		{
-			id = new String("default");
+			id = new String("default."+instrumentTypeName);
 			logger.log(INFO, 1, CLASS,
 				   "TOCSessionManager::setPipeline: Project specific pipeline does not exist, "+
 				   "trying default pipeline.plugin.classname."+id);
@@ -244,6 +247,7 @@ public class TOCSessionManager implements Runnable, Logging
 		}
 		pipelinePlugin.setTea(tea);
 		pipelinePlugin.setId(id);
+		pipelinePlugin.setInstrumentTypeName(instrumentTypeName);
 		pipelinePlugin.initialise();
 	}
 
@@ -881,6 +885,7 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception Exception Can be thrown when the pipeline plugin is initialised.
 	 * @exception IllegalAccessException Thrown if the pipeline processing class cannot be instantiated.
 	 * @see #getSessionManagerInstance(TOCSessionManager.TagUserProposalInfo)
+	 * @see DeviceInstrumentUtilites#getInstrumentTypeName
 	 */
 	public static TOCSessionManager getSessionManagerInstance(TelescopeEmbeddedAgent tea,RTMLDocument document)
 		throws IllegalArgumentException,IndexOutOfBoundsException, ClassNotFoundException,
@@ -889,11 +894,16 @@ public class TOCSessionManager implements Runnable, Logging
 		TOCSessionManager sessionManager = null;
 		TagUserProposalInfo tupi = null;
 		Thread t = null;
+		String instrumentTypeName = null;
 
 		// check is there already a TOCSessionManager for this TagUserProposal?
 		tupi = new TOCSessionManager.TagUserProposalInfo();
 		tupi.setTagUserProposal(document);
-		sessionManager = getSessionManagerInstance(tupi);
+		// get instrument type name
+		// diddly This does allow a siruation where a second document 
+		// uses a different instrument to the first at the present time.
+		instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(document.getDevice());
+		sessionManager = getSessionManagerInstance(tupi,instrumentTypeName);
 		// If there is a running TOCSessionManager for this TagUserProposal, return that.
 		if(sessionManager != null)
 			return sessionManager;
@@ -904,7 +914,7 @@ public class TOCSessionManager implements Runnable, Logging
 		sessionManager.setTagUserProposal(tupi);
 		sessionManager.setServiceIdFromTagUserProposal();
 		// pipeline config
-		sessionManager.setPipeline();
+		sessionManager.setPipeline(instrumentTypeName);
 		// spawn session manager thread
 		t = new Thread(sessionManager);
 		t.start();
@@ -918,15 +928,25 @@ public class TOCSessionManager implements Runnable, Logging
 	 * Attempt to get the session manager instance associated with the specified Tag/User/Proposal.
 	 * If a suitable session manager exists in the sessionManagerMap return that, otherwise return null.
 	 * @param tupi An instance of TagUserProposalInfo, containing the Tag/User/Proposal to search for.
+	 * @param instrumentTypeName The instrument type of this document, to ensure the returned
+	 *      session manager is for a compatible instrument (not used at the moment).
 	 * @return An instance of TOCSessionManager, if one already exists for the specified Tag/User/Proposal,
 	 *         otherwise return null.
 	 * @see #sessionManagerMap
 	 * @see TagUserProposalInfo#getUniqueId
 	 */
-	public static TOCSessionManager getSessionManagerInstance(TagUserProposalInfo tupi)
+	public static TOCSessionManager getSessionManagerInstance(TagUserProposalInfo tupi,String instrumentTypeName)
 	{
+		TOCSessionManager sessionManager = null;
+
 		if(sessionManagerMap.containsKey(tupi.getUniqueId()))
-			return (TOCSessionManager)(sessionManagerMap.get(tupi.getUniqueId()));
+		{
+			sessionManager = (TOCSessionManager)(sessionManagerMap.get(tupi.getUniqueId()));
+			// diddly should check sessionManager.getPipelinePlugin().getInstrumentTypeName() with
+			// instrumentTypeName here, but the relevant API does not exist at the moment.
+			// Throw an exception if both not equal - should not return a null.
+			return sessionManager;
+		}
 		else
 			return null;
 	}
@@ -1318,6 +1338,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.10  2007/04/26 18:03:21  cjm
+** Replaced most INSTR code with call to DeviceInstrumentUtilites.sendInstr.
+**
 ** Revision 1.9  2007/04/25 10:57:08  cjm
 ** Fixed binning/default binning for IRCAM(SupIRCam), this must default to 1 or
 ** be specified as 1.
