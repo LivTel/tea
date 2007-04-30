@@ -290,43 +290,43 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     
     
     
-    /** Send an Error reply with sepcified message.  
-     * Uses the already opened eSTAR io handle.
-     * @param document The document to send.
-     * @param errorMessage The error message to include.
-     * @see #io
-     * @see TelescopeEmbeddedAgent#createErrorDocReply
-     */
-    public void sendError(RTMLDocument document, String errorMessage) {
+//     /** Send an Error reply with sepcified message.  
+//      * Uses the already opened eSTAR io handle.
+//      * @param document The document to send.
+//      * @param errorMessage The error message to include.
+//      * @see #io
+//      * @see TelescopeEmbeddedAgent#createErrorDocReply
+//      */
+//     public void sendError(RTMLDocument document, String errorMessage) {
 
-	String reply = TelescopeEmbeddedAgent.createErrorDocReply(document, errorMessage);
+// 	String reply = TelescopeEmbeddedAgent.createErrorDocReply(document, errorMessage);
     	
-	io.messageWrite(handle, reply);     
+// 	io.messageWrite(handle, reply);     
     	
-	logger.log(INFO, 1, CLASS, getName(),"sendError","Sent error message: "+errorMessage);
+// 	logger.log(INFO, 1, CLASS, getName(),"sendError","Sent error message: "+errorMessage);
     	
-	io.clientClose(handle);
+// 	io.clientClose(handle);
     	
-    }
+//     }
     
-    /** Send a reply of specified type.
-     * Uses the already opened eSTAR io handle.
-     * @param document The document to send.
-     * @param type     The type of document to send.
-     * @see #io
-     * @see TelescopeEmbeddedAgent#createDocReply
-     */
-    public void sendDoc(RTMLDocument document, String type) {
+//     /** Send a reply of specified type.
+//      * Uses the already opened eSTAR io handle.
+//      * @param document The document to send.
+//      * @param type     The type of document to send.
+//      * @see #io
+//      * @see TelescopeEmbeddedAgent#createDocReply
+//      */
+//     public void sendDoc(RTMLDocument document, String type) {
 	
-	String reply = TelescopeEmbeddedAgent.createDocReply(document, type);
+// 	String reply = TelescopeEmbeddedAgent.createDocReply(document, type);
 	
-	io.messageWrite(handle, reply);     
+// 	io.messageWrite(handle, reply);     
     	
-	logger.log(INFO, 1, CLASS, getName(),"sendDoc","Sent doc type: "+type);
+// 	logger.log(INFO, 1, CLASS, getName(),"sendDoc","Sent doc type: "+type);
     	
-	io.clientClose(handle);
+// 	io.clientClose(handle);
     	
-    }
+//     }
     
 
     /** Initialization.*/
