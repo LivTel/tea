@@ -157,10 +157,10 @@ public class VisibilityCalculator {
 		    
 	    }
 	    
-	    System.err.println("VC::Moncalc:Window: "+ip+" : "+
-			       TelescopeEmbeddedAgent.iso8601.format(new Date(w1))+" - "+
-			       TelescopeEmbeddedAgent.iso8601.format(new Date(w2))+
-			       " : Observable: "+okcount+"/"+count+" = "+((double)okcount/(double)count));
+	    //System.err.println("VC::Moncalc:Window: "+ip+" : "+
+	    //	       TelescopeEmbeddedAgent.iso8601.format(new Date(w1))+" - "+
+	    //	       TelescopeEmbeddedAgent.iso8601.format(new Date(w2))+
+	    //	       " : Observable: "+okcount+"/"+count+" = "+((double)okcount/(double)count));
 	    
 	    if (okcount > 0 )
 		totok++;
