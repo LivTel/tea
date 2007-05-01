@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.1 2007-04-26 18:03:26 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.2 2007-05-01 10:03:50 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -32,14 +32,14 @@ import ngat.phase2.*;
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class DeviceInstrumentUtilites
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.1 2007-04-26 18:03:26 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.2 2007-05-01 10:03:50 cjm Exp $";
 	/**
 	 * The type of instrument.
 	 */
@@ -405,17 +405,26 @@ public class DeviceInstrumentUtilites
 	 * @param device The RTMLDevice to parse.
 	 * @return An integer respresenting the type of instrument.
 	 * @exception IllegalArgumentException Thrown if the instrument type is not receognised.
+	 * @exception NullPointerException Thrown if the device of type attribute was null.
 	 * @see #INSTRUMENT_TYPE_CCD
 	 * @see #INSTRUMENT_TYPE_IRCAM
 	 * @see #INSTRUMENT_TYPE_POLARIMETER
 	 */
-	public static int getInstrumentType(RTMLDevice device) throws IllegalArgumentException
+	public static int getInstrumentType(RTMLDevice device) throws IllegalArgumentException, NullPointerException
 	{
 		String deviceType = null;
 		String spectralRegion = null;
 		int instrumentType;
 
+		if(device == null)
+		{
+			throw new NullPointerException("getInstrumentType:device was null.");
+		}
 		deviceType = device.getType();
+		if(deviceType == null)
+		{
+			throw new NullPointerException("getInstrumentType:device type was null.");
+		}
 		instrumentType = INSTRUMENT_TYPE_NONE;
 		if(deviceType.equals("camera"))
 		{
@@ -480,4 +489,7 @@ public class DeviceInstrumentUtilites
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2007/04/26 18:03:26  cjm
+** Initial revision
+**
 */
