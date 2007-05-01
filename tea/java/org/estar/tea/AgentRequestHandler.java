@@ -769,18 +769,19 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 			"ARQ::Getting inst-type for device: "+device);
 	     instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(device);
 	    // get pipeline plugin class name
-	    pluginId = new String(userId+"."+proposalId+"."+instrumentTypeName);
-	    key = new String("pipeline.plugin.classname."+pluginId);
+	    pluginId = new String(userId+"."+proposalId);
+	    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentTypeName);
 	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		       "ARQ:: Trying to get pipeline classname using key "+key+".");
 	    pipelinePluginClassname = tea.getPropertyString(key);
 	    if(pipelinePluginClassname == null)
 	    {
-		    pluginId = new String("default."+instrumentTypeName);
+		    pluginId = new String("default");
+		    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentTypeName);
 		    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 			       "ARQ:: Project specific pipeline does not exist, "+
-			       "trying default pipeline.plugin.classname."+pluginId);
-		    pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname."+pluginId);
+			       "trying default key "+key);
+		    pipelinePluginClassname = tea.getPropertyString(key);
 	    }
 	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		       "ARQ:: Pipeline classname found was "+pipelinePluginClassname+".");
