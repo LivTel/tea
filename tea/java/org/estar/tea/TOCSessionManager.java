@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.11 2007-04-30 17:15:12 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.12 2007-05-01 10:05:52 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.11 2007-04-30 17:15:12 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.12 2007-05-01 10:05:52 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -214,19 +214,19 @@ public class TOCSessionManager implements Runnable, Logging
 
 		// get pipeline plugin class name
 		id = new String(tagUserProposalInfo.getTagID()+"/"+
-				tagUserProposalInfo.getUserID()+"."+tagUserProposalInfo.getProposalID()+"."+
-				instrumentTypeName);
-		key = new String("pipeline.plugin.classname."+id);
+				tagUserProposalInfo.getUserID()+"."+tagUserProposalInfo.getProposalID());
+		key = new String("pipeline.plugin.classname."+id+"."+instrumentTypeName);
 		logger.log(INFO, 1, CLASS,
 			   "TOCSessionManager::setPipeline: Trying to get pipeline classname using key "+key+".");
 		pipelinePluginClassname = tea.getPropertyString(key);
 		if(pipelinePluginClassname == null)
 		{
-			id = new String("default."+instrumentTypeName);
+			id = new String("default");
+			key = new String("pipeline.plugin.classname."+id+"."+instrumentTypeName);
 			logger.log(INFO, 1, CLASS,
 				   "TOCSessionManager::setPipeline: Project specific pipeline does not exist, "+
-				   "trying default pipeline.plugin.classname."+id);
-			pipelinePluginClassname = tea.getPropertyString("pipeline.plugin.classname."+id);
+				   "trying default key:"+key);
+			pipelinePluginClassname = tea.getPropertyString(key);
 		}
 		logger.log(INFO, 1, CLASS,
 			 "TOCSessionManager::setPipeline: Pipeline classname found was "+pipelinePluginClassname+".");
@@ -797,8 +797,12 @@ public class TOCSessionManager implements Runnable, Logging
 		device = observation.getDevice();
 		if(device == null)
 		{
-			throw new NullPointerException(this.getClass().getName()+
-			    ":instr:No device found in observation.");
+			device = document.getDevice();
+			if(device == null)
+			{
+				throw new NullPointerException(this.getClass().getName()+
+							       ":instr:No device found in observation or document.");
+			}
 		}
 		// Parse RTMLDevice and send appropriate instr using TOCSession session.
 		DeviceInstrumentUtilites.sendInstr(tea,session,device);
@@ -891,6 +895,8 @@ public class TOCSessionManager implements Runnable, Logging
 		throws IllegalArgumentException,IndexOutOfBoundsException, ClassNotFoundException,
 		       IllegalAccessException, Exception
 	{
+		RTMLObservation observation = null;
+		RTMLDevice device = null;
 		TOCSessionManager sessionManager = null;
 		TagUserProposalInfo tupi = null;
 		Thread t = null;
@@ -902,7 +908,14 @@ public class TOCSessionManager implements Runnable, Logging
 		// get instrument type name
 		// diddly This does allow a siruation where a second document 
 		// uses a different instrument to the first at the present time.
-		instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(document.getDevice());
+		// Try to get device from observation
+		observation = document.getObservation(0);
+		if(observation != null)
+			device = observation.getDevice();
+		// If no device in observation, get the default from the document
+		if(device == null)
+			device = document.getDevice();
+		instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(device);
 		sessionManager = getSessionManagerInstance(tupi,instrumentTypeName);
 		// If there is a running TOCSessionManager for this TagUserProposal, return that.
 		if(sessionManager != null)
@@ -1338,6 +1351,14 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.11  2007/04/30 17:15:12  cjm
+** Changed setPipeline to pipeline plugin is created per TUPI/instrument type.
+** This doesn't really work in this case at the moment, as the session manager is created per TUPI, but
+** the pipeline plugin uses the instrument type from the first document - if a subsequent document has a
+** different instrument type it will call the original instrument's pipeline, which is incorrect
+** (but difficult to fix). Perhaps need an instrument type->pipeline Map in each instance of the session manager
+** checked against per-document?
+**
 ** Revision 1.10  2007/04/26 18:03:21  cjm
 ** Replaced most INSTR code with call to DeviceInstrumentUtilites.sendInstr.
 **
