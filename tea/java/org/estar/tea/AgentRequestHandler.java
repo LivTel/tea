@@ -757,7 +757,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    }
 	    proposalId = project.getProject();
 	    // get instrument type name
-	    instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(baseDocument.getDevice());
+	     logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
+			"ARQ::Getting inst-type for device: "+baseDocument.getDevice());
+	     instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(baseDocument.getDevice());
 	    // get pipeline plugin class name
 	    pluginId = new String(userId+"."+proposalId+"."+instrumentTypeName);
 	    key = new String("pipeline.plugin.classname."+pluginId);
