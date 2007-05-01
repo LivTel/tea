@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.11 2007-04-30 17:10:32 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.12 2007-05-01 10:06:42 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.11 2007-04-30 17:10:32 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.12 2007-05-01 10:06:42 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -132,6 +132,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * <li>Initialise urlBase from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base".
 	 * <li>Initialise objectListFormat from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".object_list_format".
 	 * </ul>
+	 * @exception NullPointerException Thrown if  a keyword has no value.
 	 * @see #id
 	 * @see #instrumentTypeName
 	 * @see #PROPERTY_KEY_HEADER
@@ -143,36 +144,64 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 * @see #urlBase
 	 * @see #tea
 	 */
-	public void initialise() throws Exception
+	public void initialise() throws NullPointerException,Exception
 	{
+		String keyString = null;
+
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() started.");
 		// inputDirectory
-		inputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
-						       ".input_directory");
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".input_directory";
+		inputDirectory = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
-			   ":initialise: input directory: "+inputDirectory+".");
+			   ":initialise: input directory: key: "+keyString+" value: "+inputDirectory+".");
+		if(inputDirectory == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+":initialise:inputDirectory:key:"+
+						       keyString+" returned null value.");
+		}
 		// outputDirectory
-		outputDirectory = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
-							".output_directory");
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".output_directory";
+		outputDirectory = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
-			   ":initialise: output directory: "+outputDirectory+".");
+			   ":initialise: output directory: key: "+keyString+" value: "+outputDirectory+".");
+		if(outputDirectory == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+":initialise:outputDirectory:key:"+
+						       keyString+" returned null value.");
+		}
 		// scriptFilename
-		scriptFilename = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
-						       ".script_filename");
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".script_filename";
+		scriptFilename = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
-			   ":initialise: script filename: "+scriptFilename+".");
+			   ":initialise: script filename: key: "+keyString+" value: "+scriptFilename+".");
+		if(scriptFilename == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+":initialise:scriptFilename:key:"+
+						       keyString+" returned null value.");
+		}
 		// urlBase - ensure terminated with '/'
-		urlBase = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base");
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base";
+		urlBase = tea.getPropertyString(keyString);
+		if(scriptFilename == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+":initialise:urlBase:key:"+
+						       keyString+" returned null value.");
+		}
 		if(urlBase.endsWith("/") == false)
 			urlBase = urlBase+"/";
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: URL base: "+urlBase+".");
 		// objectListFormat
-		objectListFormat = tea.getPropertyString(PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+
-							 ".object_list_format");
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".object_list_format";
+		objectListFormat = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: object list format: "+objectListFormat+".");
+		if(objectListFormat == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+":initialise:objectListFormat:key:"+
+						       keyString+" returned null value.");
+		}
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() finished.");
 	}
@@ -415,6 +444,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.11  2007/04/30 17:10:32  cjm
+// Made loading the pipeline configs TUPI/instrument type specific.
+//
 // Revision 1.10  2006/02/10 15:01:49  cjm
 // objectListFormat now expects "votable" rather than "votable-url".
 // This allows created votables to have extension "votable" but we still pass "votable-url"
