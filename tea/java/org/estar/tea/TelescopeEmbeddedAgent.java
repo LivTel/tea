@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.24 2007-04-04 08:55:52 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.25 2007-05-02 07:23:59 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -125,8 +125,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public static SimpleDateFormat adf = new SimpleDateFormat("yyyyMMdd");
     
 	/** UTC Timezone.*/
-	public static final SimpleTimeZone UTC = new SimpleTimeZone(0, "UTC");
-    
+    public static final SimpleTimeZone UTC = new SimpleTimeZone(0, "UTC");
+     
+    /** Number formatter for scores.*/
+    public static NumberFormat nf;
+
 	/** DN Server port.*/
 	protected int dnPort;
 
@@ -229,7 +232,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	protected int connectionCount;
 
 	/** Holds mapping between filter descriptions and filter combos for PCR.*/
-	protected Properties filterMap;
+	protected ConfigurationProperties filterMap;
 
 	protected Map requestMap;
     
@@ -265,12 +268,18 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** Predicts availability of telescope over various time frames.*/
     protected TelescopeAvailabilityPredictor tap;
 
+    /** Handles outgoing mail alerts.*/
+    private Mailer mailer;
+
 	/** Create a TEA with the supplied ID.*/
 	public TelescopeEmbeddedAgent(String id) {
 
 		sdf.setTimeZone(UTC);
 		iso8601.setTimeZone(UTC);
 
+		nf = NumberFormat.getInstance();
+		nf.setMaximumFractionDigits(6);
+		nf.setGroupingUsed(false);
 
 		Logger l = null;
 
@@ -287,16 +296,6 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 		// add handler to other loggers used
 	
-		l = LogManager.getLogger("org.estar.tea.TelemetryRequestor");
-		l.setLogLevel(ALL);
-		l.addHandler(console);
-		l = LogManager.getLogger("org.estar.tea.TelemetryHandlerFactory");
-		l.setLogLevel(ALL);
-		l.addHandler(console);
-	
-		l = LogManager.getLogger("org.estar.tea.DocumentExpirator");
-		l.setLogLevel(ALL);
-		l.addHandler(console);
 	
 		l = LogManager.getLogger("org.estar.tea.DefaultPipelinePlugin");
 		l.setLogLevel(ALL);
@@ -310,7 +309,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 		TOCSession.initLoggers(console,ALL);
 	
-		filterMap = new Properties();
+		filterMap = new ConfigurationProperties();
 
 		requestMap = new HashMap();//kill
 		fileMap    = new HashMap();//kill
@@ -347,7 +346,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     (expiratorSleepMs/1000)+" secs");
 	
 		traceLog.log(INFO, 1, CLASS, id, "init", "Create SSL File Client...");
-		sslClient = new SSLFileTransfer.Client("TEA_GRABBER", relayHost, relayPort, relaySecure);	
+		sslClient = new SSLFileTransfer.Client("TEA_FILE_GRABBER", relayHost, relayPort, relaySecure);	
 		sslClient.setBandWidth(transferBandwidth);
 		traceLog.log(INFO, 1, CLASS, id, "init", "OK SSL client is ready and will be "+(relaySecure ? "Secure" : "Nonsecure"));
 
@@ -396,16 +395,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "looking for any documents in persistence store");
 		try {
-			loadDocuments();
-			traceLog.log(INFO, 1, CLASS, id, "init",
-				     "Loaded all current documents from persistence store"+
-				     "- TBD Associate ARQs and start UH Threads for these...");
+		    loadDocuments();
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Loaded all readable current documents from persistence store");
 		} catch (Exception e) {
-			traceLog.log(INFO, 1, CLASS, id, "init",
-				     "Failed to load current documents from persistence store: "+e);
-			traceLog.dumpStack(1,e);
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Failed to load current documents from persistence store: "+e);
+		    traceLog.dumpStack(1,e);
 		}
-
+		
                 if (System.getProperty("registerHandler") != null) {
                     traceLog.log(INFO, 1, CLASS, id, "init",
                                  "Registering EA-RequestHandler...");
@@ -417,6 +415,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
                     } catch (Exception e) {
                         traceLog.log(INFO, 1, CLASS, id, "init",
                                      "Failed to register EAR: "+e);
+
+			try {
+			    if (mailer != null)
+				mailer.send("Starting TEA ("+id+") Failed to bind [EmbeddedAgentRequestHandler] to local registry: "+e);
+			    e.printStackTrace();
+			} catch (Exception tx) {
+			    tx.printStackTrace();
+			}
+			
                     }
 
 		    try {
@@ -427,6 +434,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    } catch (Exception e) {
                         traceLog.log(INFO, 1, CLASS, id, "init",
                                      "Failed to register TAP: "+e);
+
+			try {
+			    if (mailer != null)
+				mailer.send("Starting TEA ("+id+") Failed to bind [TelescopeAvailabilityPredictor] to local registry: "+e);
+			    e.printStackTrace();
+			} catch (Exception tx) {
+			    tx.printStackTrace();
+			}
+
                     }
 
                 }
@@ -434,7 +450,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		arqMonitor = new AgentRequestHandlerMonitoringThread(this);
 		arqMonitor.start();
 		traceLog.log(INFO, 1, CLASS, id, "init",
-			     "Started ARQ Monitoring");
+			     "Started ARQ Monitoring mono-thread...");
 		
 		telemetryServer.start();	
 		traceLog.log(INFO, 1, CLASS, id, "init",
@@ -655,7 +671,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public double getSiteLongitude() { return siteLongitude; }
 
 	/** Returns a reference to the filter mapping. ###instrument-specific.*/
-	public Properties getFilterMap() { return filterMap; }
+	public ConfigurationProperties getFilterMap() { return filterMap; }
     
 	public Map getRequestMap() { return requestMap; }
     
@@ -879,65 +895,86 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     create.toXMLString());
 	}
 
-	/** 
-	 * Load all current rtml docs from the documentDirectory at startup.
-	 * @throws Exception if any really dodgy stuff occurs. We trap basic file errors
-	 * whenever possible and keep going. 
-	 * @see #documentDirectory
-	 */
-	public void loadDocuments() throws Exception {
-
-		int arqCount = 0;
-
-		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			     "TEA::Starting loadDocuments from "+documentDirectory+".");
-		File base = new File(documentDirectory);
-		File[] flist = base.listFiles();
-		for (int i = 0; i < flist.length; i++ ){
-	    
-			File file = flist[i];
-			String fname = file.getName();
-			traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-				     "Loading from file: "+file.getPath());
-	    
-			RTMLDocument doc = readDocument(file);
-			traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-				     "Read document "+file.getPath());
-	    
-			// If we fail to extract an oid, log but keep going.
-			try {
-
-				String oid = createKeyFromDoc(doc);
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-					     "Created ObservationID: "+oid);
-	    
-				AgentRequestHandler arq = new AgentRequestHandler(this, doc);
-				arq.setName("ARQ:"+(++arqCount));
-				arq.setId(getId()+"/"+arq.getName());
-				arq.setDocumentFile(file);
-				arq.setOid(oid);
+    /** 
+     * Load all current rtml docs from the documentDirectory at startup.
+     * @throws Exception if any really dodgy stuff occurs. We trap basic file errors
+     * whenever possible and keep going. 
+     * @see #documentDirectory
+     */
+    public void loadDocuments() throws Exception {
 	
-				// If we cant prepare the ARQ for UpdateHandling then it wont be started.
-				arq.prepareUpdateHandler();
-				arq.start();
+	int arqCount = 0;
+	
+	traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+		     "TEA::Starting loadDocuments from "+documentDirectory+".");
+	File base = new File(documentDirectory);
+	File[] flist = base.listFiles();
 
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-					     "Started ARQ UpdateHandler thread: "+arq);
-
-				// Ok, now register it.
-				agentMap.put(oid, arq);	    
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-					     "Registered running ARQ for: "+oid+" Using file: "+file.getPath());
+	traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+		     "There should be "+flist.length+" docs loaded");
+	
+	for (int i = 0; i < flist.length; i++ ){
+	    
+	    File file = flist[i];
+	    String fname = file.getName();
+	    traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			 "Loading from file: "+file.getPath());
+	    
+	    // if any docs fail to load we keep going
+	    try {
 		
-			} catch (Exception e) {
-				traceLog.log(WARNING, 1, CLASS, id, "loadDocuments",
-					     "Error during loading for: "+file.getPath()+" : "+e);
-				traceLog.dumpStack(1, e);
-			}
+		RTMLDocument doc = readDocument(file);
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			     "Read document "+file.getPath());
+		
+		// If we fail to extract an oid, log but keep going.
+		String oid = createKeyFromDoc(doc);
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			     "Created ObservationID: "+oid);
+		
+		String requestId = createRequestIdFromDoc(doc);
+		
+		AgentRequestHandler arq = new AgentRequestHandler(this, doc);
+		
+		arq.setName(requestId);
+		arq.setId(getId()+"/"+arq.getName());
+		arq.setDocumentFile(file);
+		arq.setOid(oid);
+		
+		// If we cant prepare the ARQ for UpdateHandling then it wont be started.
+		arq.prepareUpdateHandler();
+		arq.start();
+		
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			     "Started ARQ UpdateHandler thread: "+arq);
+		
+		// Ok, now register it.
+		agentMap.put(oid, arq);	    
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+			     "Registered running ARQ for: "+oid+" Using file: "+file.getPath());
+		arqCount++;
+	    } catch (Exception e) {
+		traceLog.log(WARNING, 1, CLASS, id, "loadDocuments",
+			     "Error during loading for: "+file.getPath()+" : "+e);
+		traceLog.dumpStack(1, e);
+	    }
 	    
-		}
-	
 	}
+
+	traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
+		     "Loaded and started "+arqCount+" ARQs out of "+flist.length+" possibles");
+	
+	if (arqCount < flist.length) {
+	    try {
+		if (mailer != null)
+		    mailer.send("Starting TEA ("+id+") A total of "+arqCount+" out of "+flist.length+" active RTML Docs were loaded from persistance store");
+	    } catch (Exception e) {
+		e.printStackTrace();
+	    }
+	}
+
+	
+    }
 
 	/**
 	 * Read a document from a file.
@@ -1032,6 +1069,47 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId+"/"+targetIdent;
 	
 	} // [createKeyFromDoc(RTMLDocument doc)]
+
+
+    /** 
+	 * Gets the ObservationID from the RTMLDocument supplied.
+	 * @param doc The RTMLDocument.
+	 * @return A string unique to a document (observation).
+	 * @exception Exception Thrown if any of the document's contact/project/intelligent agent/obs/target are null.
+	 * @see #getDBRootName
+	 */
+	public String createRequestIdFromDoc(RTMLDocument doc) throws Exception {
+	
+		RTMLContact contact = doc.getContact();
+		if(contact == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Contact was null for document.");
+		}
+		String      userId  = contact.getUser();
+	
+		RTMLProject project    = doc.getProject();
+		if(project == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Project was null for document.");
+		}
+		String      proposalId = project.getProject();
+	
+		RTMLIntelligentAgent userAgent = doc.getIntelligentAgent();
+		if(userAgent == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+						       ":createKeyFromDoc:Intelligent Agent was null for document.");
+		}
+		String               requestId = userAgent.getId();
+	
+	
+		return requestId;
+	
+	} // [createRequestIdFromDoc(RTMLDocument doc)]
+
+
     
 	/** Load the filter combos from a file.
 	 * ### This is camera only for now..
@@ -1305,7 +1383,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    setAsyncResponseMode(ASYNC_MODE_SOCKET);	
 		} else
 		    throw new IllegalArgumentException("Unknown response handler mode; "+arm);
-		
+	
 		setDnPort(dnPort);
 		setOssHost(ossHost);
 		setOssPort(ossPort);
@@ -1345,7 +1423,22 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 
 		Position.setViewpoint(Math.toRadians(dlat), Math.toRadians(dlong));	
-	
+
+		// If we cant have mail - keep going...				
+		String smtpHost = config.getProperty("smtp.host", "localhost");
+		try {
+		    mailer = new Mailer(smtpHost);
+		    String mailToAddr = config.getProperty("mail.to", "eng@astro.livjm.ac.uk");  
+		    mailer.setMailToAddr(mailToAddr);
+		    String mailFromAddr = config.getProperty("mail.from", id+"_tea@astro.livjm.ac.uk");  
+		    mailer.setMailFromAddr(mailFromAddr);
+		    String mailCcAddr = config.getProperty("mail.cc", "eng@astro.livjm.ac.uk");  
+		    mailer.setMailCcAddr(mailCcAddr);		
+		} catch (Exception e) {
+		    e.printStackTrace();
+		}
+
+
 	} // [Configure(ConfigProperties)]
     
 	/** Prints a message and usage instructions.*/
@@ -1434,6 +1527,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.24  2007/04/04 08:55:52  snf
+** removed spurious loggers, using TRACE for all main loggers and bogstanlogformatter
+**
 ** Revision 1.23  2007/02/20 13:19:27  snf
 ** added a stack dump to tea createErrorDoc if the error cannot be created - weird
 **
