@@ -183,43 +183,55 @@ public class ScoreDocumentHandler implements Logging {
 	String filter = null;
 
 	// make up the IC - we dont have enough info to do this from filtermap...
-	CCDConfig ccdconfig = null;
+	InstrumentConfig config = null;
+	String configId = null;
 
-	
 	if (dev == null)
 	    dev = document.getDevice();
 	
 	if (dev != null) {
 	    
-	    String type = dev.getType();
-	    String filterString = dev.getFilterType();
+// 	    String type = dev.getType();
+// 	    String filterString = dev.getFilterType();
 	    
-	    if (type.equals("camera")) {
+// 	    if (type.equals("camera")) {
 		
-		// We will need to extract the instrument name from the type field.
-		//String instName = tea.getConfig().getProperty("camera.instrument", "Ratcam");
+// 		// We will need to extract the instrument name from the type field.
+// 		//String instName = tea.getConfig().getProperty("camera.instrument", "Ratcam");
 		
-		// Check valid filter and map to UL combo
-		logger.log(INFO, 1, CLASS, cid,"executeRequest","Checking for: "+filterString+".instrument");
-		filter = tea.getFilterMap().getProperty(filterString+".instrument");
+// 		// Check valid filter and map to UL combo
+// 		logger.log(INFO, 1, CLASS, cid,"executeRequest","Checking for: "+filterString+".instrument");
+// 		filter = tea.getFilterMap().getProperty(filterString+".instrument");
 		
-		if (filter == null) {			
-		    logger.log(INFO,1,CLASS,cid,"handleRequest","Unknown filter:"+filterString+
-					   ", failing request.");
-		    return setError(document, "Unknown filter: "+filterString);
-		}
+// 		if (filter == null) {			
+// 		    logger.log(INFO,1,CLASS,cid,"handleRequest","Unknown filter:"+filterString+
+// 					   ", failing request.");
+// 		    return setError(document, "Unknown filter: "+filterString);
+// 		}
 
-		// we have a valid filter name, this is wehere we need to make up an IC.
+// 		// we have a valid filter name, this is wehere we need to make up an IC.
 
-		ccdconfig = new CCDConfig("tea:"+cid);
+// 		ccdconfig = new CCDConfig("tea:"+cid);
 				
 
-	    } else {		    
-		logger.log(INFO,1,CLASS,cid,"handleRequest","Device is not a camera: failing request.");
-		return setError(document, "Device is not a camera");
+// 	    } else {		    
+// 		logger.log(INFO,1,CLASS,cid,"handleRequest","Device is not a camera: failing request.");
+// 		return setError(document, "Device is not a camera");
+// 	    }
+
+	    // START New DEVINST stuff	    
+	    try {
+		config = DeviceInstrumentUtilites.getInstrumentConfig(tea, dev);
+		configId = config.getName();
+	    } catch (Exception e) {
+		logger.log(INFO,1,CLASS,cid,"handleRequest",
+			   "Device configuration error: "+e);
+		return setError(document, "Device configuration error: "+e);
 	    }
+	    // END New DEVINST stuff
+
 	} else {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest","RTML Device not present, failing request.");
+	    logger.log(INFO,1,CLASS,cid,"handleRequest", "RTML Device not present");
 	    return setError(document, "Device not set");
 	}
 	
@@ -386,7 +398,7 @@ public class ScoreDocumentHandler implements Logging {
 	observation.setMosaic(mosaic);
 	
 	observation.setSource(source);	
-	observation.setInstrumentConfig(ccdconfig);
+	observation.setInstrumentConfig(config);
 
 	group.addObservation(observation);
 	
@@ -586,8 +598,7 @@ public class ScoreDocumentHandler implements Logging {
 	//  return setError(document, "Target is not observable or unlikely to be selected during the specified period");		    
 	//}
 	
-	// munged value
-	document.setScore(tea.nf.format(rankScore));
+	document.setScore(rankScore);
 	       
 	return document;
 	
