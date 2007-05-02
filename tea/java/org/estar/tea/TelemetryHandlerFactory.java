@@ -39,7 +39,7 @@ public class TelemetryHandlerFactory implements CAMPRequestHandlerFactory, Loggi
 	public TelemetryHandlerFactory(TelescopeEmbeddedAgent tea)
 	{
 		this.tea = tea;
-		logger = LogManager.getLogger(this);
+		logger = LogManager.getLogger("TRACE");
 	}
 
 	/** Selects the appropriate handler for the specified command.
