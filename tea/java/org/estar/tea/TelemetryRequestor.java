@@ -61,7 +61,7 @@ public class TelemetryRequestor extends ControlThread implements Logging
 						 ConnectionSetupInfo.CAMP, 
 						 tea.getTelemetryHost(), 
 						 tea.getTelemetryPort());
-		logger = LogManager.getLogger(this);
+		logger = LogManager.getLogger("TRACE");
 	}
     
 	protected void initialise() {}

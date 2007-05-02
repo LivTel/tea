@@ -32,7 +32,7 @@ public class CtrlCommandHandler extends CAMPClient {
     public CtrlCommandHandler(ConnectionFactory cfy,
 			      COMMAND command) {
 	super(cfy, "CTRL", command);
-	logger = LogManager.getLogger(this);
+	logger = LogManager.getLogger("TRACE");
     } 
        
     /** Overwrite to handle any i/o errors detected by CAMP implementor..
