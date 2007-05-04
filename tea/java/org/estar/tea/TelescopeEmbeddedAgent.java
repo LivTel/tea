@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.25 2007-05-02 07:23:59 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.26 2007-05-04 09:32:33 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -889,6 +889,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		RTMLCreate create = new RTMLCreate();
 		create.create(document);
 		create.toStream(fos);
+		fos.flush();
 		fos.close();
 		traceLog.log(INFO, 1, CLASS, id, "saveDocument",
 			     "Saving document: to file: "+file.getName()+" ...\n"+
@@ -1527,6 +1528,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.25  2007/05/02 07:23:59  snf
+** removed spurious loggers.
+**
 ** Revision 1.24  2007/04/04 08:55:52  snf
 ** removed spurious loggers, using TRACE for all main loggers and bogstanlogformatter
 **
