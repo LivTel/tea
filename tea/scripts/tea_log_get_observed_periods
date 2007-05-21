@@ -1,0 +1,25 @@
+#!/bin/csh
+# Header$
+if ( $#argv == 0) then
+    echo "tea_log_get_observed_periods <filename>"
+    exit 1
+endif
+foreach log_file ( $argv)
+    if ( -x /home/eng/proxy/tea/scripts/date_parser ) then
+	grep 'ObservationInfo had oid' $log_file | awk ' { date_string = $1$2$3$4 ; uid = $13 ; "/home/eng/proxy/tea/scripts/date_parser "date_string | getline ; close("/home/eng/proxy/tea/scripts/date_parser") ; time_secs = $0 ; print time_secs","date_string",observation,"uid } ' > ~/tmp/observation_info.txt
+	grep 'ReductionInfo has oid' $log_file | awk ' { date_string = $1$2$3$4 ; uid = $13 ; "/home/eng/proxy/tea/scripts/date_parser "date_string | getline ; close("/home/eng/proxy/tea/scripts/date_parser") ; time_secs = $0 ; print time_secs","date_string",reduction,"uid } ' > ~/tmp/reduction_info.txt
+    else if ( -x /home/dev/src/estar/tea/scripts/date_parser ) then
+	grep 'ObservationInfo had oid' $log_file | awk ' { date_string = $1$2$3$4 ; uid = $13 ; "/home/dev/src/estar/tea/scripts/date_parser "date_string | getline ; close("/home/dev/src/estar/tea/scripts/date_parser") ; time_secs = $0 ; print time_secs","date_string",observation,"uid } ' > ~/tmp/observation_info.txt
+	grep 'ReductionInfo has oid' $log_file | awk ' { date_string = $1$2$3$4 ; uid = $13 ; "/home/dev/src/estar/tea/scripts/date_parser "date_string | getline ; close("/home/dev/src/estar/tea/scripts/date_parser") ; time_secs = $0 ; print time_secs","date_string",reduction,"uid } ' > ~/tmp/reduction_info.txt
+
+    else
+	echo "Where is the date_parser executable."
+	exit 1
+    endif
+    cat ~/tmp/observation_info.txt ~/tmp/reduction_info.txt > ~/tmp/obs_red_info.txt
+    sort -n -t , -k 1 ~/tmp/obs_red_info.txt > ~/tmp/obs_red_info_sorted.txt
+    cat ~/tmp/obs_red_info_sorted.txt
+end
+#
+# $Log: not supported by cvs2svn $
+#
