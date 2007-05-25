@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.26 2007-05-04 09:32:33 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.27 2007-05-25 08:04:42 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -106,6 +106,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public static final long DEFAULT_EXPIRATOR_POLLING_TIME   = 3600*1000L;
     
 	public static final long DEFAULT_EXPIRATOR_OFFSET_TIME    = 1800*1000L;
+
+    public static final String DEFAULT_TAP_PERSISTANCE_FILE_NAME = "nosuchfile.dat";
+
 
 	public static final int GROUP_PRIORITY = 5;
 
@@ -268,6 +271,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** Predicts availability of telescope over various time frames.*/
     protected TelescopeAvailabilityPredictor tap;
 
+    /** File where TAP can persist its state.*/
+    protected File tapPersistanceFile;
+
     /** Handles outgoing mail alerts.*/
     private Mailer mailer;
 
@@ -427,7 +433,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
                     }
 
 		    try {
-			 tap = new DefaultTelescopeAvailabilityPredictor();
+			 tap = new DefaultTelescopeAvailabilityPredictor(tapPersistanceFile);
 			 Naming.rebind("rmi://localhost/TAPredictor", tap);
 			 traceLog.log(INFO, 1, CLASS, id, "init",
 				      "TelescopeAvailabilityPredictor bound to registry");
@@ -550,6 +556,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     public void setNarHost(String h) { this.narHost = h; }
 
     public void setAsyncResponseMode(int m) { this.asyncResponseMode = m; }
+
+    /** Set the TAP's persistance file.*/
+    public void setTapPersistanceFile(File f) { this.tapPersistanceFile = t; }
 
 	/** Sets the site latitude (rads).*/
 	public void setSiteLatitude(double l) { this.siteLatitude = l; }
@@ -1384,6 +1393,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    setAsyncResponseMode(ASYNC_MODE_SOCKET);	
 		} else
 		    throw new IllegalArgumentException("Unknown response handler mode; "+arm);
+
+		String tpf = config.getProperty("tap.persistance.file", DEFAULT_TAP_PERSISTANCE_FILE_NAME);
+		File tpFile = new File(tpf);
 	
 		setDnPort(dnPort);
 		setOssHost(ossHost);
@@ -1403,7 +1415,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		setDomeLimit(Math.toRadians(domeLimit));
 		setImageDir(bdir);
 		setDBRootName(dbroot);
-
+	
 		setRelaySecure(relaySecure);
 		setRelayKeyFile(relayKeyFile);
 		setRelayTrustFile(relayTrustFile);
@@ -1415,7 +1427,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		setDocumentDirectory(documentDirectory);
 		setExpiredDocumentDirectory(expiredDocumentDirectory);
 		setExpiratorSleepMs(expiratorSleepMs);
-		
+
+		setTapPersistanceFile(tpFile);
+
 		if (filterMapFileName != null) {
 			File file = new File(filterMapFileName);		    
 			configureFilters(file);		    
@@ -1528,6 +1542,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.26  2007/05/04 09:32:33  cjm
+** Added a flush to saveDocument's FileOutputStream.
+**
 ** Revision 1.25  2007/05/02 07:23:59  snf
 ** removed spurious loggers.
 **
