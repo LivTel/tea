@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.28 2007-05-25 08:12:14 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.29 2007-05-25 10:49:25 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -1448,7 +1448,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    String mailFromAddr = config.getProperty("mail.from", id+"_tea@astro.livjm.ac.uk");  
 		    mailer.setMailFromAddr(mailFromAddr);
 		    String mailCcAddr = config.getProperty("mail.cc", "eng@astro.livjm.ac.uk");  
-		    mailer.setMailCcAddr(mailCcAddr);		
+		    mailer.setMailCcAddr(mailCcAddr);	
+
+		    mailer.setMailSubj("TEA-Error: ("+id+")");
+	
 		} catch (Exception e) {
 		    e.printStackTrace();
 		}
@@ -1542,6 +1545,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.28  2007/05/25 08:12:14  snf
+** tcheckin
+**
 ** Revision 1.27  2007/05/25 08:04:42  snf
 ** added TAP persistance file as config parameter "tap.persistance.file"
 **
