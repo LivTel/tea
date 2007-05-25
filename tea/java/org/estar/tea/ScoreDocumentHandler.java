@@ -452,7 +452,7 @@ public class ScoreDocumentHandler implements Logging {
 	try {
 	    npmax = Integer.parseInt(System.getProperty("max.granularity", "20"));
 	} catch (Exception nx) {
-	    log(1, "Error parsing max granularity parameter- defaulting to 20");
+	    logger.log(1, "Error parsing max granularity parameter- defaulting to 20");
 	}
 
 	long s1 = 0L;
