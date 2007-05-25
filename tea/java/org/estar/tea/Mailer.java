@@ -16,6 +16,8 @@ public class Mailer {
 
     private String mailCcAddr;
 
+    private String mailSubj;
+
     public Mailer(String smtpHost) {
 	this.smtpHost = smtpHost;
 	Properties props = System.getProperties();
@@ -30,6 +32,8 @@ public class Mailer {
     
     public void setMailCcAddr(String a) {this.mailCcAddr = a;}
 
+    public void setMailSubj(String s) {this.mailSubj = s;}
+
     public void send(String text) throws Exception {
 	Properties props = System.getProperties();
 	Session session = Session.getDefaultInstance(props, null);
@@ -43,7 +47,9 @@ public class Mailer {
 			  InternetAddress.parse(mailCcAddr, false));
 
 	// -- Set the subject and body text --
-	msg.setSubject("TEA Error");
+	if (mailSubj == null)
+	    mailSubj = "TEA-Error";
+	msg.setSubject(mailSubj);
 	msg.setText(text);
 	// -- Set some other header information --
 	msg.setHeader("X-Mailer", "JavaMailOnProxy");
