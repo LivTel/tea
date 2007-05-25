@@ -40,7 +40,7 @@ public class DefaultTelescopeAvailabilityPredictor extends UnicastRemoteObject
 
 	long duration = periodEnd - periodStart;
 	logger.log(1, "Received TAP update: For "+
-		   TelescopeEmbeddedAgent.nf.format(duration/360000)+" Hours, starting "+
+		   TelescopeEmbeddedAgent.nf.format(duration/3600000)+" Hours, starting "+
 		   TelescopeEmbeddedAgent.iso8601.format(new Date(periodStart))+
 		   " Predicted availability = "+TelescopeEmbeddedAgent.nf.format(prediction));
 	
