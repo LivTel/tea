@@ -44,9 +44,8 @@ public class ScoreDocumentHandler implements Logging {
 
     /** Handler ID.*/
     private String cid; 
-	
-    public static volatile int scorecount = 0;
 
+    /** SDH counter.*/
     private static int cc = 0;
 
     /** Create a ScoreDocumentHandler using the supplied IO parameters.
@@ -73,11 +72,8 @@ public class ScoreDocumentHandler implements Logging {
 
 	// ## START
 	logger.log(INFO,1,CLASS,cid,"handleRequest",
-		   "Starting scoring request, number in queue "+scorecount);
+		   "Starting scoring request "+cc);
 
-	if (scorecount > 3)	    
-	    return setError( document, "There are too many scoring requests in progress at the moment");
-	
 	long now = System.currentTimeMillis();
 	
 	Observation observation = null;
@@ -451,9 +447,17 @@ public class ScoreDocumentHandler implements Logging {
 							   tea.getSiteLongitude(),
 							   tea.getDomeLimit(),
 							   Math.toRadians(-12.0));
+
+	int npmax = 20;
+	try {
+	    npmax = Integer.parseInt(System.getProperty("max.granularity", "20"));
+	} catch (Exception nx) {
+	    log(1, "Error parsing max granularity parameter- defaulting to 20");
+	}
+
 	long s1 = 0L;
 	long s2 = 0L;
-	long resolution = 1800000L;
+	long resolution = 900000L; //start off at 15M
 	long delta = 0L;
 	int np = 1;
 	int nw = 1;
@@ -471,8 +475,8 @@ public class ScoreDocumentHandler implements Logging {
             tsched.setStart(s1);
 	    tsched.setEnd(s2);	   
 	    np = (int)((s2-s1)/resolution);
-	    if (np > 20) {
-		np = 20;
+	    if (np > npmax) {
+		np = npmax;
 		resolution = (s2 - s1)/np;
 	    }
 
@@ -503,20 +507,20 @@ public class ScoreDocumentHandler implements Logging {
 	    nw = np; // same at this point
 	    
 	    // try to choose a shorter granularity for short period monitors   
-	    if (period <= 1800000) {
-		resolution = period/3;
+	    if (period <= 900000) {
+		resolution = period/5;
 		np = (int)((s2-s1)/resolution);
 		logger.log(INFO, 1, CLASS, cid,"executeScore",
 			   "Setting resolution for short period monitor to "+(resolution/1000)+" S with "+np+" samples");
 		// using p/3 resolution unless too many of them to process
 	    } else {
-		resolution = period;
+		resolution = period/2;
 		np = (int)((s2-s1)/resolution);
 		logger.log(INFO, 1, CLASS, cid,"executeScore",
 			   "Setting resolution for long period monitor to "+(resolution/1000)+" S with "+np+" samples");
 	    }
 	    // now re-adjust back to a sensible number to avoid overloading the processor.
-	    while (np > 20) {
+	    while (np > npmax) {
 		np /= 2;
 		resolution = (s2 - s1)/np;
 		logger.log(INFO, 1, CLASS, cid,"executeScore",
