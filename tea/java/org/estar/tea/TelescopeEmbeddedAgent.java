@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.27 2007-05-25 08:04:42 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.28 2007-05-25 08:12:14 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -558,7 +558,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     public void setAsyncResponseMode(int m) { this.asyncResponseMode = m; }
 
     /** Set the TAP's persistance file.*/
-    public void setTapPersistanceFile(File f) { this.tapPersistanceFile = t; }
+    public void setTapPersistanceFile(File f) { this.tapPersistanceFile = f; }
 
 	/** Sets the site latitude (rads).*/
 	public void setSiteLatitude(double l) { this.siteLatitude = l; }
@@ -1542,6 +1542,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.27  2007/05/25 08:04:42  snf
+** added TAP persistance file as config parameter "tap.persistance.file"
+**
 ** Revision 1.26  2007/05/04 09:32:33  cjm
 ** Added a flush to saveDocument's FileOutputStream.
 **
