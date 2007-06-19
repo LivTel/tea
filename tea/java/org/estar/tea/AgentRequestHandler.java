@@ -216,6 +216,13 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * @return The file used to store the base document.
      */
     public File getDocumentFile() { return file; }
+
+    /** Returns true if this ARQ will only accept reduced images from the scope.*/
+    public boolean wantsReducedImagesOnly() {
+	// TODO work out from rtmldevice etc whether we want reduced or raw images
+	return false;
+    }
+    
     
    /** Adds the name of a file to the pending list.
      * ###This is also used to knock the UH into SHORT_SLEEP.     
@@ -223,6 +230,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      *                 including instrument NFS mount details.
      */
     public void addImageFileName(String fileName) {
+     
 	pending.add(fileName);
 	sleepTime = SLEEP_TIME; // short period now
 	// Actually make the long sleep breakout asap
