@@ -79,6 +79,7 @@ public class TelemetryRequestor extends ControlThread implements Logging
 	
 		Vector wants = new Vector();
 		// I am not receiving ObservationInfo when directly requesting it.
+		wants.add(ExposureInfo.class);
 		wants.add(ReductionInfo.class);
 		wants.add(ObservationInfo.class);
 		wants.add(ObservationStatusInfo.class);
