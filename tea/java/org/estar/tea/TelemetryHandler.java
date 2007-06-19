@@ -131,7 +131,7 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 	    
 	} else if 
 	    (telem instanceof ReductionInfo) {
-	    
+	   
 	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 		       "TELH::This is instance of ReductionInfo.");
 	    
@@ -151,6 +151,8 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 			   "TELH::No AgentRequestHandler found for: "+oid+" - Not one of ours");
 	    } else {
 		
+		//if (arq.wantsReducedImagesOnly()) {
+
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 			   "TELH::UpdateHandler located: Adding image:"+imageFileName);
 		arq.addImageFileName(imageFileName);
