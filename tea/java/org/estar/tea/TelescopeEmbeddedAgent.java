@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.29 2007-05-25 10:49:25 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.30 2007-07-06 11:32:01 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -107,7 +107,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     
 	public static final long DEFAULT_EXPIRATOR_OFFSET_TIME    = 1800*1000L;
 
-    public static final String DEFAULT_TAP_PERSISTANCE_FILE_NAME = "nosuchfile.dat";
+    public static final String DEFAULT_TAP_PERSISTANCE_FILE_NAME = "availability.dat";
 
 
 	public static final int GROUP_PRIORITY = 5;
@@ -437,10 +437,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			 Naming.rebind("rmi://localhost/TAPredictor", tap);
 			 traceLog.log(INFO, 1, CLASS, id, "init",
 				      "TelescopeAvailabilityPredictor bound to registry");
+					 
 		    } catch (Exception e) {
                         traceLog.log(INFO, 1, CLASS, id, "init",
                                      "Failed to register TAP: "+e);
-
+			
 			try {
 			    if (mailer != null)
 				mailer.send("Starting TEA ("+id+") Failed to bind [TelescopeAvailabilityPredictor] to local registry: "+e);
@@ -448,11 +449,22 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			} catch (Exception tx) {
 			    tx.printStackTrace();
 			}
-
+			
                     }
-
-                }
-		
+		    
+		    try {
+			((DefaultTelescopeAvailabilityPredictor)tap).load();
+			traceLog.log(INFO, 1, CLASS, id, "init",
+				     "Loaded TAP persistant data successfully");
+			
+		    } catch (Exception e) {
+			traceLog.log(INFO, 1, CLASS, id, "init",
+				     "Failed to load TAP data: "+e);
+			
+		    }
+		    
+		}   
+		    
 		arqMonitor = new AgentRequestHandlerMonitoringThread(this);
 		arqMonitor.start();
 		traceLog.log(INFO, 1, CLASS, id, "init",
@@ -462,27 +474,27 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "Started Telemetry Server on port: "+telemetryPort+
 			     ", We are: "+telemetryHost+" from "+ctrlHost);
-	
+		
 		telemetryRequestor.start();
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "Started Telemetry Requestor with reconnect interval: "+
 			     (DEFAULT_TELEMETRY_RECONNECT_TIME/1000)+" secs");
-	
+		
 		//docExpirator.start();
 		//traceLog.log(INFO, 1, CLASS, id, "init",
 		//     "Started DocExpirator with polling interval: "+
 		//     (expiratorSleepMs/1000)+" secs");
-	
+		
 		io.serverStart(dnPort, this);	
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "Started eSTAR IO server.");
 
 	}
     
-	/* Closes eSTARIO session, TelemetryServer, TelemetryRequestor, DocExpirator.*/
-	protected void shutdown() {
+    /* Closes eSTARIO session, TelemetryServer, TelemetryRequestor, DocExpirator.*/
+    protected void shutdown() {
 	
-		if (telemetryServer != null) {
+	if (telemetryServer != null) {
 			telemetryServer.terminate();
 			traceLog.log(INFO, 2, CLASS, id, " shutdown",
 				     "Closed down Telemetry server:");
@@ -685,6 +697,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public Map getRequestMap() { return requestMap; }
     
 	public long getMaxObservingTime() { return maxObservingTime; }
+
+    public TelescopeAvailabilityPredictor getTap() { return tap; }
     
 	/**
 	 * Get the loaded tea properties.
@@ -1545,6 +1559,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.29  2007/05/25 10:49:25  snf
+** added set mail subj
+**
 ** Revision 1.28  2007/05/25 08:12:14  snf
 ** tcheckin
 **
