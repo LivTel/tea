@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.30 2007-07-06 11:32:01 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.31 2007-07-06 15:16:25 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -1225,7 +1225,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		String agid = userAgent.getId();
 		String host = userAgent.getHostname();
 		int    port = userAgent.getPort();
-		
+		if((host == null)||(port == 0))
+		{
+			traceLog.log(INFO, 1, CLASS,
+				     "sendDocumentToIA: IA host was null/port was 0:not sending document "+agid+
+				     " back to IA.");
+			// don't throw an excetption, just return so TEA deletes ARQ.
+			// This assumes null host/0 port means no IA to send document back to.
+			return;
+		}
 		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA: Opening eSTAR IO client connection to ("+host+
 			     ","+port+").");
 		GlobusIOHandle handle = io.clientOpen(host, port);
@@ -1559,6 +1567,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.30  2007/07/06 11:32:01  cjm
+** no difference.
+**
 ** Revision 1.29  2007/05/25 10:49:25  snf
 ** added set mail subj
 **
