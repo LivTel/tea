@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.31 2007-07-06 15:16:25 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.32 2007-07-17 09:56:28 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -485,9 +485,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		//     "Started DocExpirator with polling interval: "+
 		//     (expiratorSleepMs/1000)+" secs");
 		
-		io.serverStart(dnPort, this);	
+		//io.serverStart(dnPort, this);	
 		traceLog.log(INFO, 1, CLASS, id, "init",
-			     "Started eSTAR IO server.");
+			     "NOT Started eSTAR IO server.");
 
 	}
     
@@ -1567,6 +1567,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.31  2007/07/06 15:16:25  cjm
+** Added test for host/port == null/0 in sendDocumentToIA.
+** This stops us trying to send docs with no IA on.
+**
 ** Revision 1.30  2007/07/06 11:32:01  cjm
 ** no difference.
 **
