@@ -97,12 +97,12 @@ public class JMSCommandHandler extends JMSMA_ClientImpl implements Logging {
     
     /** Handles the DONE response. Saves reply and internal parameters and sets error flag if failed.*/
     public void handleDone (COMMAND_DONE response) {
-
+	logger.log(INFO, 1, CLASS, "JMS","handleDone", "CMD Client:: Done recieved:"+response);
 	if (response == null) {
 	    setError(true, "Response was null");
 	    return;
 	}
-
+	logger.log(INFO, 1, CLASS, "JMS","handleDone", "CMD Client:: Response status: "+response.getSuccessful());
 	if (! response.getSuccessful()) {
 	    setError(true, "Error submitting request: "+response.getErrorString()); 
 	} else {

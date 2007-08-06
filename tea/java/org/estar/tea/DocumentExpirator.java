@@ -63,14 +63,14 @@ public class DocumentExpirator extends ControlThread implements Logging {
 	this.tea    = tea;
 	this.time   = time;
 	this.offset = offset;
-	logger = LogManager.getLogger(this);
+	logger = LogManager.getLogger("TRACE");
     }
 
     protected void initialise() {}
     
     
     protected void mainTask() {	
-	logger.log(INFO,1,CLASS,tea.getId(),"mainTask","Expirator sleeping for "+time+" ms.");
+	logger.log(INFO,1,CLASS,tea.getId(),"mainTask","DOCEX::Expirator sleeping for "+time+" ms.");
 	try {Thread.sleep(time);} catch (InterruptedException ix) {}
 	try {
 	    logger.log(INFO,1,CLASS,tea.getId(),"mainTask","Running expirator.");

@@ -46,10 +46,11 @@ public class AbortDocumentHandler implements Logging {
      * @param io      The eSTARIO.
      * @param handle  Globus IO Handle for the connection.
      */
-    public AbortDocumentHandler(TelescopeEmbeddedAgent tea, eSTARIO io, GlobusIOHandle handle) {
+    public AbortDocumentHandler(TelescopeEmbeddedAgent tea) {
+	//, eSTARIO io, GlobusIOHandle handle) {
 	this.tea    = tea;
-	this.io     = io;
-	this.handle = handle;
+	//this.io     = io;
+	//this.handle = handle;
 	logger = LogManager.getLogger("TRACE");
     }
 
@@ -108,14 +109,12 @@ public class AbortDocumentHandler implements Logging {
 
 	String proposalPathName = tea.getDBRootName()+"/"+userId+"/"+proposalId;
 
-	Path path = new Path(groupPathName);
-	
 	GET_PROPOSAL request = new GET_PROPOSAL(tea.getId()+":"+requestId);
 	request.setProposalPath(new Path(proposalPathName));
 	request.setEditorPath(new Path("TEA:AbortHandler"));
 	request.setKey(5522);
-	request.setRegId();
-	request.setDoLock(false);
+	request.setRegId(444);
+	request.setDolock(false);
 	
 	request.setClientDescriptor(new ClientDescriptor("EmbeddedAgent",
 							 ClientDescriptor.ADMIN_CLIENT,
@@ -123,7 +122,7 @@ public class AbortDocumentHandler implements Logging {
 	request.setCrypto(new Crypto("TEA"));
 	     
 	JMSCommandHandler client = new JMSCommandHandler(tea.getConnectionFactory(), 
-							 addgroup, 
+							 request, 
 							 tea.getOssConnectionSecure());
 	
 	//freeLock();
@@ -160,6 +159,35 @@ public class AbortDocumentHandler implements Logging {
        // Now send it back....
        REPLACE_GROUP replace = new REPLACE_GROUP(tea.getId()+":"+requestId);
        ///set various flags and send it...
+
+       // Now doctor the ARQ..
+
+       try {
+	   String oid = tea.createKeyFromDoc(document);
+	   logger.log(INFO, 1, CLASS, "AH", "handleAbort",
+			"Found ARQ_ID: "+oid);
+	   
+	   AgentRequestHandler arq = tea.getUpdateHandler(oid);
+	   RTMLDocument basedoc = arq.getBaseDocument();
+	   
+	   if (basedoc != null) {			
+	       RTMLObservation obs = basedoc.getObservation(0);
+			
+	       if (obs != null) {
+		   
+		   RTMLSchedule  sched = obs.getSchedule();
+		   
+		   if (sched != null) {
+		       sched.setEndDate(new Date(now));
+		   }
+	       }
+	   }
+
+       } catch (Exception e) {
+	   logger.log(INFO,1,CLASS,"AH","handleAbort",
+		      "Internal error while resetting ARQ expiry date: "+e);
+	   return setError(document, "Internal error while resetting ARQ expiry date");	  
+       }
 
        document.setType("aborted");
        return document;

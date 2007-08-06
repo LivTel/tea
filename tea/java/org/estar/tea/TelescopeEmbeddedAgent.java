@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.32 2007-07-17 09:56:28 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.33 2007-08-06 09:20:46 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -410,61 +410,64 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    traceLog.dumpStack(1,e);
 		}
 		
-                if (System.getProperty("registerHandler") != null) {
-                    traceLog.log(INFO, 1, CLASS, id, "init",
-                                 "Registering EA-RequestHandler...");
-                    try {
-                        DefaultEmbeddedAgentRequestHandler ear = new DefaultEmbeddedAgentRequestHandler(this);
-                        Naming.rebind("rmi://localhost/EARequestHandler", ear);
-                        traceLog.log(INFO, 1, CLASS, id, "init",
-                                     "EmbeddedAgentRequestHandler bound to registry");
-                    } catch (Exception e) {
-                        traceLog.log(INFO, 1, CLASS, id, "init",
-                                     "Failed to register EAR: "+e);
-
-			try {
-			    if (mailer != null)
-				mailer.send("Starting TEA ("+id+") Failed to bind [EmbeddedAgentRequestHandler] to local registry: "+e);
-			    e.printStackTrace();
-			} catch (Exception tx) {
-			    tx.printStackTrace();
-			}
-			
-                    }
-
-		    try {
-			 tap = new DefaultTelescopeAvailabilityPredictor(tapPersistanceFile);
-			 Naming.rebind("rmi://localhost/TAPredictor", tap);
-			 traceLog.log(INFO, 1, CLASS, id, "init",
-				      "TelescopeAvailabilityPredictor bound to registry");
-					 
-		    } catch (Exception e) {
-                        traceLog.log(INFO, 1, CLASS, id, "init",
-                                     "Failed to register TAP: "+e);
-			
-			try {
-			    if (mailer != null)
-				mailer.send("Starting TEA ("+id+") Failed to bind [TelescopeAvailabilityPredictor] to local registry: "+e);
-			    e.printStackTrace();
-			} catch (Exception tx) {
-			    tx.printStackTrace();
-			}
-			
-                    }
+              
+		traceLog.log(INFO, 1, CLASS, id, "init",
+			     "Registering EA-RequestHandler...");
+		try {
+		    DefaultEmbeddedAgentRequestHandler ear = new DefaultEmbeddedAgentRequestHandler(this);
+		    Naming.rebind("rmi://localhost/EARequestHandler", ear);
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "EmbeddedAgentRequestHandler bound to registry");
+		} catch (Exception e) {
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Failed to register EAR: "+e);
 		    
 		    try {
-			((DefaultTelescopeAvailabilityPredictor)tap).load();
-			traceLog.log(INFO, 1, CLASS, id, "init",
-				     "Loaded TAP persistant data successfully");
-			
-		    } catch (Exception e) {
-			traceLog.log(INFO, 1, CLASS, id, "init",
-				     "Failed to load TAP data: "+e);
-			
+			if (mailer != null)
+			    mailer.send("Starting TEA ("+id+") Failed to bind [EmbeddedAgentRequestHandler] to local registry: "+e);
+			e.printStackTrace();
+		    } catch (Exception tx) {
+			tx.printStackTrace();
 		    }
 		    
-		}   
+		}
+
+		traceLog.log(INFO, 1, CLASS, id, "init",
+			     "Registering TAPredictor...");
+		try {
+		    tap = new DefaultTelescopeAvailabilityPredictor(tapPersistanceFile);
+		    Naming.rebind("rmi://localhost/TAPredictor", tap);
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "TelescopeAvailabilityPredictor bound to registry");
 		    
+		} catch (Exception e) {
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Failed to register TAP: "+e);
+		    
+		    try {
+			if (mailer != null)
+			    mailer.send("Starting TEA ("+id+") Failed to bind [TelescopeAvailabilityPredictor] to local registry: "+e);
+			e.printStackTrace();
+		    } catch (Exception tx) {
+			tx.printStackTrace();
+		    }
+		    
+		}
+		    
+		traceLog.log(INFO, 1, CLASS, id, "init",
+			     "Loading TAP persistant data...");
+		try {
+		    ((DefaultTelescopeAvailabilityPredictor)tap).load();
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Loaded TAP persistant data successfully");
+		    
+		} catch (Exception e) {
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Failed to load TAP data: "+e);
+		    
+		}
+		
+	   		    
 		arqMonitor = new AgentRequestHandlerMonitoringThread(this);
 		arqMonitor.start();
 		traceLog.log(INFO, 1, CLASS, id, "init",
@@ -485,9 +488,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		//     "Started DocExpirator with polling interval: "+
 		//     (expiratorSleepMs/1000)+" secs");
 		
-		//io.serverStart(dnPort, this);	
+		io.serverStart(8088, this);	
 		traceLog.log(INFO, 1, CLASS, id, "init",
-			     "NOT Started eSTAR IO server.");
+			     "Started eSTAR IO server on a dodgy port.");
 
 	}
     
@@ -1310,7 +1313,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 		try {
 			tea.start();
-		} catch (Exception e) {
+		} catch (Exception e) {		    
+		    e.printStackTrace();
 			tea.traceLog.dumpStack(1,e);			
 		} finally {	    
 			tea.shutdown();
@@ -1567,6 +1571,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.32  2007/07/17 09:56:28  snf
+** commented out io.start() to stop it being started.
+**
 ** Revision 1.31  2007/07/06 15:16:25  cjm
 ** Added test for host/port == null/0 in sendDocumentToIA.
 ** This stops us trying to send docs with no IA on.

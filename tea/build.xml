@@ -9,7 +9,7 @@
   </description>
   
   <property environment="env"/>  
-  <property name = "dev.home"      value = "${env.LT_HOME}/>
+  <property name = "dev.home"      value = "${env.LT_HOME}"/>
 
   <property name = "class.dir"     value = "${dev.home}/bin/estar/tea/java"/>
   <property name = "dist.dir"      value = "${dev.home}/public_html/estar/tea/deploy"/>
@@ -47,27 +47,49 @@
 	
 	<classpath>
 	  <pathelement path="${classpath}"/>
-	    <fileset dir="${dev.home}bin/javalib">
+	    <fileset dir="${dev.home}/bin/javalib">
 	      <include name = "*.jar"/> 
+              <exclude name = "ngat_new_phase2.jar"/>
 	    </fileset>
 	    <fileset dir="${dev.home}/bin/estar/javalib">
 	      <include name = "*.jar"/> 
 	    </fileset>
+
 	</classpath>
         
         <exclude name = "**/DNServerTest.java"/>
 	<exclude name = "**/DocChecker.java"/>
-        <exclude name = "**/test/*.java"/>
+<!--        <exclude name = "**/test/*.java"/> -->
 
       </javac>
     </target>
 
+    <target name = "rmic" 
+         depends = "compile"
+     description = "Generate RMI stubs">
+     <rmic debug = "true"
+         base     = "${class.dir}"
+         includes = "org/estar/tea/DefaultEmbeddedAgentRequestHandler.class,
+                     org/estar/tea/DefaultTelescopeAvailabilityPredictor.class"
+         stubversion = "1.2">
+             <classpath>
+               <pathelement path="${classpath}"/>
+                  <fileset dir="${dev.home}/bin/javalib">
+                     <include name = "*.jar"/>
+                     <exclude name = "ngat_new_phase2.jar"/>
+                  </fileset>
+                  <fileset dir="${dev.home}/bin/estar/javalib">
+                      <include name = "*.jar"/>
+                   </fileset>
 
+            </classpath>
+       </rmic>
+    </target>
     
     <!-- Deploy to JAR -->
     
     <target name = "jar" 
-      depends = "compile"
+      depends = "rmic"
       description = "Create class JAR">
       <echo message = "Creating deployment jar - Build#: ${BUILD}"/>
 	
@@ -113,22 +135,31 @@
 	<copy file="${estar.javalib}/org_estar_toop_test.jar" todir="${dist.dir}/javalib"/>
         <copy file="${estar.javalib}/tea.jar" todir="${dist.dir}/javalib"/>
 
-        <copy todir="${dist.dir}/scripts">
-          <fileset dir="scripts"/>
-        </copy>     
+        <copy file="${estar.javalib}/activation.jar" todir="${dist.dir}/javalib"/>
+        <copy file="${estar.javalib}/smtp.jar" todir="${dist.dir}/javalib"/>
+        <copy file="${estar.javalib}/mailapi.jar" todir="${dist.dir}/javalib"/>
 
-        <copy todir="${dist.dir}/config">
-          <fileset dir="config">
-            <include name = "${scope}*.properties"/>
-          </fileset>
+        <!-- <copy todir="${dist.dir}/scripts">
+          <fileset dir="scripts"/>
+        </copy>  -->
+
+        <!-- <chmod dir="${dist.dir}/scripts" perm="ug+x" includes="**/*" verbose="true"/> -->
+
+        <copy file="config/${scope}.tea.properties" tofile="${dist.dir}/config/tea.properties"/>
+        <copy file="config/${scope}_filter-combo.properties" tofile="${dist.dir}/config/filter-combo.properties"/>
+
+        <copy todir="${dist.dir}/elib">
+          <fileset dir="${estar.clib}"/>
         </copy>
 
-       <copy todir="${dist.dir}/elib">
-          <fileset dir="${estar.clib}"/>
-       </copy>
+        <echo message="Tarring up, SCRIPTS are not included now"/>
 
-        <tar tarfile="${dev.home}/tmp/tea_${scope}.tar" basedir="${dist.dir}"/>
-     
+        <tar tarfile="${dev.home}/tmp/tea_${scope}.tar" basedir="${dist.dir}" />
+        
+        <echo message="Your TEA release for ${scope} is now available in: ${dev.home}/tmp/tea_${scope}.tar"/>
+
+        <delete dir = "${dist.dir}"/>
+
     </target>
 
     <!-- javadoc -->

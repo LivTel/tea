@@ -174,6 +174,26 @@ public class ScoreDocumentHandler implements Logging {
 	    seeing = sc.getMaximum();
 	}
 	
+	double mld = 0.0;
+	RTMLMoonConstraint mc = sched.getMoonConstraint();
+	if (mc != null) {
+	    mld = mc.getDistanceRadians();
+ 	}
+
+	int lunar = Group.BRIGHT;
+	RTMLSkyConstraint skyc = sched.getSkyConstraint();	
+	if (skyc != null) {
+	    if (skyc.isBright())
+		lunar = Group.BRIGHT;
+	    else if
+		(skyc.isDark())
+		lunar = Group.DARK;
+	    else {	
+		logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract sky constraint info");
+		return setError(document, "Unable to extract sky brightness constraint");
+	    }
+	}
+      
 	// Extract filter info.
 	RTMLDevice dev = obs.getDevice();
 	String filter = null;
@@ -187,34 +207,6 @@ public class ScoreDocumentHandler implements Logging {
 	
 	if (dev != null) {
 	    
-// 	    String type = dev.getType();
-// 	    String filterString = dev.getFilterType();
-	    
-// 	    if (type.equals("camera")) {
-		
-// 		// We will need to extract the instrument name from the type field.
-// 		//String instName = tea.getConfig().getProperty("camera.instrument", "Ratcam");
-		
-// 		// Check valid filter and map to UL combo
-// 		logger.log(INFO, 1, CLASS, cid,"executeRequest","Checking for: "+filterString+".instrument");
-// 		filter = tea.getFilterMap().getProperty(filterString+".instrument");
-		
-// 		if (filter == null) {			
-// 		    logger.log(INFO,1,CLASS,cid,"handleRequest","Unknown filter:"+filterString+
-// 					   ", failing request.");
-// 		    return setError(document, "Unknown filter: "+filterString);
-// 		}
-
-// 		// we have a valid filter name, this is wehere we need to make up an IC.
-
-// 		ccdconfig = new CCDConfig("tea:"+cid);
-				
-
-// 	    } else {		    
-// 		logger.log(INFO,1,CLASS,cid,"handleRequest","Device is not a camera: failing request.");
-// 		return setError(document, "Device is not a camera");
-// 	    }
-
 	    // START New DEVINST stuff	    
 	    try {
 		config = DeviceInstrumentUtilites.getInstrumentConfig(tea, dev);
@@ -370,11 +362,10 @@ public class ScoreDocumentHandler implements Logging {
 	group.setExpiryDate(endDate.getTime());
 	group.setPriority(TelescopeEmbeddedAgent.GROUP_PRIORITY);
 	
-	group.setMinimumLunar(Group.BRIGHT);
-	group.setMinimumSeeing(Group.POOR);
+	group.setMinimumLunarDistance(mld);
+	group.setMinimumLunar(lunar);
 	group.setTwilightUsageMode(Group.TWILIGHT_USAGE_OPTIONAL);
-	
-	
+		
 	float expose = (float)expt;	
 	// Maybe split into chunks NO NOT YET.
 	//if ((double)expose > (double)tea.getMaxObservingTime()) {
@@ -420,6 +411,7 @@ public class ScoreDocumentHandler implements Logging {
 	group.setPriority(priority);
 	
 	// set seeing limits.
+	group.setMinimumSeeing(Group.POOR);
 	if (seeing >= 1.3) {
 	    group.setMinimumSeeing(Group.POOR);
 	} else if(seeing >= 0.8) {
@@ -451,6 +443,7 @@ public class ScoreDocumentHandler implements Logging {
 	int npmax = 20;
 	try {
 	    npmax = Integer.parseInt(System.getProperty("max.granularity", "20"));
+	    logger.log(1, "Using max granularity: "+npmax);
 	} catch (Exception nx) {
 	    logger.log(1, "Error parsing max granularity parameter- defaulting to 20");
 	}
@@ -601,7 +594,24 @@ public class ScoreDocumentHandler implements Logging {
 	//	if (visibility <= 0.0) {
 	//  return setError(document, "Target is not observable or unlikely to be selected during the specified period");		    
 	//}
-	
+
+
+	// add this in to zero the score if we dont think the scope is available...
+	try {
+	    TelescopeAvailability ta = tea.getTap().getAvailabilityPrediction(); 
+	    double prediction = ta.getPrediction();
+	    long   end        = ta.getEndTime();
+
+	    if (end > now) {
+		rankScore = rankScore*prediction;
+		logger.log(INFO, 1, CLASS, cid,"executeScore",
+			   "Current TAP value: "+ta+" Modified score after TAP = "+rankScore);
+	    }
+	} catch (Exception e) {
+	    logger.log(INFO, 1, CLASS, cid, "executeScore",
+		       "An error occurred accessing  TAP");
+	    
+	}
 	document.setScore(rankScore);
 	       
 	return document;

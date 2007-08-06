@@ -4,6 +4,8 @@ import java.io.*;
 import java.util.*;
 import java.rmi.*;
 import java.rmi.server.*;
+
+import ngat.util.*;
 import ngat.util.logging.*;
 
 /** Default implementation for a Telescope Availability prediction service.
@@ -14,7 +16,7 @@ public class DefaultTelescopeAvailabilityPredictor extends UnicastRemoteObject
     implements  TelescopeAvailabilityPredictor {
 
     /** The current prediction.*/
-    private double available = 1.0;
+    private TelescopeAvailability ta;
 
     /** Where we store the TAP data for persistance.*/
     private File tapDataFile;
@@ -33,10 +35,10 @@ public class DefaultTelescopeAvailabilityPredictor extends UnicastRemoteObject
      * @param periodStart start of the period for which prediction is valid.
      * @param periodEnd   end of the period for which prediction is valid.
      * @param prediction The predicted availability. 0=not avail, 1=definitely available.
-     * In between values are inceasing likliness of full availability.
+     * In between values are inceasing likeliness of full availability.
     */
     public void setAvailabilityPrediction(long periodStart, long periodEnd, double prediction) throws RemoteException {
-	this.available = prediction;
+	this.ta = new TelescopeAvailability(periodStart, periodEnd, prediction);
 
 	long duration = periodEnd - periodStart;
 	logger.log(1, "Received TAP update: For "+
@@ -60,13 +62,26 @@ public class DefaultTelescopeAvailabilityPredictor extends UnicastRemoteObject
     }
 
     /** @return the predicted availability of the telescope over the specified period.
-     * @param periodStart start of the period for which prediction is valid.
-     * @param periodEnd   end of the period for which prediction is valid.
-     * @param prediction The predicted availability. 0=not avail, 1=definitely available.
-     * In between values are inceasing likliness of full availability.
+     * The predicted availability. 0=not avail, 1=definitely available.
+     * In between values are inceasing likeliness of full availability.
      */
-    public double getAvailabilityPrediction(long periodStart, long periodEnd) throws RemoteException {
-	return available;
+    public TelescopeAvailability getAvailabilityPrediction() throws RemoteException {
+	return ta;
+    }
+
+    /** Load the persisted data.*/
+    public void load() throws RemoteException {
+	ConfigurationProperties tap = new ConfigurationProperties();
+	try {
+	    tap.load(new FileInputStream(tapDataFile));
+	    long   periodStart = (TelescopeEmbeddedAgent.iso8601.parse(tap.getProperty("from"))) .getTime();
+	    long   periodEnd   = (TelescopeEmbeddedAgent.iso8601.parse(tap.getProperty("to"))).getTime();
+	    double prediction  = tap.getDoubleValue("availability");
+	    
+	    this.ta = new TelescopeAvailability(periodStart, periodEnd, prediction);
+	} catch (Exception e) {
+	    throw new RemoteException("Problem reading persited TAP data",e);
+	}
     }
 
 }

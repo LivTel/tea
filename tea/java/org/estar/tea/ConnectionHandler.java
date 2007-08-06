@@ -25,7 +25,7 @@ import ngat.message.OSS.*;
 public class ConnectionHandler implements Logging {
 
     /** The Classname of this class.*/
-    public static final String CLASS = "ConnectionHandler";
+    public static final String CLASS = "CH";
     
     /** Session start time.*/
     long   sessionStart;
@@ -113,7 +113,8 @@ public class ConnectionHandler implements Logging {
     		
     		// Do score and return doc.
     			
-		ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea, io, handle);
+		ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea);
+		//, io, handle);
 		replyDocument = sdh.handleScore(document);
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
 
@@ -130,7 +131,8 @@ public class ConnectionHandler implements Logging {
     		
     		// Confirm request is scorable.
     
-		RequestDocumentHandler rdh = new RequestDocumentHandler(tea, io, handle);
+		RequestDocumentHandler rdh = new RequestDocumentHandler(tea);
+		//, io, handle);
 		replyDocument = rdh.handleRequest(document);
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
 
@@ -146,7 +148,8 @@ public class ConnectionHandler implements Logging {
 	    } else if
 		(type.equals("abort")) {
 
-		AbortDocumentHandler adh = new AbortDocumentHandler(tea, io, handle);
+		AbortDocumentHandler adh = new AbortDocumentHandler(tea);
+		//, io, handle);
 		replyDocument = adh.handleAbort(document);
 		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
 
@@ -178,8 +181,12 @@ public class ConnectionHandler implements Logging {
     	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Error while processing doc: "+ex);
 	    reply = TelescopeEmbeddedAgent.createErrorDocReply("Exception during parsing: "+ex);
 	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sending reply RTML message: "+reply);
-	    io.messageWrite(handle, reply);
-
+	    try {
+		io.messageWrite(handle, reply);
+	    } catch (Exception ee) {
+		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Error sending error reply doc: "+ee);
+		traceLog.dumpStack(1, ee);
+	    }
     	} finally {
 	
 	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH:Connection Finished.");
