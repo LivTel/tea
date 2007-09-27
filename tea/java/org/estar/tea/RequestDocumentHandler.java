@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.14 2007-08-06 09:25:03 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.15 2007-09-27 08:25:13 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -457,6 +457,9 @@ public class RequestDocumentHandler implements Logging {
 		    observation.setRotatorAngle(0.0);
 		}
 
+
+		// TODO Set the pipeline config here [e.g. dprt = true, priority = n]
+
 		Mosaic mosaic = new Mosaic();
 		mosaic.setPattern(Mosaic.SINGLE);
 		observation.setMosaic(mosaic);
@@ -644,6 +647,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.14  2007/08/06 09:25:03  snf
+// checkin
+//
 // Revision 1.13  2007/04/04 09:55:56  snf
 // changed arq.name to reqId which is the group ID
 //
