@@ -51,6 +51,9 @@
 	      <include name = "*.jar"/> 
               <exclude name = "ngat_new_phase2.jar"/>
 	    </fileset>
+	    <fileset dir="${dev.home}/bin/javalib_third_party">
+	      <include name = "*.jar"/> 
+	    </fileset>
 	    <fileset dir="${dev.home}/bin/estar/javalib">
 	      <include name = "*.jar"/> 
 	    </fileset>
