@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.15 2007-09-27 08:25:13 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.16 2008-03-27 12:09:57 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -501,6 +501,15 @@ public class RequestDocumentHandler implements Logging {
 		    observation.setRotatorAngle(0.0);
 		}
 
+		// AARGH another massive/evil fudge, more instrument-specifics...
+		if (config instanceof LowResSpecConfig) {
+		    //TelescopeConfig.ACQUIRE_MODE_BRIGHTEST = 1;
+		    //TelescopeConfig.ACQUIRE_MODE_WCS       = 2;
+		    // somehow we need to be able to decide which of these to select....
+		    //maybe using exposure length and other stufff
+		     observation.setAcquisitionMode(TelescopeConfig.ACQUIRE_MODE_WCS);
+		}
+		
 		Mosaic mosaic = new Mosaic();
 		mosaic.setPattern(Mosaic.SINGLE);
 		observation.setMosaic(mosaic);
@@ -647,6 +656,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.15  2007/09/27 08:25:13  snf
+// *** empty log message ***
+//
 // Revision 1.14  2007/08/06 09:25:03  snf
 // checkin
 //
