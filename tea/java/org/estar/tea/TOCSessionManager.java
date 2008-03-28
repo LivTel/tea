@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.12 2007-05-01 10:05:52 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.13 2008-03-28 17:14:25 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,34 +15,18 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.12 $
+ * @version $Revision: 1.13 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.12 2007-05-01 10:05:52 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.13 2008-03-28 17:14:25 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
 	public static final String CLASS = "TOCSessionManager";
-	/**
-	 * The type of instrument.
-	 */
-	public final static int INSTRUMENT_TYPE_NONE        = 0;
-	/**
-	 * The type of instrument.
-	 */
-	public final static int INSTRUMENT_TYPE_RATCAM      = 1;
-	/**
-	 * The type of instrument.
-	 */
-	public final static int INSTRUMENT_TYPE_IRCAM       = 2;
-	/**
-	 * The type of instrument.
-	 */
-	public final static int INSTRUMENT_TYPE_POLARIMETER = 3;
 	/**
 	 * Class map of tag/user/proposal -> session managers.
 	 */
@@ -647,6 +631,9 @@ public class TOCSessionManager implements Runnable, Logging
 					slew(document);
 					// configure instrument
 					instr(document);
+					// acquire if neccessary
+					if(acquireNeeded(document))
+						acquire(document);
 					// expose
 					filenameList = expose(document);
 					// pass filenameList into inner class thread to handle data
@@ -729,6 +716,108 @@ public class TOCSessionManager implements Runnable, Logging
 	}
 
 	/**
+	 * Method to determine whether the acquire command should be called to handle this document.
+	 * Acquisition is only needed for spectrographic observations at the moment.
+	 * @param document The document to extract target information from.
+	 * @exception IllegalArgumentException Thrown if the document contains > 1 observation,
+	 *            or no device exists in the observation or document.
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#getInstrumentType
+	 */
+	private boolean acquireNeeded(RTMLDocument document) throws IllegalArgumentException
+	{
+		RTMLDevice device = null;
+		int instrumentType;
+		boolean acquireNeeded;
+
+		device = getDeviceFromDocument(document);
+		instrumentType = DeviceInstrumentUtilites.getInstrumentType(device);
+		acquireNeeded = (instrumentType == DeviceInstrumentUtilites.INSTRUMENT_TYPE_SPECTROGRAPH);
+		return acquireNeeded;
+	}
+
+	/**
+	 * Method to acquire the currently active TOCA instrument to the specified target.
+	 * The target is extracted from the document. The acquire Mode is synthesized from the instrument Id
+	 * and exposure length extracted from the document.
+	 * @param document The document to extract target information from.
+	 * @exception IllegalArgumentException Thrown if there are the wrong number of observations in the document.
+	 * @exception NullPointerException Thrown if the target was not in the document.
+	 * @exception TOCException Thrown if the TOCA acquire command fails.
+	 * @see #session
+	 * @see #tea
+	 * @see #getTargetFromDocument
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#getInstrumentId
+	 */
+	private void acquire(RTMLDocument document) throws IllegalArgumentException, NullPointerException, TOCException
+	{
+		RTMLDevice device = null;
+		RTMLTarget target = null;
+		RTMLObservation observation = null;
+		RTMLSchedule schedule = null;
+		String acquireMode = null;
+		String instrumentId = null;
+		int exposureLength,exposureCount;
+
+		// extract target from document
+		target = getTargetFromDocument(document);
+		// extract device
+		device = getDeviceFromDocument(document);
+		instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
+		// get exposure length
+		// get observation
+		if(document.getObservationListCount() != 1)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":acquire:Illegal number of observations "+document.getObservationListCount()+
+							   " found in document.");
+		}
+		observation = document.getObservation(0);
+		// get schedule
+		schedule = observation.getSchedule();
+		if(schedule == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+			    ":acquire:No schedule found in observation.");
+		}
+		if(schedule.getSeriesConstraint() != null)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":acquire:TOOP does not support Schedule with SeriesConstraint.");
+		}
+		if(schedule.getSeeingConstraint() != null)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":acquire:TOOP does not support Schedule with SeeingConstraint.");
+		}
+		exposureCount = schedule.getExposureCount();
+		exposureLength = (int)(schedule.getExposureLengthMilliseconds());// throws IllegalArgumentException
+		// based on instrumentId/exposureLength, set acquireMode
+		if(instrumentId.equals("meaburn"))
+		{
+			if(exposureLength <= 30000)
+				acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
+			else
+				acquireMode = TOCSession.ACQUIRE_MODE_WCS;
+		}
+		else if(instrumentId.equals("fixedspec"))
+		{
+			if(exposureLength <= 30000)
+				acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
+			else
+				acquireMode = TOCSession.ACQUIRE_MODE_WCS;
+		}
+		// put other spectrographs here
+		else
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":acquire:Unsupported spectrograph "+instrumentId+" detected.");
+		}
+		session.acquire(target.getRA(),target.getDec(),acquireMode);
+	}
+
+	/**
 	 * Method to slew the telescope to the target specified in the specified document.
 	 * Assumes the session <b>helo</b> and <b>init</b> methods have been called first.
 	 * @param document The document to extract target information from.
@@ -737,28 +826,15 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception TOCException Thrown if the TOCA slew command fails in some way.
 	 * @exception NumberFormatException Thrown if the TOCA slew command could not parse a number.
 	 * @see #session
+	 * @see #getTargetFromDocument
 	 */
 	private void slew(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
 							TOCException, NumberFormatException
 	{
-		RTMLObservation observation = null;
 		RTMLTarget target = null;
 
-		// get observation
-		if(document.getObservationListCount() != 1)
-		{
-			throw new IllegalArgumentException(this.getClass().getName()+
-			    ":slew:Illegal number of observations "+document.getObservationListCount()+
-							   " found in document.");
-		}
-		observation = document.getObservation(0);
-		// get target
-		target = observation.getTarget();
-		if(target == null)
-		{
-			throw new NullPointerException(this.getClass().getName()+
-			    ":slew:No target found in observation.");
-		}
+		// extract target from document
+		target = getTargetFromDocument(document);
 		// slew
 		session.slew(target.getName(),target.getRA(),target.getDec());
 	}
@@ -774,36 +850,15 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception Exception Thrown if the sendInstr method fails.
 	 * @see #tea
 	 * @see #session
-	 * @see #INSTRUMENT_TYPE_RATCAM
-	 * @see #INSTRUMENT_TYPE_IRCAM
-	 * @see #INSTRUMENT_TYPE_POLARIMETER
+	 * @see #getDeviceFromDocument
 	 * @see DeviceInstrumentUtilites#sendInstr
 	 */
 	private void instr(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
 							 TOCException, Exception
 	{
-		RTMLObservation observation = null;
 		RTMLDevice device = null;
 
-		// get observation
-		if(document.getObservationListCount() != 1)
-		{
-			throw new IllegalArgumentException(this.getClass().getName()+
-			    ":instr:Illegal number of observations "+document.getObservationListCount()+
-							   " found in document.");
-		}
-		observation = document.getObservation(0);
-		// get device
-		device = observation.getDevice();
-		if(device == null)
-		{
-			device = document.getDevice();
-			if(device == null)
-			{
-				throw new NullPointerException(this.getClass().getName()+
-							       ":instr:No device found in observation or document.");
-			}
-		}
+		device = getDeviceFromDocument(document);
 		// Parse RTMLDevice and send appropriate instr using TOCSession session.
 		DeviceInstrumentUtilites.sendInstr(tea,session,device);
 	}
@@ -867,6 +922,77 @@ public class TOCSessionManager implements Runnable, Logging
 			filenameList.add(expose.getFilename(i));
 		}
 		return filenameList;
+	}
+
+	/**
+	 * Internal method to extract a valid device from the specified document. This currently only allows
+	 * one observation per document, and extracts the device from that observation, or from
+	 * the documents default if a observation specific device does not exist.
+	 * @param document The document to extract the device information from.
+	 * @return The RTMLDevice in this document.
+	 * @exception IllegalArgumentException Thrown if the document contains > 1 observation,
+	 *            or no device exists in the observation or document.
+	 */
+	private RTMLDevice getDeviceFromDocument(RTMLDocument document) throws IllegalArgumentException
+	{
+		RTMLObservation observation = null;
+		RTMLDevice device = null;
+
+		// get observation
+		if(document.getObservationListCount() != 1)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":getDeviceFromDocument:Illegal number of observations "+
+							   document.getObservationListCount()+
+							   " found in document.");
+		}
+		observation = document.getObservation(0);
+		// get device
+		device = observation.getDevice();
+		if(device == null)
+		{
+			// get default document device if an observation specific one does not exist.
+			device = document.getDevice();
+			if(device == null)
+			{
+				throw new NullPointerException(this.getClass().getName()+
+						":getDeviceFromDocument:No device found in observation or document.");
+			}
+		}
+		return device;
+	}
+
+
+	/**
+	 * Internal method to extract a valid target from the specified document. This currently only allows
+	 * one observation per document, and extracts the target from that observation.
+	 * @param document The document to extract the target information from.
+	 * @return The RTMLTarget in this document.
+	 * @exception IllegalArgumentException Thrown if the document contains > 1 observation.
+	 * @exception NullPointerException Thrown if the observation contains no target.
+	 */
+	private RTMLTarget getTargetFromDocument(RTMLDocument document) throws IllegalArgumentException
+	{
+		RTMLObservation observation = null;
+		RTMLTarget target = null;
+
+		// get observation
+		if(document.getObservationListCount() != 1)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":getTargetFromDocument:Illegal number of observations "+
+							   document.getObservationListCount()+
+							   " found in document.");
+		}
+		observation = document.getObservation(0);
+		// get target
+		target = observation.getTarget();
+		if(target == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+			    ":getTargetFromDocument:No target found in observation.");
+		}
+		return target;
 	}
 
 	// static methods
@@ -1351,6 +1477,12 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.12  2007/05/01 10:05:52  cjm
+** Fixed pipeline plugin Id handling, so id does not include instrument type, but
+** config lookups do.
+** RTMLDevice now correctly picked up from observation, and default to document Device if
+** Observation Device foes not exist.
+**
 ** Revision 1.11  2007/04/30 17:15:12  cjm
 ** Changed setPipeline to pipeline plugin is created per TUPI/instrument type.
 ** This doesn't really work in this case at the moment, as the session manager is created per TUPI, but
