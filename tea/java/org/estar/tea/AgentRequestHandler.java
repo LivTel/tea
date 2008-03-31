@@ -724,7 +724,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * @exception InstantiationException Thrown if an instance of the class cannot be created.
      * @exception IllegalAccessException Thrown if an instance of the class cannot be created.
      * @see #baseDocument
-     * @see DeviceInstrumentUtilites#getInstrumentTypeName
+     * @see DeviceInstrumentUtilites#getInstrumentId
      */
     protected PipelineProcessingPlugin getPipelinePluginFromDoc() 
 	throws NullPointerException, 
@@ -736,7 +736,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    RTMLDevice device = null;
 	    String userId = null;
 	    String proposalId = null;
-	    String instrumentTypeName = null;
+	    String instrumentId = null;
 	    String pipelinePluginClassname = null;
 	    Class pipelinePluginClass = null;
 	    String pluginId = null;
@@ -769,23 +769,22 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	    RTMLObservation obs = baseDocument.getObservation(0);
 	    if (obs != null) 
-		device = obs.getDevice();
+		    device = obs.getDevice();
 	    if (device == null)
-	    device = baseDocument.getDevice();
-	  
+		    device = baseDocument.getDevice();
 	     logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 			"ARQ::Getting inst-type for device: "+device);
-	     instrumentTypeName = DeviceInstrumentUtilites.getInstrumentTypeName(device);
+	     instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
 	    // get pipeline plugin class name
 	    pluginId = new String(userId+"."+proposalId);
-	    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentTypeName);
+	    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentId);
 	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 		       "ARQ:: Trying to get pipeline classname using key "+key+".");
 	    pipelinePluginClassname = tea.getPropertyString(key);
 	    if(pipelinePluginClassname == null)
 	    {
 		    pluginId = new String("default");
-		    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentTypeName);
+		    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentId);
 		    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
 			       "ARQ:: Project specific pipeline does not exist, "+
 			       "trying default key "+key);
@@ -805,7 +804,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    plugin = (PipelineProcessingPlugin)(pipelinePluginClass.newInstance());
 	    // set plugin id
 	    plugin.setId(pluginId);
-	    plugin.setInstrumentTypeName(instrumentTypeName);
+	    plugin.setInstrumentId(instrumentId);
 	    return  plugin;
     }
     

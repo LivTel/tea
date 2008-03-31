@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.12 2007-05-01 10:06:42 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.13 2008-03-31 14:14:56 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.12 2007-05-01 10:06:42 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.13 2008-03-31 14:14:56 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -48,9 +48,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 */
 	protected String id = PROPERTY_KEY_PIPELINE_PLUGIN_ID;
 	/**
-	 * The type of instrument this pipeline is for i.e. "ccd","ircam","polarimeter".
+	 * The instrument this pipeline is for i.e. "ratcam", "supircam", "ringostar", "meaburn".
 	 */
-	protected String instrumentTypeName = null;
+	protected String instrumentId = null;
 	/**
 	 * A string representing a local input directory.
 	 */
@@ -111,30 +111,27 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	}
 
 	/**
-	 * Method to set the instrument type name of this instance of the plugin. 
-	 * @param s The instrument type name.
-	 * @see #instrumentTypeName
-	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_CCD_STRING
-	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_IRCAM_STRING
-	 * @see DeviceInstrumentUtilites#INSTRUMENT_TYPE_POLARIMETER_STRING
+	 * Method to set the instrument name of this instance of the plugin. 
+	 * @param s The instrument name.
+	 * @see #instrumentId
 	 */
-	public void setInstrumentTypeName(String s)
+	public void setInstrumentId(String s)
 	{
-		instrumentTypeName = s;
+		instrumentId = s;
 	}
 
 	/**
-	 * Intialise the plugin. Assumes setTea, setId and setInstrumentTypeName have already been called.
+	 * Intialise the plugin. Assumes setTea, setId and setInstrumentId have already been called.
 	 * <ul>
-	 * <li>Initialise inputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".input_directory".
-	 * <li>Initialise outputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".output_directory".
-	 * <li>Initialise scriptFilename from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".script_filename".
-	 * <li>Initialise urlBase from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base".
-	 * <li>Initialise objectListFormat from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".object_list_format".
+	 * <li>Initialise inputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".input_directory".
+	 * <li>Initialise outputDirectory from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".output_directory".
+	 * <li>Initialise scriptFilename from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".script_filename".
+	 * <li>Initialise urlBase from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".http_base".
+	 * <li>Initialise objectListFormat from the tea property PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".object_list_format".
 	 * </ul>
 	 * @exception NullPointerException Thrown if  a keyword has no value.
 	 * @see #id
-	 * @see #instrumentTypeName
+	 * @see #instrumentId
 	 * @see #PROPERTY_KEY_HEADER
 	 * @see #PROPERTY_KEY_PIPELINE_PLUGIN_NAME
 	 * @see #inputDirectory
@@ -151,7 +148,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise() started.");
 		// inputDirectory
-		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".input_directory";
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".input_directory";
 		inputDirectory = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: input directory: key: "+keyString+" value: "+inputDirectory+".");
@@ -161,7 +158,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 						       keyString+" returned null value.");
 		}
 		// outputDirectory
-		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".output_directory";
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".output_directory";
 		outputDirectory = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: output directory: key: "+keyString+" value: "+outputDirectory+".");
@@ -171,7 +168,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 						       keyString+" returned null value.");
 		}
 		// scriptFilename
-		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".script_filename";
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".script_filename";
 		scriptFilename = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: script filename: key: "+keyString+" value: "+scriptFilename+".");
@@ -181,7 +178,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 						       keyString+" returned null value.");
 		}
 		// urlBase - ensure terminated with '/'
-		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".http_base";
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".http_base";
 		urlBase = tea.getPropertyString(keyString);
 		if(scriptFilename == null)
 		{
@@ -193,7 +190,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: URL base: "+urlBase+".");
 		// objectListFormat
-		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentTypeName+".object_list_format";
+		keyString = PROPERTY_KEY_HEADER+"."+id+"."+instrumentId+".object_list_format";
 		objectListFormat = tea.getPropertyString(keyString);
 		logger.log(INFO, 1, CLASS, tea.getId(),"initialise",this.getClass().getName()+
 			   ":initialise: object list format: "+objectListFormat+".");
@@ -444,6 +441,10 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.12  2007/05/01 10:06:42  cjm
+// More testing of return values in initialise, and more logging of what
+// data it is retrieving.
+//
 // Revision 1.11  2007/04/30 17:10:32  cjm
 // Made loading the pipeline configs TUPI/instrument type specific.
 //
