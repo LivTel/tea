@@ -69,16 +69,17 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	String host = "Unknown";
 	int    port = -1;
 	if(userAgent == null) {
-	    traceLog.log(INFO, 1, CLASS, "testUpdateCallback: Warning, User agent was null.");
+	    logger.log(1, "testUpdateCallback: Warning, User agent was null.");
 	} else {
 	    agid = userAgent.getId();
 	    host = userAgent.getHostname();
 	    port = userAgent.getPort();
-	    logger.log(1, "Testharness: testUpdateCallback: Sending update to: "+agid+"@ "+host+":"+port+" in "+howlong+" msec");
+	    logger.log(1, "TestHarness: testUpdateCallback: Sending update to: "+agid+"@ "+host+":"+port+" in "+howlong+" msec");
 	}
 
 	doc.setType("update");
 	
+	final RTMLDocument mydoc = doc;
 	final TelescopeEmbeddedAgent mytea = tea;
 	final long myhowlong = howlong;
 	final String myagent = agid+"@ "+host+":"+port;
@@ -86,8 +87,8 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 		public void run() {
 		    try {	
 			try {Thread.sleep(myhowlong);} catch (InterruptedException ix) {}
-			mytea.sendDocumentToIA(doc);
-			logger.log(1, "Testharness: testUpdateCallback: Sent update to: "+myagent);
+			mytea.sendDocumentToIA(mydoc);
+			logger.log(1, "TestHarness: testUpdateCallback: Sent update to: "+myagent);
 		    } catch (Exception e) {
 			logger.log(1, "An error occurred during TestHarness callback test: "+e);
 			e.printStackTrace();
