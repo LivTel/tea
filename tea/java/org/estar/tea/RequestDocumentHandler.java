@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.16 2008-03-27 12:09:57 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.17 2008-04-17 11:04:06 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -419,6 +419,15 @@ public class RequestDocumentHandler implements Logging {
 		}
 	    }
 	    
+	    // decide whether to use the autoguider
+	    // Decide if we need to use the autoguider;
+	    long maxUnguidedExposureLength = DEFAULT_MAX_NOAG_EXPOSURE;
+	    try {
+		maxUnguidedExposureLength = tea.getPropertyLong("maximum.unguided.exposure.length");		  
+	    } catch (Exception ee) {
+		logger.log(INFO,1,CLASS,cid,"handleRequest",
+			   "There was a problem locating the property: maximum.unguided.exposure.length");
+	    }
 	    
 	    // Create the group now.
 	    // Try to sort out the group type.
@@ -449,7 +458,12 @@ public class RequestDocumentHandler implements Logging {
 		
 		observation.setExposeTime(expose);
 		observation.setNumRuns(mult);
-		observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_NEVER);
+
+		// decide whether to use autoguider
+		if ((long)expt > maxUnguidedExposureLength) 
+		    observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_OPTIONAL);
+		else
+		    observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_NEVER);
 		
 		// ARGH another massive/evil fudge, more instrument-specifics...
 		if (config instanceof PolarimeterConfig) {
@@ -493,7 +507,13 @@ public class RequestDocumentHandler implements Logging {
 		
 		observation.setExposeTime(expose);
 		observation.setNumRuns(mult);
-		observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_NEVER);
+
+		// decide whether to use autoguider
+		if ((long)expt > maxUnguidedExposureLength) 
+		    observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_OPTIONAL);
+		else
+		    observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_NEVER);
+
 		
 		// ARGH another massive/evil fudge, more instrument-specifics...
 		if (config instanceof PolarimeterConfig) {
@@ -656,6 +676,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.16  2008/03/27 12:09:57  snf
+// added acquire mode for lowresspec thingy
+//
 // Revision 1.15  2007/09/27 08:25:13  snf
 // *** empty log message ***
 //
