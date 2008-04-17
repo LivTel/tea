@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.17 2008-04-17 11:04:06 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.18 2008-04-17 11:05:09 snf Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -31,7 +31,10 @@ public class RequestDocumentHandler implements Logging {
        
     /** Classname for logging.*/
     public static final String CLASS = "RDH";
-    
+
+    /** Default maximum unguidd exposure length (ms).*/
+    public static final long DEFAULT_MAXIMUM_UNGUIDED_EXPOSURE = 24*3600*1000L;
+
     /** Default maximum (worst) seeing allowed (asec).*/
     public static final double DEFAULT_SEEING_CONSTRAINT = 1.3;
 
@@ -421,7 +424,7 @@ public class RequestDocumentHandler implements Logging {
 	    
 	    // decide whether to use the autoguider
 	    // Decide if we need to use the autoguider;
-	    long maxUnguidedExposureLength = DEFAULT_MAX_NOAG_EXPOSURE;
+	    long maxUnguidedExposureLength = DEFAULT_MAXIMUM_UNGUIDED_EXPOSURE;
 	    try {
 		maxUnguidedExposureLength = tea.getPropertyLong("maximum.unguided.exposure.length");		  
 	    } catch (Exception ee) {
@@ -676,6 +679,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.17  2008/04/17 11:04:06  snf
+// added handling of autoguider based on length of exposure
+//
 // Revision 1.16  2008/03/27 12:09:57  snf
 // added acquire mode for lowresspec thingy
 //

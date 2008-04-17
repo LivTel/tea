@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.34 2008-04-17 11:03:34 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.35 2008-04-17 11:06:08 snf Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -756,7 +756,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @exception NullPointerException Thrown if the properties are null.
 	 * @exception NGATPropertyException Thrown if the get failed.
 	 */
-	public int getPropertyLong(String key) throws NullPointerException, NGATPropertyException
+	public long getPropertyLong(String key) throws NullPointerException, NGATPropertyException
 	{
 		if(properties == null)
 		{
@@ -1589,6 +1589,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.34  2008/04/17 11:03:34  snf
+** .added getPropertyLong()
+**
 ** Revision 1.33  2007/08/06 09:20:46  snf
 ** checkin
 **
