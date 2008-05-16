@@ -6,7 +6,7 @@ TEA Schedule Priorities
 Schedule (RTML) priority     PhaseII (ODB)	PhaseII (GUI)
 -------------------------------------------------------------
 			     5			Urgent
-0			     4			Quite urgent
+0			     4(RTML3.1a toop!)	Quite urgent(RTML3.1a toop!)
 1			     3			High
 2			     2			Medium
 3			     1			Normal
@@ -25,3 +25,4 @@ The PhaseII priority "5" _cannot_ be specified by the TEA but can be specified b
 The PhaseII priority "-2" is not available to TEA - these obs are done only if nothing else can be executed
  typically this means very-very bad seeing -if there are a lot of these chaps in the ODB they drown out the
  background monitoring and prevent the seeing determination from being made - which is not a good idea.
+Currently "Quite Urgent" cannot be specified in RTML 3.1a either, as "0" equates to TOOP.
