@@ -107,17 +107,10 @@ public class ScoreDocumentHandler implements Logging {
 	    return setError( document, "Your Project ID was null");
 	}
 	
-	// We will use this as the Group ID otherwise use 'default agent'.
-	RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
-	
-	if (userAgent == null) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest",
-		       "RTML Intelligent Agent was not specified, failing request.");
-	    return setError(document, "No user agent: ###TBD Default UA");
-	}
-	
-	String requestId = userAgent.getId();
-	
+	// Retrieve the documents unique ID, either from the uid attribute or user agent's Id 
+	// depending on RTML version
+	String requestId = document.getUId();
+
 	cid = requestId+"/"+cc;
 
 	// Extract the Observation request(s) - handle multiple obs per doc.
@@ -132,7 +125,7 @@ public class ScoreDocumentHandler implements Logging {
 	// Extract params
 	RTMLTarget target = obs.getTarget();
 
-	if (target.isTypeTOOP()) {
+	if (document.isTOOP()) {
 	    // Try and get TOCSessionManager context.
 	    TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea,document);
 	    // score the document
@@ -613,27 +606,28 @@ public class ScoreDocumentHandler implements Logging {
 	    
 	}
 	document.setScore(rankScore);
-	       
+	document.setScoreReply();
+	document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned "+rankScore+".");
 	return document;
 	
     }
 
     
-    /** Set the error message in the supplied document.
-     * @param document The document to modify.
-     * @param errorMessage The error message.
-     * @throws Exception if anything goes wrong.
-     * @return The modified <i>reject</i> document.
-     */
-    private RTMLDocument setError(RTMLDocument document, String errorMessage) throws Exception {
-	//document.setType("reject");
-	document.setType("score");
-	document.setScore(0.0);
-	//	document.setErrorString(errorMessage); 
-	
-	logger.log(INFO, 1, CLASS, cid, "setError", "SDH::Setting error to: "+errorMessage);
-	
-	return document;
-    }
-
+	/** 
+	 * Set the error message in the supplied document.
+	 * @param document The document to modify.
+	 * @param errorMessage The error message.
+	 * @throws Exception if anything goes wrong.
+	 * @return The modified <i>reject</i> document.
+	 */
+	private RTMLDocument setError(RTMLDocument document, String errorMessage) throws Exception 
+	{
+		//document.setType("reject");
+		//document.setErrorString(errorMessage); 
+		document.setScoreReply();
+		document.setScore(0.0);
+		document.addHistoryError("TEA:"+tea.getId(),null,errorMessage,"Score failed.");
+		logger.log(INFO, 1, CLASS, cid, "setError", "SDH::Setting error to: "+errorMessage);
+		return document;
+	}
 } // [ScoreDocumentHandler]
