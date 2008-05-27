@@ -102,17 +102,19 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	String agid = "Unknown";
 	String host = "Unknown";
 	int    port = -1;
+
+	agid = doc.getUId();
 	if(userAgent == null) {
 	    logger.log(1, "testUpdateCallback: Warning, User agent was null.");
 	} else {
-	    agid = userAgent.getId();
 	    host = userAgent.getHostname();
 	    port = userAgent.getPort();
 	    logger.log(1, "TestHarness: testUpdateCallback: Sending update to: "+agid+"@ "+host+":"+port+" in "+howlong+" msec");
 	}
 
-	doc.setType("update");
-	
+	doc.setUpdate();
+	doc.addHistoryEntry("TEA:"+tea.getId(),null,"Sending update.");
+
 	final RTMLDocument mydoc = doc;
 	final TelescopeEmbeddedAgent mytea = tea;
 	final long myhowlong = howlong;
