@@ -482,7 +482,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    try {
 		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sending update document for "+oid+".");
-		updateDoc.setType("update");
+		updateDoc.setUpdate();
+		updateDoc.addHistoryEntry("TEA:"+tea.getId(),null,"ARQ::Sending update document for "+oid+".");
+		baseDocument.addHistoryEntry("TEA:"+tea.getId(),null,"ARQ::Sending update document for "+oid+".");
 		tea.sendDocumentToIA(updateDoc);
 		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sent update document for "+oid+".");
@@ -514,12 +516,18 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    break;
 	case OBSERVATION_STATE_DONE:
 	    docType = "observation";
+	    baseDocument.setComplete();
+	    baseDocument.addHistoryEntry("TEA:"+tea.getId(),null,"Observations completed.");
 	    break;
 	case OBSERVATION_STATE_EXPIRED_INCOMPLETE:
 	    docType = "incomplete";
+	    baseDocument.setIncomplete();
+	    baseDocument.addHistoryEntry("TEA:"+tea.getId(),null,"Observations incomplete.");
 	    break;
 	case OBSERVATION_STATE_EXPIRED_FAILED:
 	    docType = "fail";
+	    baseDocument.setFail();
+	    baseDocument.addHistoryEntry("TEA:"+tea.getId(),null,"Observations failed.");
 	    break;
 	}
 
@@ -528,7 +536,6 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    try {
 		logger.log(INFO, 1, CLASS, id,"mainTask",
 			   "ARQ::Sending observation final status document ("+docType+") document for "+oid+".");
-		baseDocument.setType(docType);
 		tea.sendDocumentToIA(baseDocument);
 		// Only if we succeeded in sending can we disengage the ARQ.
 		
