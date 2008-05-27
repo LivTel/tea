@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.35 2008-04-17 11:06:08 snf Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.36 2008-05-27 13:30:22 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -1032,7 +1032,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public RTMLDocument readDocument(File file) throws Exception {
 	
 		RTMLParser parser = new RTMLParser();
-		RTMLDocument doc = parser.parse(file);
+		RTMLDocument doc = null;
+
+		parser.init(true);
+		parser.parse(file);
 		return doc;
 	
 	}
@@ -1067,7 +1070,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * Gets the ObservationID from the RTMLDocument supplied.
 	 * @param doc The RTMLDocument.
 	 * @return A string unique to a document (observation).
-	 * @exception Exception Thrown if any of the document's contact/project/intelligent agent/obs/target are null.
+	 * @exception Exception Thrown if any of the document's contact/project/obs/target are null.
 	 * @see #getDBRootName
 	 */
 	public String createKeyFromDoc(RTMLDocument doc) throws Exception {
@@ -1078,23 +1081,22 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			throw new NullPointerException(this.getClass().getName()+
 						       ":createKeyFromDoc:Contact was null for document.");
 		}
-		String      userId  = contact.getUser();
+		String userId = contact.getUser();
 	
-		RTMLProject project    = doc.getProject();
+		RTMLProject project = doc.getProject();
 		if(project == null)
 		{
 			throw new NullPointerException(this.getClass().getName()+
 						       ":createKeyFromDoc:Project was null for document.");
 		}
-		String      proposalId = project.getProject();
-	
-		RTMLIntelligentAgent userAgent = doc.getIntelligentAgent();
-		if(userAgent == null)
+		String proposalId = project.getProject();
+		// get document UId
+		String requestId = doc.getUId();
+		if(requestId == null)
 		{
 			throw new NullPointerException(this.getClass().getName()+
-						       ":createKeyFromDoc:Intelligent Agent was null for document.");
+						       ":createKeyFromDoc:Unique ID was null for document.");
 		}
-		String               requestId = userAgent.getId();
 	
 		RTMLObservation observation = doc.getObservation(0);
 		if(observation == null)
@@ -1116,11 +1118,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	} // [createKeyFromDoc(RTMLDocument doc)]
 
 
-    /** 
+	/** 
 	 * Gets the ObservationID from the RTMLDocument supplied.
 	 * @param doc The RTMLDocument.
 	 * @return A string unique to a document (observation).
-	 * @exception Exception Thrown if any of the document's contact/project/intelligent agent/obs/target are null.
+	 * @exception Exception Thrown if any of the document's contact/project/obs/target are null.
 	 * @see #getDBRootName
 	 */
 	public String createRequestIdFromDoc(RTMLDocument doc) throws Exception {
@@ -1131,7 +1133,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			throw new NullPointerException(this.getClass().getName()+
 						       ":createKeyFromDoc:Contact was null for document.");
 		}
-		String      userId  = contact.getUser();
+		String userId  = contact.getUser();
 	
 		RTMLProject project    = doc.getProject();
 		if(project == null)
@@ -1139,16 +1141,14 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			throw new NullPointerException(this.getClass().getName()+
 						       ":createKeyFromDoc:Project was null for document.");
 		}
-		String      proposalId = project.getProject();
-	
-		RTMLIntelligentAgent userAgent = doc.getIntelligentAgent();
-		if(userAgent == null)
+		String proposalId = project.getProject();
+		// get document UId
+		String requestId = doc.getUId();
+		if(requestId == null)
 		{
 			throw new NullPointerException(this.getClass().getName()+
-						       ":createKeyFromDoc:Intelligent Agent was null for document.");
+						       ":createKeyFromDoc:Unique ID null for document.");
 		}
-		String               requestId = userAgent.getId();
-	
 	
 		return requestId;
 	
@@ -1167,47 +1167,51 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 	}
     
-	/**Create an error (type = 'reject' from scratch).
+	/**
+	 * Create an error (type = 'reject' from scratch).
+	 * @param rejectionReason The reason the abort request was rejected. Must be a standard string from 
+	 *       RTMLHistoryEntry.
 	 * @param errorMessage The error messsage.
+	 * @see org.estar.rtml.RTMLHistoryEntry
 	 */
-	public static String createErrorDocReply(String errorMessage) {
-		RTMLDocument document = new RTMLDocument();	
-		return createErrorDocReply(document, errorMessage);
+	public String createErrorDocReply(String rejectionReason,String errorMessage)
+	{
+		RTMLDocument document = new RTMLDocument();
+
+		// document version must be set - assume legacy version atm
+		document.setVersion(RTMLDocument.RTML_VERSION_22);
+		return createErrorDocReply(document,rejectionReason,errorMessage);
 	}
     
 	/** Create an error (type = 'reject' from supplied document.
 	 * @param document The document to change to error type.
+	 * @param rejectionReason The reason the abort request was rejected. Must be a standard string from 
+	 *       RTMLHistoryEntry.
 	 * @param errorMessage The error messsage.
-	 */
-	public static String createErrorDocReply(RTMLDocument document, String errorMessage) {
-	    document.setCompletionTime(new Date());
-	    document.setType("reject");
-	    try {
-		document.setErrorString(errorMessage); 
-	    } catch (RTMLException rx) {
-		rx.printStackTrace();
-		System.err.println("Error setting error string in doc: "+rx);
-	    }
-	    return createReply(document);	   
+	 * @see org.estar.rtml.RTMLHistoryEntry
+ 	 */
+	public String createErrorDocReply(RTMLDocument document,String rejectionReason,String errorMessage)
+	{
+		document.setCompletionTime(new Date());
+		try
+		{
+			document.setReject();
+			document.addHistoryRejection("TEA:"+getId(),null,rejectionReason,errorMessage);
+			document.setErrorString(errorMessage); 
+		} 
+		catch (RTMLException rx)
+		{
+			rx.printStackTrace();
+			System.err.println("Error setting error string in doc: "+rx);
+		}
+		return createReply(document);	   
 	}
-    
-    /** Create a reply from supplied document of given type.
-     * @param document The document to change.
-     * @param type The type.
-     */
-    public static String createDocReply(RTMLDocument document, String type) {
-	System.err.println("Create doc reply using type: "+type);
-	// diddly error!
-	//document.setCompletionTime(new Date());
-	document.setType(type);
-	return createReply(document);
-    }
     
 	/** Creates a reply message from the supplied document.
 	 * @param document The document to extract a reply message from.
 	 * @return A reply message in RTML format.
 	 */
-	public static String createReply(RTMLDocument document)
+	public String createReply(RTMLDocument document)
 	{
 		//System.err.println("Create reply for: \n\n\n"+document+"\n\n\n");
 		try {
@@ -1230,6 +1234,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * This method is used by the UpdateHandler to send update messages.
 	 * @param document The document to send.
 	 * @param type     A string denoting the type of document to send.
+	 * @see #createReply
 	 */
 	public void sendDocumentToIA(RTMLDocument document) throws Exception {
 		
@@ -1263,7 +1268,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 				 ","+port+").");
 		    throw new Exception(this.getClass().getName()+":sendDocumentToIA:handle was null");
 		}
-		String reply = TelescopeEmbeddedAgent.createReply(document);
+		String reply = createReply(document);
 		
 		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Writing:...\n"+reply+"\n ...to handle "+handle+".");
 		// how do we check this has failed?
@@ -1589,6 +1594,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.35  2008/04/17 11:06:08  snf
+** typo
+**
 ** Revision 1.34  2008/04/17 11:03:34  snf
 ** .added getPropertyLong()
 **
