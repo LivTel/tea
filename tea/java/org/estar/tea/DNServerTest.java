@@ -190,31 +190,39 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 	
     }
 	
-    /** Create an error (type = 'reject' from supplied document.
-     * @param document The document to change to error type.
-     * @param errorMessage The error messsage.
-     */
-    private String createErrorDocReply(RTMLDocument document, String errorMessage) {
-	document.setCompletionTime(new Date());
-	document.setType("reject");
-	try {
-	    document.setErrorString(errorMessage); 
-	} catch (RTMLException rx) {
-	    System.err.println("Error setting error string in doc: "+rx);
+	/** 
+	 * Create an error (type = 'reject') from supplied document.
+	 * @param document The document to change to error type.
+	 * @param rejectionReason The reason the abort request was rejected. Must be a standard string from 
+	 *       RTMLHistoryEntry.
+	 * @param errorMessage The error messsage.
+	 * @see org.estar.rtml.RTMLHistoryEntry
+	 */
+	private String createErrorDocReply(RTMLDocument document, String rejectionReason,String errorMessage)
+	{
+		document.setCompletionTime(new Date());
+		try 
+		{
+			document.setErrorString(errorMessage); 
+			document.setReject();
+			document.addHistoryRejection("TEA:"+tea.getId(),null,rejectionReason,errorMessage);
+		} 
+		catch (RTMLException rx)
+		{
+			System.err.println("Error setting error string in doc: "+rx);
+		}
+		return createReply(document);	   
 	}
-	return createReply(document);	   
-    }
     
-    /** Create a reply from supplied document of given type.
-     * @param document The document to change.
-     * @param type The type.
-     */
-    private String createDocReply(RTMLDocument document, String type) {
-	System.err.println("Create doc reply using type: "+type);
-	document.setCompletionTime(new Date());
-	document.setType(type);
-	return createReply(document);
-    }
+	/** 
+	 * Create a reply from supplied document of given type.
+	 * @param document The document to change.
+	 */
+	private String createDocReply(RTMLDocument document)
+	{
+		document.setCompletionTime(new Date());
+		return createReply(document);
+	}
     
     /** Creates a reply message from the supplied document.
      * @param document The document to extract a reply message from.
@@ -284,6 +292,7 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		// Extract document and determine type.
 		
 		parser   = new RTMLParser();
+		parser.init(true);
 		document = parser.parse(message);
 		
 		String type = document.getType();
@@ -323,7 +332,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		    
 		    // Error - reject.
 
-		    reply = createErrorDocReply(document, "Unknown document type: '"+type+"'");
+		    reply = createErrorDocReply(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						"Unknown document type: '"+type+"'");
 
 		    System.err.println("\n\n");
 		    traceLog.log(INFO, 1, CLASS, id, "exec", "CONN: Sending reply RTML message: "+reply);
@@ -358,18 +368,21 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 	    RTMLObservation obs = document.getObservation(0);
 	  	    
 	    if (obs == null)
-		return createErrorDocReply(document, "There was no observation in the request");
+		return createErrorDocReply(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+					   "There was no observation in the request");
 
 	    RTMLTarget target = obs.getTarget();
 
 	    if (target == null)
-		return  createErrorDocReply(document, "There was no target in the request");
+		    return  createErrorDocReply(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						"There was no target in the request");
 	    
 	    RA  ra  = target.getRA();	    
 	    Dec dec = target.getDec();
 		
 	    if (ra == null || dec == null)
-		return  createErrorDocReply(document, "Missing ra/dec for target");
+		return  createErrorDocReply(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+					    "Missing ra/dec for target");
 	    
 	    // Convert to rads and compute elevation.
 	    double rad_ra = Math.toRadians(ra.toArcSeconds()/3600.0);
@@ -397,21 +410,22 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 	    if (tran < domeLimit) {	
 		// Never rises at site.
 		System.err.println("CONN:INFO:Target NEVER RISES");
-		return createErrorDocReply(document, 
+		return createErrorDocReply(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
 					   "Target transit height: "+Position.toDegrees(tran,3)+
 					   " is below dome limit: "+Position.toDegrees(domeLimit,3)+
 					   " so will never be visible at this site");
 	    } else if (elev < Math.toRadians(20.0) ) {
 		// Currently too low to see.
 		System.err.println("CONN:INFO:Target LOW");
-		return createErrorDocReply(document, 
+		return createErrorDocReply(document, RTMLHistoryEntry.REJECTION_REASON_OTHER,
 					   "Target currently at elevation: "+Position.toDegrees(elev, 3)+
 					   " is not visible at this time");			
 	    } else {	
 		// Valid so score.
 		System.err.println("CONN:INFO:Target OK Score = "+(elev/tran));
-		document.setScore(elev/tran);	
-		return createDocReply(document, type);
+		document.setScore(elev/tran);
+		document.setScoreReply();
+		return createDocReply(document);
 	    }		    
 	    
 	}
@@ -459,7 +473,7 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		
 	    } catch (IOException iox) {
 		
-		sendError(document, "Failed to connect to PCR: "+iox);
+		sendError(document,RTMLHistoryEntry.REJECTION_REASON_NOT_AVAILABLE,"Failed to connect to PCR: "+iox);
 		return;
 
 	    }
@@ -506,7 +520,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		     expu.equals("mins"))
 		    expt = 60.0*expt;
 		else {
-		    sendError(document, "Did not understand time units: "+expu);
+		    sendError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+			      "Did not understand time units: "+expu);
 		    return;
 		}
 		
@@ -542,7 +557,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		waitOnLock();
 		
 		if (isError()) {		
-		    sendError(document, "Internal DN error during SLEW: "+getErrorMessage());
+		    sendError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+			      "Internal DN error during SLEW: "+getErrorMessage());
 		    return;
 		}
 
@@ -561,7 +577,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		    waitOnLock();
 		    
 		    if (isError()) {		
-			sendError(document, "Internal DN error during EXPOSE/RED: "+getErrorMessage());
+			sendError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+				  "Internal DN error during EXPOSE/RED: "+getErrorMessage());
 			return;
 		    }	
 
@@ -579,7 +596,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		    waitOnLock();
 		    
 		    if (isError()) {		
-			sendError(document, "Internal DN error during EXPOSE/GREEN: "+getErrorMessage());
+			sendError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+				  "Internal DN error during EXPOSE/GREEN: "+getErrorMessage());
 			return;
 		    }	
 		    
@@ -597,7 +615,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		    waitOnLock();
 		    
 		    if (isError()) {		
-			sendError(document, "Internal DN error during EXPOSE/BLUE: "+getErrorMessage());
+			sendError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+				  "Internal DN error during EXPOSE/BLUE: "+getErrorMessage());
 			return;
 		    }	
 
@@ -619,7 +638,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		    waitOnLock();
 		    
 		    if (isError()) {		
-			sendError(document, "Internal DN error during EXPOSE: "+getErrorMessage());
+			sendError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+				  "Internal DN error during EXPOSE: "+getErrorMessage());
 			return;
 		    }	
 
@@ -644,7 +664,8 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		waitOnLock();
 
 		if (isError()) {		
-		    sendError(document, "Internal DN error during PROCESS: "+getErrorMessage());
+		    sendError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+			      "Internal DN error during PROCESS: "+getErrorMessage());
 		    return;
 		}
 
@@ -652,10 +673,10 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 		String imageFileName = cmdReturnValue;
 
 		obs.setImageDataURL(imageWebUrl+"/"+imageFileName);
-		
-		sendDoc(document, "update");
-
-		sendDoc(document, "observation");
+		document.setUpdate();
+		sendDoc(document);
+		document.setComplete();
+		sendDoc(document);
 
 	    } catch (Exception ex) {
 
@@ -694,17 +715,21 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 	/** Returns the current error message or null. */
 	private String getErrorMessage() { return errorMessage; }
 
-	/** Send an Error reply.*/
-	private void sendError(RTMLDocument document, String errorMessage) {
+	/**
+	 * Send an Error reply.
+    * @param rejectionReason The reason the abort request was rejected. Must be a standard string from 
+     *       RTMLHistoryEntry.
+     * @see org.estar.rtml.RTMLHistoryEntry
+	 */
+	private void sendError(RTMLDocument document, String rejectionReason,String errorMessage) {
 	    RTMLIntelligentAgent agent = document.getIntelligentAgent();
 	    
-	    String agid = agent.getId();
 	    String host = agent.getHostname();
 	    int    port = agent.getPort();
 	    
 	    GlobusIOHandle handle = io.clientOpen(host, port);
 	    
-	    String reply = createErrorDocReply(document, errorMessage);
+	    String reply = createErrorDocReply(document, rejectionReason,errorMessage);
 	    
 	    io.messageWrite(handle, reply);	
 	    
@@ -715,21 +740,19 @@ public class DNServerTest implements eSTARIOConnectionListener, Logging {
 	}
 
 	/** Send a reply.*/
-	private void sendDoc(RTMLDocument document, String type) {
+	private void sendDoc(RTMLDocument document) {
 	    
 	    RTMLIntelligentAgent agent = document.getIntelligentAgent();
 	    
-	    String agid = agent.getId();
 	    String host = agent.getHostname();
 	    int    port = agent.getPort();
 	    
 	    GlobusIOHandle handle = io.clientOpen(host, port);
 	    
-	    String reply = createDocReply(document, type);
+	    String reply = createDocReply(document);
 	    
 	    io.messageWrite(handle, reply);	
-	    
-	    System.err.println("REQH:Sent doc type: "+type);
+	    System.err.println("REQH:Sent doc.");
 	    
 	    io.clientClose(handle);
 	    
