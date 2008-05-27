@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.14 2008-03-31 14:18:34 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.15 2008-05-27 13:57:41 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.14 $
+ * @version $Revision: 1.15 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.14 2008-03-31 14:18:34 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.15 2008-05-27 13:57:41 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -286,7 +286,10 @@ public class TOCSessionManager implements Runnable, Logging
 			logger.dumpStack(1,e);
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						 ":scoreDocument:Failed to set Tag/User/Proposal from document:"+e);
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Failed to set Tag/User/Proposal from document:"+e);
 			}
@@ -304,7 +307,11 @@ public class TOCSessionManager implements Runnable, Logging
 				   tupi.getUniqueId()+" does not equal "+tagUserProposalInfo.getUniqueId()+".");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+						      this.getClass().getName()+
+				  ":scoreDocument:Document seems to have been sent to wrong session manager: "+
+				  tupi.getUniqueId()+" does not equal "+tagUserProposalInfo.getUniqueId()+".");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Document seems to have been sent to wrong session manager: "+
 					 tupi.getUniqueId()+" does not equal "+tagUserProposalInfo.getUniqueId()+".");
@@ -323,7 +330,11 @@ public class TOCSessionManager implements Runnable, Logging
 					 d.getObservationListCount()+".");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						      ":scoreDocument:Document has wrong number of observations: "+
+						      d.getObservationListCount()+".");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Document has wrong number of observations: "+
 					 d.getObservationListCount()+".");
@@ -343,7 +354,9 @@ public class TOCSessionManager implements Runnable, Logging
 				   "TOCSessionManager::scoreDocument:Schedule was null.");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+":scoreDocument:Schedule was null.");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Schedule was null.");
 			}
@@ -359,7 +372,10 @@ public class TOCSessionManager implements Runnable, Logging
 				   "TOCSessionManager::scoreDocument:TOOP Schedule has a SeriesConstraint.");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						      ":scoreDocument:TOOP Schedule has a SeriesConstraint.");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:TOOP Schedule has a SeriesConstraint.");
 			}
@@ -375,7 +391,10 @@ public class TOCSessionManager implements Runnable, Logging
 				   "TOCSessionManager::scoreDocument:TOOP Schedule has a SeeingConstraint.");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						      ":scoreDocument:TOOP Schedule has a SeeingConstraint.");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:TOOP Schedule has a SeeingConstraint.");
 			}
@@ -394,7 +413,10 @@ public class TOCSessionManager implements Runnable, Logging
 				   "TOCSessionManager::scoreDocument:Target was null.");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						      ":scoreDocument:Target was null.");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Target was null.");
 			}
@@ -418,7 +440,9 @@ public class TOCSessionManager implements Runnable, Logging
 			logger.dumpStack(1,e);
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+						      this.getClass().getName()+":scoreDocument:TOCS failure:"+e);
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:TOCS failure:"+e);
 			}
@@ -436,7 +460,11 @@ public class TOCSessionManager implements Runnable, Logging
 					 " cannot take control for "+seconds+" seconds.");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+						      this.getClass().getName()+
+						      ":scoreDocument:Service "+sessionData.getServiceId()+
+						      " cannot take control for "+seconds+" seconds.");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Service "+sessionData.getServiceId()+
 					 " cannot take control for "+seconds+" seconds.");
@@ -455,7 +483,11 @@ public class TOCSessionManager implements Runnable, Logging
 					 " Dec "+target.getDec()+" is SET.");
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+						      this.getClass().getName()+
+						      ":scoreDocument:Target RA "+target.getRA()+
+						      " Dec "+target.getDec()+" is SET.");
 				d.setErrorString(this.getClass().getName()+
 					 ":scoreDocument:Target RA "+target.getRA()+
 					 " Dec "+target.getDec()+" is SET.");
@@ -469,6 +501,8 @@ public class TOCSessionManager implements Runnable, Logging
 		// We are going to do this now - set to 1
 		d.setScore(1.0);
 		d.setCompletionTime(new Date());
+		d.setScoreReply();
+		d.addHistoryEntry("TEA:"+tea.getId(),null,"TOCSessionManager:Score returned 1.0.");
 		logger.log(INFO, 1, CLASS,
 			   "TOCSessionManager::scoreDocument: Finished scoreDocument.");
 		return d;
@@ -500,7 +534,10 @@ public class TOCSessionManager implements Runnable, Logging
 			logger.dumpStack(1,e);
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						      ":addDocument:Failed to set Tag/User/Proposal from document:"+e);
 				d.setErrorString(this.getClass().getName()+
 					 ":addDocument:Failed to set Tag/User/Proposal from document:"+e);
 			}
@@ -517,7 +554,11 @@ public class TOCSessionManager implements Runnable, Logging
 		{
 			try
 			{
-				d.setType("reject");
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+					 ":addDocument:Document seems to have been sent to wrong session manager: "+
+					 tupi.getUniqueId()+" does not equal "+tagUserProposalInfo.getUniqueId()+".");
 				d.setErrorString(this.getClass().getName()+
 					 ":addDocument:Document seems to have been sent to wrong session manager: "+
 					 tupi.getUniqueId()+" does not equal "+tagUserProposalInfo.getUniqueId()+".");
@@ -539,7 +580,8 @@ public class TOCSessionManager implements Runnable, Logging
 			logger.log(INFO, 1, CLASS,"TOCSessionManager::addDocument: notifyed all.");
 		}
 		// set type confirmation
-		d.setType("confirmation");
+		d.setRequestReply();
+		d.addHistoryEntry("TEA:"+tea.getId(),null,"TOCSessionManager::addDocument:Document added.");
 		logger.log(INFO, 1, CLASS,"TOCSessionManager::addDocument: Finished.");
 		return d;
 	}
@@ -655,7 +697,10 @@ public class TOCSessionManager implements Runnable, Logging
 					// also send error document?
 					try
 					{
-						document.setType("fail");
+						document.setFail();
+						document.addHistoryError("TEA:"+tea.getId(),null,
+									 ":run:An error occured:"+e,
+									 "Processing document failed.");
 						document.setErrorString(this.getClass().getName()+
 								 ":run:An error occured:"+e);
 						// send document back to IA
@@ -1307,7 +1352,10 @@ public class TOCSessionManager implements Runnable, Logging
 				{
 					try
 					{
-						document.setType("fail");
+						document.setFail();
+						document.addHistoryError("TEA:"+tea.getId(),null,
+									 ":run:An error occured:"+e,
+									 "Processing document failed.");
 						document.setErrorString(this.getClass().getName()+
 								 ":run:An error occured:"+e);
 						logger.log(INFO, 1, CLASS,this.getClass().getName()+
@@ -1340,7 +1388,10 @@ public class TOCSessionManager implements Runnable, Logging
 			{
 				try
 				{
-					document.setType("fail");
+					document.setFail();
+					document.addHistoryError("TEA:"+tea.getId(),null,this.getClass().getName()+
+								 ":run:An error occured:"+e,
+								 "PostProcessThread:run:failed");
 					document.setErrorString(this.getClass().getName()+
 								":run:An error occured:"+e);
 					// send document back to IA
@@ -1455,7 +1506,7 @@ public class TOCSessionManager implements Runnable, Logging
 			observation.clearImageDataList();
 			observation.addImageData(imageData);
 			// it's an update document
-			updateDocument.setType("update");
+			updateDocument.setUpdate();
 			// send update document to IA.
 			tea.sendDocumentToIA(updateDocument);
 		}
@@ -1468,8 +1519,8 @@ public class TOCSessionManager implements Runnable, Logging
 		 */
 		public void sendObservationDocument(RTMLDocument document) throws Exception
 		{
-			// it's an update document
-			document.setType("observation");
+			// it's an observation/complete document
+			document.setComplete();
 			// send observation document to IA.
 			tea.sendDocumentToIA(document);
 		}
@@ -1477,6 +1528,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.14  2008/03/31 14:18:34  cjm
+** Pipeline Plugin's are now organised by name/Id rather than type of instrument.
+**
 ** Revision 1.13  2008/03/28 17:14:25  cjm
 ** Now handles acquisition for spectrographs.
 ** Added acquireNeeded and acquire methods.
