@@ -99,6 +99,7 @@ public class ConnectionHandler implements Logging {
     	    // Extract document and determine type.
     	    
     	    parser   = new RTMLParser();
+	    parser.init(true);
     	    document = parser.parse(message);
 
 	    //DocChecker checker = new DocChecker();
@@ -109,14 +110,14 @@ public class ConnectionHandler implements Logging {
     	    
     	    System.err.println("CH::The doc appears to be a: "+type);    	    
     	    
-    	    if (type.equals("score")) {
+    	    if (document.isScoreRequest()) {
     		
     		// Do score and return doc.
     			
 		ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea);
 		//, io, handle);
 		replyDocument = sdh.handleScore(document);
-		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+		reply = tea.createReply(replyDocument);
 
 		traceLog.log(INFO, 1, CLASS, "CH", "exec",
 		     "About to send score response...\n"+reply);
@@ -126,15 +127,16 @@ public class ConnectionHandler implements Logging {
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
 			     (replyDocument != null ? replyDocument.getType() : "NULL"));
 
-    	    } else if
-    		(type.equals("request")) {
+    	    }
+	    else if(document.isRequest())
+	    {
     		
     		// Confirm request is scorable.
     
 		RequestDocumentHandler rdh = new RequestDocumentHandler(tea);
 		//, io, handle);
 		replyDocument = rdh.handleRequest(document);
-		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+		reply = tea.createReply(replyDocument);
 
 		traceLog.log(INFO, 1, CLASS, "CH", "exec",
 			     "About to send request response...\n"+reply);
@@ -145,13 +147,14 @@ public class ConnectionHandler implements Logging {
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
 			     (replyDocument != null ? replyDocument.getType() : "NULL"));
 		
-	    } else if
-		(type.equals("abort")) {
+	    }
+	    else if(document.isAbort())
+	    {
 
 		AbortDocumentHandler adh = new AbortDocumentHandler(tea);
 		//, io, handle);
 		replyDocument = adh.handleAbort(document);
-		reply = TelescopeEmbeddedAgent.createReply(replyDocument);
+		reply = tea.createReply(replyDocument);
 
 		traceLog.log(INFO, 1, CLASS, "CH", "exec",
 		     "About to send abort response...\n"+reply);
@@ -160,26 +163,25 @@ public class ConnectionHandler implements Logging {
 		
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
 			     (replyDocument != null ? replyDocument.getType() : "NULL"));
-
-    	    } else {
-    		
+    	    } 
+	    else
+	    {
     		// General Error - reject.
-		
-    		reply = tea.createErrorDocReply(document, "Unknown document type: '"+type+"'");
-		
+    		reply = tea.createErrorDocReply(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						"Unknown document type: '"+type+"'");
     		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sending reply RTML message: "+reply);
-		
     		io.messageWrite(handle, reply);
-
 		traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sent reply class: "+
 			     (replyDocument != null ? replyDocument.getType() : "NULL"));
-
     	    }
 	    
-    	} catch (Exception ex) {
+    	} 
+	catch (Exception ex)
+	{
 	    traceLog.dumpStack(1, ex);
     	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Error while processing doc: "+ex);
-	    reply = TelescopeEmbeddedAgent.createErrorDocReply("Exception during parsing: "+ex);
+	    reply = tea.createErrorDocReply(RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+							       "Exception during parsing: "+ex);
 	    traceLog.log(INFO, 1, CLASS, "CH", "exec", "CH::Sending reply RTML message: "+reply);
 	    try {
 		io.messageWrite(handle, reply);
