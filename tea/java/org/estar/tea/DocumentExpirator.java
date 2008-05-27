@@ -130,13 +130,17 @@ public class DocumentExpirator extends ControlThread implements Logging {
 					    
 					    if(obs.getImageDataCount() > 0)
 					    {
-						    doc.setType("incomplete");
+						    doc.setIncomplete();
+						    doc.addHistoryEntry("TEA:"+tea.getId(),null,
+								       "Setting document incomplete.");
 						    tea.sendDocumentToIA(doc);
 					    }
 					    else
 					    {
-						doc.setType("failed");
-						tea.sendDocumentToIA(doc);
+						    doc.setFail();
+						    doc.addHistoryEntry("TEA:"+tea.getId(),null,
+								       "Setting document fail.");
+						    tea.sendDocumentToIA(doc);
 					    }
 					    arq.expireDocument();
 

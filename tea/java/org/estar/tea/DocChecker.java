@@ -40,9 +40,9 @@ public class DocChecker {
 	RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
 	if (userAgent == null)
 	    throw new RTMLException("No user agent details");
-	String requestId = userAgent.getId();
+	String requestId = document.getUId();
 	if (requestId == null)
-	    throw new RTMLException("No request ID");
+	    throw new RTMLException("No document Unique ID");
 	
 	// Extract the Observation request.
 	
