@@ -49,6 +49,7 @@ public class RequestParser {
      */
     public void run() throws Exception {
 	parser = new RTMLParser();
+	parser.init(true);
 	document = parser.parse(new File(filename));
 	//System.out.println(document);
 
