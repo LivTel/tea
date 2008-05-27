@@ -73,7 +73,7 @@ public class AbortDocumentHandler implements Logging {
 	if (contact == null) {
 	    logger.log(INFO, 1, CLASS, "AH","handleAbort",
 		       "RTML Contact was not specified, failing request.");
-	    return setError( document,"No contact was supplied");
+	    return setError( document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"No contact was supplied");
 	}
 	 
 	String userId = contact.getUser();
@@ -81,7 +81,7 @@ public class AbortDocumentHandler implements Logging {
 	if (userId == null) {
 	    logger.log(INFO,1,CLASS,"AH","handleAbort",
 		       "RTML Contact User was not specified, failing request.");
-	    return setError( document, "Your User ID was null");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Your User ID was null");
 	}
 	 
 	// The Proposal ID.
@@ -91,20 +91,19 @@ public class AbortDocumentHandler implements Logging {
 	if (proposalId == null) {
 	    logger.log(INFO,1,CLASS,"AH","handleAbort",
 		       "RTML Project was not specified, failing request.");
-	    return setError( document, "Your Project ID was null");
+	    return setError( document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Your Project ID was null");
 	}
 	
 	// We will use this as the Group ID otherwise use 'default agent'.
-	RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
 	
-	if (userAgent == null) {
+	String requestId = document.getUId();
+	if(requestId == null)
+	{
 	    logger.log(INFO,1,CLASS,"AH","handleAbort",
-		       "RTML Intelligent Agent was not specified, failing request.");
-	    return setError(document, "No user agent: ###TBD Default UA");
-	}
-	
-	String requestId = userAgent.getId();
+		       "RTML UID was not specified, failing request.");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"No UID specified");
 
+	}
 	// First call back the proposal so we can extract the offending group..
 
 	String proposalPathName = tea.getDBRootName()+"/"+userId+"/"+proposalId;
@@ -132,7 +131,7 @@ public class AbortDocumentHandler implements Logging {
 	if (client.isError()) {
 	    logger.log(INFO,1,CLASS,"AH","handleAbort","Internal error during GET_PROPOSAL: "+
 		       client.getErrorMessage());
-	    return setError(document, "Internal error during GET_PROPOSAL: "+
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,"Internal error during GET_PROPOSAL: "+
 			    client.getErrorMessage());
 	} 
 
@@ -142,7 +141,8 @@ public class AbortDocumentHandler implements Logging {
 	
        if (proposal == null) {
 	   logger.log(INFO,1,CLASS,"AH","handleAbort","Internal error during GET_PROPOSAL: No proposal returned");
-	   return setError(document, "Internal error during GET_PROPOSAL: No proposal returned");
+	   return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+			   "Internal error during GET_PROPOSAL: No proposal returned");
        }
 
        Group group = proposal.findGroup(requestId);
@@ -150,7 +150,8 @@ public class AbortDocumentHandler implements Logging {
        if (group == null) {
 	   logger.log(INFO,1,CLASS,"AH","handleAbort","Internal error during GET_PROPOSAL: Group "+requestId+
 		      " was not found in proposal");
-	   return setError(document, "Internal error during GET_PROPOSAL: Group "+requestId+" was not found in proposal");
+	   return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+			   "Internal error during GET_PROPOSAL: Group "+requestId+" was not found in proposal");
        }
 	
        // make it expire right now...
@@ -186,23 +187,33 @@ public class AbortDocumentHandler implements Logging {
        } catch (Exception e) {
 	   logger.log(INFO,1,CLASS,"AH","handleAbort",
 		      "Internal error while resetting ARQ expiry date: "+e);
-	   return setError(document, "Internal error while resetting ARQ expiry date");	  
+	   return setError(document, RTMLHistoryEntry.REJECTION_REASON_OTHER,
+			   "Internal error while resetting ARQ expiry date");	  
        }
 
-       document.setType("aborted");
+       // In RTML 2.2., "abort" reply should have type "abort".
+       // In RTML 3.1a, "abort" reply should have mode "confirm"! But this method sets mode to "abort".
+       // Should perhaps have an "setAbortReply" method.
+       document.setAbort();
+       document.addHistoryEntry("TEA:"+tea.getId(),null,"Aborted document.");
        return document;
 
     }
 
-    /** Set the error message in the supplied document.
+    /** 
+     * Set the error message in the supplied document.
      * @param document The document to modify.
+     * @param rejectionReason The reason the abort request was rejected. Must be a standard string from 
+     *       RTMLHistoryEntry.
      * @param errorMessage The error message.
      * @throws Exception if anything goes wrong.
      * @return The modified <i>reject</i> document.
+     * @see org.estar.rtml.RTMLHistoryEntry
      */
-    private RTMLDocument setError(RTMLDocument document, String errorMessage) throws Exception
+    private RTMLDocument setError(RTMLDocument document,String rejectionReason,String errorMessage) throws Exception
     {
-	document.setType("reject");
+	document.setReject();
+	document.addHistoryRejection("TEA:"+tea.getId(),null,rejectionReason,errorMessage);
 	document.setErrorString(errorMessage); 
 	return document;
     }
