@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.18 2008-04-17 11:05:09 snf Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.19 2008-05-27 13:41:09 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -97,7 +97,7 @@ public class RequestDocumentHandler implements Logging {
 	if (contact == null) {
 	    logger.log(INFO, 1, CLASS, cid,"handleRequest",
 		       "RTML Contact was not specified, failing request.");
-	    return setError( document,"No contact was supplied");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"No contact was supplied");
 	}
 	 
 	String userId = contact.getUser();
@@ -105,7 +105,7 @@ public class RequestDocumentHandler implements Logging {
 	if (userId == null) {
 	    logger.log(INFO,1,CLASS,cid,"handleRequest",
 		       "RTML Contact User was not specified, failing request.");
-	    return setError( document, "Your User ID was null");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Your User ID was null");
 	}
 	
 	// The Proposal ID.
@@ -115,20 +115,18 @@ public class RequestDocumentHandler implements Logging {
 	if (proposalId == null) {
 	    logger.log(INFO,1,CLASS,cid,"handleRequest",
 		       "RTML Project was not specified, failing request.");
-	    return setError( document, "Your Project ID was null");
+	    return setError( document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Your Project ID was null");
 	}
 	 
 	// We will use this as the Group ID otherwise use 'default agent'.
-	RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
-	
-	if (userAgent == null) {
+	String requestId = document.getUId();
+	if(requestId == null)
+	{
 	    logger.log(INFO,1,CLASS,cid,"handleRequest",
-		       "RTML Intelligent Agent was not specified, failing request.");
-	    return setError(document, "No user agent: ###TBD Default UA");
+		       "RTML unique ID was not specified, failing request.");
+	    return setError( document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Unique ID was null.");
+		
 	}
-	
-	String requestId = userAgent.getId();
-	
 	cid = requestId+"/"+cc;
 	
 	// Extract the Observation request(s) - handle multiple obs per doc.
@@ -144,9 +142,9 @@ public class RequestDocumentHandler implements Logging {
 	RTMLTarget target = obs.getTarget();
 	
 	RA  ra  = target.getRA();		    
-	Dec dec = target.getDec();      
-	
-	boolean toop = target.isTypeTOOP();
+	Dec dec = target.getDec();
+
+	boolean toop = document.isTOOP();
 	
 	targetId = target.getName();
 	// Bizarre element.
@@ -162,7 +160,7 @@ public class RequestDocumentHandler implements Logging {
 	    expt = sched.getExposureLengthMilliseconds();
 	} catch (IllegalArgumentException iax){
 	    logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract exposure time:"+iax);
-	    return setError(document, "Unable to extract exposure time: "+iax);
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,"Unable to extract exposure time: "+iax);
 	}
 	 
 	int expCount = sched.getExposureCount();
@@ -192,7 +190,8 @@ public class RequestDocumentHandler implements Logging {
 		lunar = Group.DARK;
 	    else {	
 		logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract sky constraint info");
-		return setError(document, "Unable to extract sky brightness constraint");
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+				"Unable to extract sky brightness constraint");
 	    }
 	}
 
@@ -213,14 +212,14 @@ public class RequestDocumentHandler implements Logging {
 	    } catch (Exception e) {
 		logger.log(INFO,1,CLASS,cid,"handleRequest",
 			   "Device configuration error: "+e);
-		return setError(document, "Device configuration error: "+e);
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Device configuration error: "+e);
 	    }
 	    // END New DEVINST stuff
 
 
 	} else {
 	    logger.log(INFO,1,CLASS,cid,"handleRequest","RTML Device not present, failing request.");
-	    return setError(document, "Device not set");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Device not set");
 	}
 	
 	// Extract MG params - many of these can be null !	
@@ -247,7 +246,7 @@ public class RequestDocumentHandler implements Logging {
 	    if (pf == null) { 
 		logger.log(INFO,1,CLASS,cid,"handleRequest",
 			   "RTML SeriesConstraint Interval not present, failing request.");
-		return setError(document, "No Interval was supplied");
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"No Interval was supplied");
 	    } else {
 		period = pf.getMilliseconds();
 		
@@ -265,19 +264,22 @@ public class RequestDocumentHandler implements Logging {
 	    if (count < 1) {
 		logger.log(INFO,1,CLASS,cid,"handleRequest",
 			   "RTML SeriesConstraint Count was negative or zero, failing request.");
-		return setError(document, "You have supplied a negative or zero repeat Count.");
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+				"You have supplied a negative or zero repeat Count.");
 	    }
 	    
 	    if (period < 60000L) {
 		logger.log(INFO,1,CLASS,cid,"handleRequest",
 			   "RTML SeriesConstraint Interval is too short, failing request.");
-		return setError(document, "You have supplied a ludicrously short monitoring Interval.");
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+				"You have supplied a ludicrously short monitoring Interval.");
 	    }
 	    
 	    if ((window/period < 0.0) || (window/period > 1.0)) {
 		logger.log(INFO,1,CLASS,cid,"handleRequest",
 			   "RTML SeriesConstraint has an odd Window or Period.");
-		return setError(document, "Your window or Tolerance looks dubious.");
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+				"Your window or Tolerance looks dubious.");
 	    }
 	    
 	}
@@ -302,18 +304,19 @@ public class RequestDocumentHandler implements Logging {
 	// Basic and incomplete sanity checks.
 	if (startDate.after(endDate)) {
 	    logger.log(INFO,1,CLASS,cid,"handleRequest","RTML StartDate after EndDate, failing request.");
-	    return setError(document, "Your StartDate and EndDate do not make sense."); 
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+			    "Your StartDate and EndDate do not make sense."); 
 	}
 	
 	if (expt < 1000.0) {
 	    logger.log(INFO,1,CLASS,cid,"handleRequest","Exposure time is too short, failing request.");
-	    return setError(document, "Your Exposure time is too short.");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Your Exposure time is too short.");
 	}
 	
 	if (expCount < 1) {
 	    logger.log(INFO,1,CLASS,cid,"handleRequest",
 		       "Exposure Count is less than 1, failing request.");
-	    return setError(document, "Your Exposure Count is less than 1.");
+	    return setError(document,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,"Your Exposure Count is less than 1.");
 	}
 	
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
@@ -377,8 +380,8 @@ public class RequestDocumentHandler implements Logging {
 		} else {
 		    logger.log(INFO,1,CLASS,cid,"handleRequest",
 			       "Internal error during ADD_SOURCE: "+client.getErrorMessage());
-		    return setError(document, "Internal error during ADD_SOURCE: "+
-				    client.getErrorMessage());
+		    return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+				    "Internal error during ADD_SOURCE: "+client.getErrorMessage());
 		}
 	    }
 	     
@@ -417,8 +420,8 @@ public class RequestDocumentHandler implements Logging {
 		} else {
 		    logger.log(INFO,1,CLASS,cid,"handleRequest",
 			       "Internal error during ADD_CONFIG: "+client2.getErrorMessage());
-		    return setError(document, "Internal error during ADD_CONFIG: "+
-				    client2.getErrorMessage());
+		    return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,
+				    "Internal error during ADD_CONFIG: "+client2.getErrorMessage());
 		}
 	    }
 	    
@@ -609,7 +612,7 @@ public class RequestDocumentHandler implements Logging {
 	    if (client.isError()) {
 		logger.log(INFO,1,CLASS,cid,"handleRequest","Internal error during ADD_GROUP: "+
 			   client.getErrorMessage());
-		return setError(document, "Internal error during ADD_GROUP: "+
+		return setError(document,RTMLHistoryEntry.REJECTION_REASON_OTHER,"Internal error during ADD_GROUP: "+
 				client.getErrorMessage());
 	    }
 	    
@@ -656,20 +659,26 @@ public class RequestDocumentHandler implements Logging {
 	}
 	
 	// We still send a confirm, even if we cant start the ARQ correctly as the obs is in the DB.
-	document.setType("confirmation");
-	
+	document.setRequestReply();
+	document.addHistoryEntry("TEA:"+tea.getId(),null,"Request confirmed.");
 	return document;
 	
     }
     
-    /** Set the error message in the supplied document.
+    /** 
+     * Set the error message in the supplied document.
      * @param document The document to modify.
+     * @param rejectionReason The reason the abort request was rejected. Must be a standard string from 
+     *       RTMLHistoryEntry.
      * @param errorMessage The error message.
      * @throws Exception if anything goes wrong.
      * @return The modified <i>reject</i> document.
+     * @see org.estar.rtml.RTMLHistoryEntry
      */
-    private RTMLDocument setError(RTMLDocument document, String errorMessage) throws Exception {
-	document.setType("reject");
+    private RTMLDocument setError(RTMLDocument document,String rejectionReason,String errorMessage) throws Exception
+    {
+	document.setReject();
+	document.addHistoryRejection("TEA:"+tea.getId(),null,rejectionReason,errorMessage);
 	document.setErrorString(errorMessage); 
 	return document;
     }
@@ -679,6 +688,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.18  2008/04/17 11:05:09  snf
+// typo
+//
 // Revision 1.17  2008/04/17 11:04:06  snf
 // added handling of autoguider based on length of exposure
 //
