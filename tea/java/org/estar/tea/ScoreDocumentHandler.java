@@ -418,6 +418,7 @@ public class ScoreDocumentHandler implements Logging {
 	double diff[];
 	double cum[];
 	double visibility = 0.0;
+	String failureReasons = null;
 	
 	SCHEDULABILITY tsched = new SCHEDULABILITY(tea.getId()+":"+requestId);
 	tsched.setClientDescriptor(new ClientDescriptor("EmbeddedAgent",
@@ -556,12 +557,19 @@ public class ScoreDocumentHandler implements Logging {
 	    rankScore = sched_done.getSchedulability();
 	    diff = sched_done.getDifferentialFunction();
 	    cum  = sched_done.getCumulativeFunction();
+	    // TODO snf on 3-jun-08 with OSS upgrade
+	    //failureReasons = sched_done.getFailureReasons();
 	}
 	
 	// this will return the average score for the group in the specified interval...
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
 		   "Target achieved rank score "+rankScore+" for specified period after "+((t2-t1)/1000)+"S");
 	
+	if (failureReasons != null) {
+	    logger.log(INFO, 1, CLASS, cid,"executeScore",
+		       "Scoring calculator  returned the following rather badly formatted list of reasons for lack of scoring: "+failureReasons );
+	}
+
 	for (int in = 0; in < diff.length; in++) {
 	    System.err.println("Differential["+in+"] = "+(diff != null ? ""+diff[in] : "null")+
 			       " Cumulative["+in+"] = "+(cum != null ? ""+cum[in] : "null"));
