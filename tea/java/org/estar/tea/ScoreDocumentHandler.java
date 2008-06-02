@@ -558,7 +558,7 @@ public class ScoreDocumentHandler implements Logging {
 	    diff = sched_done.getDifferentialFunction();
 	    cum  = sched_done.getCumulativeFunction();
 	    // TODO snf on 3-jun-08 with OSS upgrade
-	    //failureReasons = sched_done.getFailureReasons();
+	    failureReasons = sched_done.getFailureReasons();
 	}
 	
 	// this will return the average score for the group in the specified interval...
@@ -615,7 +615,12 @@ public class ScoreDocumentHandler implements Logging {
 	}
 	document.setScore(rankScore);
 	document.setScoreReply();
-	document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned "+rankScore+".");
+
+	if (failureReasons == null) { 
+	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned failure: "+rankScore+".");
+	} else {
+	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned score: "+failureReasons);
+	}	
 	return document;
 	
     }
