@@ -558,17 +558,17 @@ public class ScoreDocumentHandler implements Logging {
 	    diff = sched_done.getDifferentialFunction();
 	    cum  = sched_done.getCumulativeFunction();
 	    // TODO snf on 3-jun-08 with OSS upgrade
-	    failureReasons = sched_done.getFailureReasons();
+	    //failureReasons = sched_done.getFailureReasons();
 	}
 	
 	// this will return the average score for the group in the specified interval...
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
 		   "Target achieved rank score "+rankScore+" for specified period after "+((t2-t1)/1000)+"S");
 	
-	if (failureReasons != null) {
-	    logger.log(INFO, 1, CLASS, cid,"executeScore",
-		       "Scoring calculator  returned the following rather badly formatted list of reasons for lack of scoring: "+failureReasons );
-	}
+// 	if (failureReasons != null) {
+// 	    logger.log(INFO, 1, CLASS, cid,"executeScore",
+// 		       "Scoring calculator  returned the following rather badly formatted list of reasons for lack of scoring: "+failureReasons );
+// 	}
 
 	for (int in = 0; in < diff.length; in++) {
 	    System.err.println("Differential["+in+"] = "+(diff != null ? ""+diff[in] : "null")+
@@ -616,11 +616,14 @@ public class ScoreDocumentHandler implements Logging {
 	document.setScore(rankScore);
 	document.setScoreReply();
 
-	if (failureReasons == null) { 
-	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned failure: "+rankScore+".");
-	} else {
-	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned score: "+failureReasons);
-	}	
+ 	//if (failureReasons == null) { 
+
+	// No failure reasons for now....
+ 	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned score: "+rankScore+".");
+ // 	} else {
+
+// 	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned failure: "+failureReasons);
+// 	    }	
 	return document;
 	
     }
