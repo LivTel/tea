@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.36 2008-05-27 13:30:22 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.37 2008-06-09 14:30:05 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -1035,7 +1035,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		RTMLDocument doc = null;
 
 		parser.init(true);
-		parser.parse(file);
+		doc = parser.parse(file);
 		return doc;
 	
 	}
@@ -1594,6 +1594,12 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.36  2008/05/27 13:30:22  cjm
+** Changes relating to RTML parser upgrade.
+** Parser init method.
+** getUId used for unique Id retrieval.
+** RTML document history.
+**
 ** Revision 1.35  2008/04/17 11:06:08  snf
 ** typo
 **
