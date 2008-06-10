@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.37 2008-06-09 14:30:05 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.38 2008-06-10 09:50:42 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -1236,68 +1236,81 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @param type     A string denoting the type of document to send.
 	 * @see #createReply
 	 */
-	public void sendDocumentToIA(RTMLDocument document) throws Exception {
-		
-	    traceLog.log(INFO, 1,CLASS, "sendDocumentToIA Started.");
+	public void sendDocumentToIA(RTMLDocument document) throws Exception
+	{
+		String documentUId = null;
 
-	    switch (asyncResponseMode) {
-	    case ASYNC_MODE_SOCKET:
-		
-		RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
-		if(userAgent == null) {
-		    traceLog.log(INFO, 1, CLASS, "sendDocumentToIA: User agent was null.");
-		    throw new Exception(this.getClass().getName()+":sendDocumentToIA:user agent was null");
-		}
-		String agid = userAgent.getId();
-		String host = userAgent.getHostname();
-		int    port = userAgent.getPort();
-		if((host == null)||(port == 0))
+		if(document != null)
+			documentUId = document.getUId();
+		if(documentUId == null)
+			documentUId = new String("Unknown");
+		traceLog.log(INFO, 1,CLASS, "sendDocumentToIA("+documentUId+") Started.");
+
+		switch (asyncResponseMode)
 		{
-			traceLog.log(INFO, 1, CLASS,
-				     "sendDocumentToIA: IA host was null/port was 0:not sending document "+agid+
-				     " back to IA.");
-			// don't throw an excetption, just return so TEA deletes ARQ.
-			// This assumes null host/0 port means no IA to send document back to.
-			return;
-		}
-		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA: Opening eSTAR IO client connection to ("+host+
-			     ","+port+").");
-		GlobusIOHandle handle = io.clientOpen(host, port);
-		if(handle == null) {
-		    traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Failed to open client connection to ("+host+
-				 ","+port+").");
-		    throw new Exception(this.getClass().getName()+":sendDocumentToIA:handle was null");
-		}
-		String reply = createReply(document);
+			case ASYNC_MODE_SOCKET:
 		
-		traceLog.log(INFO, 1, CLASS, "sendDocumentToIA:Writing:...\n"+reply+"\n ...to handle "+handle+".");
-		// how do we check this has failed?
-		io.messageWrite(handle, reply);
-		traceLog.log(INFO, 1, CLASS,"sendDocumentToIA:Sent document "+agid+".");
-		io.clientClose(handle);
-		
-		break;
-
-	    case ASYNC_MODE_RMI:
-
-		NodeAgentAsynchronousResponseHandler narh = (NodeAgentAsynchronousResponseHandler)Naming.
-		    lookup("rmi://"+narHost+"/NAAsyncResponseHandler");
+				RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
+				if(userAgent == null)
+				{
+					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+						     "): User agent was null.");
+					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
+							    documentUId+"):user agent was null");
+				}
+				String agid = userAgent.getId();
+				String host = userAgent.getHostname();
+				int    port = userAgent.getPort();
+				if((host == null)||(port == 0))
+				{
+					traceLog.log(INFO, 1, CLASS,
+						     "sendDocumentToIA("+documentUId+
+						     "): IA host was null/port was 0:not sending document "+agid+
+						     " back to IA.");
+					// don't throw an excetption, just return so TEA deletes ARQ.
+					// This assumes null host/0 port means no IA to send document back to.
+					return;
+				}
+				traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+					     "): Opening eSTAR IO client connection to ("+host+
+					     ","+port+").");
+				GlobusIOHandle handle = io.clientOpen(host, port);
+				if(handle == null) {
+					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+						     "):Failed to open client connection to ("+host+
+						     ","+port+").");
+					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
+							    documentUId+"):handle was null");
+				}
+				String reply = createReply(document);
+				
+				traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+					     "):Writing:...\n"+reply+"\n ...to handle "+handle+".");
+				// how do we check this has failed?
+				io.messageWrite(handle, reply);
+				traceLog.log(INFO, 1, CLASS,"sendDocumentToIA("+documentUId+"):Sent document "+
+					     agid+".");
+				io.clientClose(handle);
+				
+				break;
+			case ASYNC_MODE_RMI:
+				NodeAgentAsynchronousResponseHandler narh = (NodeAgentAsynchronousResponseHandler)
+					Naming.lookup("rmi://"+narHost+"/NAAsyncResponseHandler");
  
-		if (narh == null) {
-		    traceLog.log(INFO, 1, CLASS, "sendDocumentToIA: NA ResponseHandler was null.");
-		    throw new Exception(this.getClass().getName()+":sendDocumentToIA:Lookup [NAAsyncResponseHandler] was null.");
+				if (narh == null)
+				{
+					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+						     "): NA ResponseHandler was null.");
+					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
+							    documentUId+"):Lookup [NAAsyncResponseHandler] was null.");
+				}
+				narh.handleAsyncResponse(document);
+
+				traceLog.log(INFO, 1, CLASS,"sendDocumentToIA("+documentUId+
+					     "):Sent document successfully via NA ResponseHandler");
+				break;
+			default:
 		}
-
-		narh.handleAsyncResponse(document);
-
-		traceLog.log(INFO, 1, CLASS,"sendDocumentToIA:Sent document successfully via NA ResponseHandler");
-
-		break;
-
-	    default:
-
-	    }
-		
 	}
 	
 
@@ -1594,6 +1607,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.37  2008/06/09 14:30:05  cjm
+** Fixed readDocument so it actually returns a non-null parsed document.
+**
 ** Revision 1.36  2008/05/27 13:30:22  cjm
 ** Changes relating to RTML parser upgrade.
 ** Parser init method.
