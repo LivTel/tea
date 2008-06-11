@@ -20,7 +20,12 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	logger = LogManager.getLogger("TRACE");
     } 
 
-    /** Handle a scoring request.*/
+    /** 
+     * Handle a scoring request.
+     * @param doc The RTML document.
+     * @return The scored RTML document.
+     * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
+     */
     public RTMLDocument handleScore(RTMLDocument doc) throws RemoteException {
 	RTMLDocument reply = null;
 
@@ -40,8 +45,10 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	try {
 	    // remove line for generic
 	    ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea);	
+	    tea.logRTML(logger,1,"ScoreDocHandler scoring doc: ",doc);
 	    reply = sdh.handleScore(doc);
 	    logger.log(1, "ScoreDocHandler returned doc: "+reply);
+	    tea.logRTML(logger,1,"ScoreDocHandler returned doc: ",reply);
 	} catch (Exception e) { 	  
 	    throw new RemoteException("Exception while handling score: "+e);
 	}
@@ -49,7 +56,11 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 
     }
     
-    /** Handle a request request.*/
+    /** 
+     * Handle a request request.
+     * @param doc The RTML document.
+     * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
+     */
     public RTMLDocument handleRequest(RTMLDocument doc) throws RemoteException {
 	RTMLDocument reply = null;
 	
@@ -69,15 +80,21 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	try {
 	    // remove line for generic
 	    RequestDocumentHandler rdh = new RequestDocumentHandler(tea);
+	    tea.logRTML(logger,1,"RequestDocHandler handling request: ",doc);
 	    reply = rdh.handleRequest(doc);
 	    logger.log(1, "RequestDocHandler returned doc: "+reply);
+	    tea.logRTML(logger,1,"RequestDocHandler returned doc: ",reply);
 	} catch (Exception e) {
 	    throw new RemoteException("Exception while handling request: "+e);
 	}
 	return reply;
     }
 
-    /** handle an abort request.*/
+    /**
+     * Handle an abort request.
+     * @param doc The RTML document.
+     * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
+     */
     public RTMLDocument handleAbort(RTMLDocument doc) throws RemoteException {
 	RTMLDocument reply = null;
 	// add generics - how ?
@@ -85,13 +102,15 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	try {	
 	    AbortDocumentHandler adh = new AbortDocumentHandler(tea);
 	    reply = adh.handleAbort(doc);
+	    tea.logRTML(logger,1,"handleAbort returned doc: ",reply);
 	} catch (Exception e) {
 	    throw new RemoteException("Exception while handling abort: "+e);
 	}
 	return reply;
     }
 
-    /** Request to return an RTML <i>update</i> document via the normal 
+    /** 
+     * Request to return an RTML <i>update</i> document via the normal 
      * NodeAgentAsynchronousResponseHandler mechanism.
      * @param doc The source document.
      * @param howlong How long to wait before doing that which needs doing (ms).     
