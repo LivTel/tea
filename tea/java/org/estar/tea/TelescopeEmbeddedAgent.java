@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.38 2008-06-10 09:50:42 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.39 2008-06-11 13:28:51 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -1230,11 +1230,12 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/** 
 	 * Send a reply of specified type. This differs from sendDoc(doc,type) in that
 	 * an io client connection is made to the intelligent agent using the information in the
-	 * documents intelligen agent tag, rather than replying to an agent request.
+	 * documents intelligent agent tag, rather than replying to an agent request.
 	 * This method is used by the UpdateHandler to send update messages.
 	 * @param document The document to send.
 	 * @param type     A string denoting the type of document to send.
 	 * @see #createReply
+	 * @see #logRTML
 	 */
 	public void sendDocumentToIA(RTMLDocument document) throws Exception
 	{
@@ -1304,6 +1305,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
 							    documentUId+"):Lookup [NAAsyncResponseHandler] was null.");
 				}
+				logRTML(traceLog,1,"sendDocumentToIA("+documentUId+"):",document);
 				narh.handleAsyncResponse(document);
 
 				traceLog.log(INFO, 1, CLASS,"sendDocumentToIA("+documentUId+
@@ -1313,6 +1315,34 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 	}
 	
+	/**
+	 * Log the RTML document. Create an XML String and log this with a description.
+	 * All failures are caught and an error message logged instead.
+	 * @param l The logger to log to.
+	 * @param logLevel The log level.
+	 * @param description A description of why we are logging the document.
+	 * @param document The document to log.
+	 * @see org.estar.rtml.RTMLCreate#create
+	 * @see org.estar.rtml.RTMLCreate#toXMLString
+	 */
+	protected void logRTML(Logger l,int logLevel,String description,RTMLDocument document)
+	{
+		RTMLCreate create = null;
+		String documentUId = null;
+		String documentString = null;
+
+		try
+		{
+			documentUId = document.getUId();
+			create.create(document);
+			documentString = create.toXMLString();
+			l.log(logLevel,description+documentString);
+		}
+		catch(Exception e)
+		{
+			l.log(logLevel, "logRTML:Failed to create XML String for document:"+documentUId+":"+e,e);
+		}
+	}
 
 	/** Configures and starts a Telescope Embedded Agent.*/
 	public static void main(String args[]) {
@@ -1607,6 +1637,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.38  2008/06/10 09:50:42  cjm
+** Added more logging to sendDocumentToIA.
+**
 ** Revision 1.37  2008/06/09 14:30:05  cjm
 ** Fixed readDocument so it actually returns a non-null parsed document.
 **
