@@ -5,11 +5,11 @@ TEA Schedule Priorities
 
 Schedule (RTML) priority     PhaseII (ODB)	PhaseII (GUI)
 -------------------------------------------------------------
-			     5			Urgent
-0			     4(RTML3.1a toop!)	Quite urgent(RTML3.1a toop!)
-1			     3			High
-2			     2			Medium
-3			     1			Normal
+0			     5(RTML3.1a toop!)	Urgent(RTML3.1a toop!)
+1			     4			Quite urgent
+2			     3			High
+3			     2			Medium
+4			     1			Normal
 
 default(other)		     1			Normal
 			     0			Normal
@@ -21,8 +21,10 @@ where
 "PhaseII (GUI)" is what is displayed in the PhaseII GUI
 
 Note:
-The PhaseII priority "5" _cannot_ be specified by the TEA but can be specified by the PhaseII GUI as Urgent.
 The PhaseII priority "-2" is not available to TEA - these obs are done only if nothing else can be executed
  typically this means very-very bad seeing -if there are a lot of these chaps in the ODB they drown out the
  background monitoring and prevent the seeing determination from being made - which is not a good idea.
-Currently "Quite Urgent" cannot be specified in RTML 3.1a either, as "0" equates to TOOP.
+Currently "Urgent" cannot be specified in RTML 3.1a, as "0" equates to TOOP.
+We have recently moved the priorities so RTML 2.2 "0" equates to PhaseII priority "5" (Urgent). 
+This is currently different from the FTN and FTS TEAs, where RTML 2.2 "0" 
+equates to PhaseII priority "4" (Quite Urgent), and PhaseII priority "5" (Urgent) is not specifiable.
