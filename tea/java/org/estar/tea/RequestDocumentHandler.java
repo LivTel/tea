@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.20 2008-07-25 15:26:27 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.21 2008-07-25 15:31:33 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -631,7 +631,7 @@ public class RequestDocumentHandler implements Logging {
 	String oid = observation.getFullPath();
 	arq.setOid(oid);
 	arq.setName(requestId);
-	arq.setId(tea.getId()+"/"+arq.getName());
+	arq.setARQId(tea.getId()+"/"+arq.getName());
 	
 	// Get a unique file Name off the TEA.
 	File file = new File(tea.createNewFileName(oid));
@@ -691,6 +691,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.20  2008/07/25 15:26:27  cjm
+// Steve made some priority changes here.
+//
 // Revision 1.19  2008/05/27 13:41:09  cjm
 // Changes relating to RTML parser upgrade.
 // RTML setType calls replaced by equivalent RTMLDocument methods for version independant values.

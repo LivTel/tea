@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.40 2008-06-11 14:21:15 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.41 2008-07-25 15:32:16 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -982,7 +982,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		AgentRequestHandler arq = new AgentRequestHandler(this, doc);
 		
 		arq.setName(requestId);
-		arq.setId(getId()+"/"+arq.getName());
+		arq.setARQId(getId()+"/"+arq.getName());
 		arq.setDocumentFile(file);
 		arq.setOid(oid);
 		
@@ -1639,6 +1639,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.40  2008/06/11 14:21:15  cjm
+** First attempt at a fix for logRTML.
+**
 ** Revision 1.39  2008/06/11 13:28:51  cjm
 ** Added logRTML and calls in sendDocumentToIA to log actual XML (hopefully) returned to IA.
 **
