@@ -170,9 +170,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     }
 
     /** Sets the id from a supplied string. Usually this includes the TEA's id as prepend.*/
-    public void setId(String id) { this.id = id; }
+    public void setARQId(String id) { this.id = id; }
 
-    public String getId() { return id;}
+    public String getARQId() { return id;}
 
     /** Sets the ObservationID.
      * @param oid The ObservationID.
