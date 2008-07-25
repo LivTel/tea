@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.19 2008-05-27 13:41:09 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.20 2008-07-25 15:26:27 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -548,15 +548,18 @@ public class RequestDocumentHandler implements Logging {
 	    int priority = 0;
 	    switch (schedPriority) {
 	    case 0:
-		priority = 4; // Phase2 - ODB: QUITE URGENT(4)
+		priority = 5; // Phase2 - ODB: MOST URGENT(5)
 		break;
 	    case 1:
-		priority = 3; // Phase2 - ODB: HIGH(3)
+		priority = 4; // Phase2 - ODB: QUITE URGENT(4)
 		break;
 	    case 2:
-		priority = 2; // Phase2 - ODB: MEDIUM(2)
+		priority = 3; // Phase2 - ODB: HIGH(3)
 		break;
 	    case 3:
+		priority = 2; // Phase2 - ODB: MEDIUM(2)
+		break;
+	    case 4:
 		priority = 1; // Phase2 - ODB: NORMAL(1)
 		break;
 	    default:
@@ -688,6 +691,13 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.19  2008/05/27 13:41:09  cjm
+// Changes relating to RTML parser upgrade.
+// RTML setType calls replaced by equivalent RTMLDocument methods for version independant values.
+// RTML document history calls added.
+// getUId used for unique Id retrieval.
+// isTOOP used for determining target of oppurtunity.
+//
 // Revision 1.18  2008/04/17 11:05:09  snf
 // typo
 //
