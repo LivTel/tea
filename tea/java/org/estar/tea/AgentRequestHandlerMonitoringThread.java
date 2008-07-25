@@ -49,7 +49,7 @@ public class AgentRequestHandlerMonitoringThread extends ControlThread implement
 	while (iarq.hasNext()) {
 	    
 	    AgentRequestHandler arq = (AgentRequestHandler)iarq.next();
-	    logger.log(INFO, 3, CLASS, "-","mainTask", "ARQMON::Testing ARQ: "+arq.getId()+":"+arq.getOid());
+	    logger.log(INFO, 3, CLASS, "-","mainTask", "ARQMON::Testing ARQ: "+arq.getARQId()+":"+arq.getOid());
 	    //TODO  arq.checkPendingList();
 
 	    // TODO if (arq.isReadyForExpiration()) -> move it onto kill list...
