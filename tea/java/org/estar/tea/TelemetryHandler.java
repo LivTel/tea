@@ -137,6 +137,21 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 	    
 	    // get the oid and filename from the telemetry
 	    String oid = ((ReductionInfo)telem).getObsPathName();
+
+	    String obsPath = new Path(oid);
+	    String gid = obsPath.getProposalPathByName()+"/"+obsPath.getGroupByName();
+	    String obsId = obsPath.getObservationByName();
+
+	    int iobs = 0;
+	    // if we cant extract the obsid were stuffed
+	    try {
+		iobs = Integer.parseInt(obsId);
+	    } catch (Exception px) {
+		// send telemetry reply to RCS
+		done.setSuccessful(false);
+		sendDone(done);		
+		return;
+	    }
 	    
 	    // The observation id is the group id with a /obsid on the end e.g.:
 	    // /LT_Phase2_001/PATT/keith.horne/PL04B17/000086:UA:v1-15:run#10:user#agent/ExoPlanetMonitor
@@ -145,17 +160,17 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 	    
 	    String imageFileName = ((ReductionInfo)telem).getFileName();
 	   
-	    arq  = tea.getUpdateHandler(oid);
+	    arq  = tea.getUpdateHandler(gid);
 	    if (arq == null) {
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			   "TELH::No AgentRequestHandler found for: "+oid+" - Not one of ours");
+			   "TELH::No AgentRequestHandler found for: "+gid+" - Not one of ours");
 	    } else {
 		
 		//if (arq.wantsReducedImagesOnly()) {
 
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 			   "TELH::UpdateHandler located: Adding image:"+imageFileName);
-		arq.addImageFileName(imageFileName);
+		arq.addImageInfo(new ImageInfo(iobs, imageFileName));
 		
 	    }
 	} else {
