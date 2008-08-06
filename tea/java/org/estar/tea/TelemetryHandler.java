@@ -82,54 +82,7 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 	
 	logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest","TELH::Received TelemetryRequest: "+telem);
 
-	if (telem instanceof ObservationInfo) {
-	    
-	    // we never seem to get these for some reason.
-	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-		       "TELH::This is an instance of ObservationInfo.");
-	    
-	    // Get the oid
-	    Observation obs = ((ObservationInfo)telem).getObservation();	    
-	    if (obs == null){
-		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			   "TELH::The observation was null.");
-		// send telemetry reply to RCS
-		done.setSuccessful(true);	
-		sendDone(done);
-		return;
-	    }
-	    String oid = obs.getFullPath(); 
-	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-		       "TELH::ObservationInfo had oid "+oid+".");
-	    // diddly if we ever got one of these, we could do something here
-	    // given we are returning update documents ona per-frame basis, what can we do here? 
-	    
-	} else if (telem instanceof ObservationStatusInfo) {
-	    
-	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-		       "TELH::This is instance of ObservationStatusInfo.");
-	    
-	    // Either a COMPETED or a FAIL
-	    String oid = ((ObservationStatusInfo)telem).getObsPathName();
-	    
-	    arq = tea.getUpdateHandler(oid);
-
-	    if (arq == null) {
-		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			   "TELH::No AgentRequestHandler found for: "+oid+" - Not one of ours");
-	    } else {
-	
-		switch (((ObservationStatusInfo)telem).getCat()) {
-		case ObservationStatusInfo.FAILED:
-		    arq.setObservationFailed();
-		    break;
-		case ObservationStatusInfo.COMPLETED:
-		    arq.setObservationCompleted();
-		    break;
-		}
-	    }
-	    
-	} else if 
+	if 
 	    (telem instanceof ReductionInfo) {
 	   
 	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
