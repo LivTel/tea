@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.15 2008-05-27 13:57:41 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.16 2008-08-12 14:06:19 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.15 $
+ * @version $Revision: 1.16 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.15 2008-05-27 13:57:41 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.16 2008-08-12 14:06:19 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -562,6 +562,29 @@ public class TOCSessionManager implements Runnable, Logging
 				d.setErrorString(this.getClass().getName()+
 					 ":addDocument:Document seems to have been sent to wrong session manager: "+
 					 tupi.getUniqueId()+" does not equal "+tagUserProposalInfo.getUniqueId()+".");
+			}
+			catch(RTMLException e)
+			{
+				// this can never occur - only occurs if setErrorString called with type != reject
+			}
+			return d;
+		}
+		// document should only have 1 observation
+		if(d.getObservationListCount() != 1)
+		{
+			logger.log(INFO, 1, CLASS,
+				   "TOCSessionManager:addDocument:Document has wrong number of observations: "+
+					 d.getObservationListCount()+".");
+			try
+			{
+				d.setReject();
+				d.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						      this.getClass().getName()+
+						      ":addDocument:Document has wrong number of observations: "+
+						      d.getObservationListCount()+".");
+				d.setErrorString(this.getClass().getName()+
+					 ":addDocument:Document has wrong number of observations: "+
+					 d.getObservationListCount()+".");
 			}
 			catch(RTMLException e)
 			{
@@ -1528,6 +1551,13 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.15  2008/05/27 13:57:41  cjm
+** Changes relating to RTML parser upgrade.
+** getUId used for unique Id retrieval.
+** isTOOP used for determining target of oppurtunity.
+** RTML setType calls replaced by equivalent RTMLDocument methods for version independant values.
+** RTML document history calls added.
+**
 ** Revision 1.14  2008/03/31 14:18:34  cjm
 ** Pipeline Plugin's are now organised by name/Id rather than type of instrument.
 **
