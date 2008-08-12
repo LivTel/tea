@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.3 2008-03-28 17:18:41 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.4 2008-08-12 09:45:12 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -33,14 +33,14 @@ import ngat.util.*;
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class DeviceInstrumentUtilites
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.3 2008-03-28 17:18:41 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.4 2008-08-12 09:45:12 cjm Exp $";
 	/**
 	 * The type of instrument.
 	 */
@@ -755,9 +755,63 @@ public class DeviceInstrumentUtilites
 		config = (InstrumentConfig)con.newInstance(new Object[]{configId});
 		return config;
 	}
+
+	/**
+	 * Get whether this instrument produces ReductionInfo telemetry that can be used to trigger 
+	 * update documents. Some instrument produce ReductionInfo telemetry from the RCS, whereas others
+	 * emit only ExposureInfo.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get instrument properties from.
+	 * @param device The RTMLDevice to parse.
+	 * @return A boolean. This is true if this instrument produces ReductionInfo telemetry.
+	 * @exception IllegalArgumentException Thrown if the instrument is not receognised.
+	 * @exception NullPointerException Thrown if the device of type attribute was null.
+	 * @see #getInstrumentId
+	 * @see TelescopeEmbeddedAgent#getPropertyBoolean
+	 */
+	public static boolean instrumentUpdateRequiresReductionTelemetry(TelescopeEmbeddedAgent tea,
+					  RTMLDevice device) throws IllegalArgumentException, NullPointerException
+	{
+		String instrumentId = null;
+		String telemetryClassName = null;
+
+		instrumentId = getInstrumentId(tea,device);
+		telemetryClassName = tea.getPropertyString("instrument."+instrumentId+".update.telemetry");
+		return telemetryClassName.equals("ReductionInfo");
+	}
+
+	/**
+	 * Get whether this instrument produces ExposureInfo telemetry that can be used to trigger 
+	 * update documents. Some instrument produce ReductionInfo telemetry from the RCS, whereas others
+	 * emit only ExposureInfo.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get instrument properties from.
+	 * @param device The RTMLDevice to parse.
+	 * @return A boolean. This is true if this instrument only produces ExposureInfo telemetry from the RCS.
+	 * @exception IllegalArgumentException Thrown if the instrument is not receognised.
+	 * @exception NullPointerException Thrown if the device of type attribute was null.
+	 * @see #getInstrumentId
+	 * @see TelescopeEmbeddedAgent#getPropertyBoolean
+	 */
+	public static boolean instrumentUpdateRequiresExposureTelemetry(TelescopeEmbeddedAgent tea,
+					  RTMLDevice device) throws IllegalArgumentException, NullPointerException
+	{
+		String instrumentId = null;
+		String telemetryClassName = null;
+
+		instrumentId = getInstrumentId(tea,device);
+		telemetryClassName = tea.getPropertyString("instrument."+instrumentId+".update.telemetry");
+		return telemetryClassName.equals("ExposureInfo");
+	}
+
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.3  2008/03/28 17:18:41  cjm
+** Rewritten to allow multiple instrument per each instrument type.
+** Instrument Type uses a combination of Device type and spectralRegion to determine type.
+** Now a default instrument ID for each type, and the Device "name" can be used to override this.
+** Added Merope/GenericCCD, Spectrograph (Meaburn), and RISE instrument handling.
+** Default binning now read from configuration.
+**
 ** Revision 1.2  2007/05/01 10:03:50  cjm
 ** Now checks for null device/device type in getInstrumentType, to throw a
 ** more understandable exception.
