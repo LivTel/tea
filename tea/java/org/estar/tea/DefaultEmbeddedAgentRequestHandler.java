@@ -116,7 +116,10 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
     public void testThroughput() throws RemoteException {
 
 	try {
-	    tea.checkOngoingConnections();
+	
+	    SystemTest st = new SystemTest(tea);	  
+	    st.runTest();
+	   
 	} catch (Exception e) {
 	    throw new RemoteException("Exception while handling testThroughput: "+e);
 	}
