@@ -33,12 +33,6 @@ public class ScoreDocumentHandler implements Logging {
     /** Reference to the TEA.*/
     TelescopeEmbeddedAgent tea;
 
-    /** EstarIO for responses.*/
-    private eSTARIO io; 
-    
-    /** GLobusIO handle for responses.*/
-    private GlobusIOHandle handle;
-
     /** Class logger.*/
     private Logger logger;
 
@@ -53,10 +47,9 @@ public class ScoreDocumentHandler implements Logging {
      * @param handle  Globus IO Handle for the connection.
      */
     public ScoreDocumentHandler(TelescopeEmbeddedAgent tea) {
-	//, eSTARIO io, GlobusIOHandle handle) {
+
 	this.tea    = tea;
-	//	this.io     = io;
-	//this.handle = handle;
+
 	logger = LogManager.getLogger("TRACE");
 	cc++;
 	cid = "SDH/"+cc;
@@ -73,57 +66,9 @@ public class ScoreDocumentHandler implements Logging {
 	// ## START
 	logger.log(INFO,1,CLASS,cid,"handleRequest",
 		   "Starting scoring request "+cc);
-
+	
 	long now = System.currentTimeMillis();
 	
-	Observation observation = null;
-	Group       group       = null;	 
-	
-	// Tag/User ID combo is what we expect here.
-	
-	RTMLContact contact = document.getContact();
-	
-	if (contact == null) {
-	    logger.log(INFO, 1, CLASS, cid,"handleRequest",
-		       "RTML Contact was not specified, failing request.");
-	    return setError( document,"No contact was supplied");
-	}
-	
-	String userId = contact.getUser();
-	
-	if (userId == null) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest",
-		       "RTML Contact User was not specified, failing request.");
-	    return setError( document, "Your User ID was null");
-	}
-	
-	// The Proposal ID.
-	RTMLProject project = document.getProject();
-	String proposalId = project.getProject();
-	
-	if (proposalId == null) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest",
-		       "RTML Project was not specified, failing request.");
-	    return setError( document, "Your Project ID was null");
-	}
-	
-	// Retrieve the documents unique ID, either from the uid attribute or user agent's Id 
-	// depending on RTML version
-	String requestId = document.getUId();
-
-	cid = requestId+"/"+cc;
-
-	// Extract the Observation request(s) - handle multiple obs per doc.
-	
-	//int nobs = getObservationListCount();
-	
-	//for (int iobs = 0; iobs < nobs; iobs++) {
-	
-	RTMLObservation obs = document.getObservation(0);
-	//RTMLObservation obs = document.getObservation(iobs);
-	
-	// Extract params
-	RTMLTarget target = obs.getTarget();
 
 	if (document.isTOOP()) {
 	    // Try and get TOCSessionManager context.
@@ -132,295 +77,21 @@ public class ScoreDocumentHandler implements Logging {
 	    document = sessionManager.scoreDocument(document);
 	    return document;
 	} 
-
-	// Ok its a scheduled group, extract the relevant params.
 	
-	RA  ra  = target.getRA();		    
-	Dec dec = target.getDec();      
-	 	
-	String targetId = target.getName();
-	// Bizarre element.
-	String targetIdent = target.getIdent();
+	// Get the group from the document model
+	Phase2GroupExtractor p2x = new Phase2GroupExtractor(tea);
 	
-	RTMLSchedule sched = obs.getSchedule();
+	Group group = p2x.extractGroup(document);
 	
-	String expy = sched.getExposureType();
-	String expu = sched.getExposureUnits();
-	double expt = 0.0;
-	
-	try {
-	    expt = sched.getExposureLengthMilliseconds();
-	}
-	catch (IllegalArgumentException iax) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract exposure time:"+iax);
-	    return setError(document, "Unable to extract exposure time: "+iax);
-	}
-	
-	int expCount = sched.getExposureCount();
-	
-	int schedPriority = sched.getPriority();
-	
-	// Phase2 has no concept of "best seeing" so dont use sc.getMinimum()	 
-	double seeing = RequestDocumentHandler.DEFAULT_SEEING_CONSTRAINT; // 1.3
-	RTMLSeeingConstraint sc = sched.getSeeingConstraint();
-	if (sc != null) {
-	    seeing = sc.getMaximum();
-	}
-	
-	double mld = 0.0;
-	RTMLMoonConstraint mc = sched.getMoonConstraint();
-	if (mc != null) {
-	    mld = mc.getDistanceRadians();
- 	}
-
-	int lunar = Group.BRIGHT;
-	RTMLSkyConstraint skyc = sched.getSkyConstraint();	
-	if (skyc != null) {
-	    if (skyc.isBright())
-		lunar = Group.BRIGHT;
-	    else if
-		(skyc.isDark())
-		lunar = Group.DARK;
-	    else {	
-		logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract sky constraint info");
-		return setError(document, "Unable to extract sky brightness constraint");
-	    }
-	}
-      
-	// Extract filter info.
-	RTMLDevice dev = obs.getDevice();
-	String filter = null;
-
-	// make up the IC - we dont have enough info to do this from filtermap...
-	InstrumentConfig config = null;
-	String configId = null;
-
-	if (dev == null)
-	    dev = document.getDevice();
-	
-	if (dev != null) {
-	    
-	    // START New DEVINST stuff	    
-	    try {
-		config = DeviceInstrumentUtilites.getInstrumentConfig(tea, dev);
-		configId = config.getName();
-	    } catch (Exception e) {
-		logger.log(INFO,1,CLASS,cid,"handleRequest",
-			   "Device configuration error: "+e);
-		return setError(document, "Device configuration error: "+e);
-	    }
-	    // END New DEVINST stuff
-
-	} else {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest", "RTML Device not present");
-	    return setError(document, "Device not set");
-	}
-	
-	// Extract MG params - many of these can be null !	
-	
-	RTMLSeriesConstraint scon = sched.getSeriesConstraint();
-	
-	int count    = 0;
-	long window  = 0L;
-	long period  = 0L;	
-	Date startDate = null;
-	Date endDate   = null;
-	
-	if (scon == null) {
-	    // No SC supplied => FlexGroup.
-	    count = 1;
-	} else {
-	    
-	    // SC supplied => MonitorGroup.		
-	    count = scon.getCount();
-	    RTMLPeriodFormat pf = scon.getInterval();
-	    RTMLPeriodFormat tf = scon.getTolerance();
-	    
-	    // No Interval => Wobbly
-	    if (pf == null) { 
-		logger.log(INFO,1,CLASS,cid,"handleRequest",
-			   "RTML SeriesConstraint Interval not present, failing request.");
-		return setError(document, "No Interval was supplied");
-	    } else {
-		period = pf.getMilliseconds();
-		
-		// No Window => Default to 90% of interval.
-		if (tf == null) {
-		    logger.log(INFO, 1, CLASS, cid,"executeRequest",
-			       "No tolerance supplied, Default window setting to 95% of Interval");
-		    tf = new RTMLPeriodFormat();
-		    tf.setSeconds(0.95*(double)period/1000.0);
-		    scon.setTolerance(tf);	  
-		}
-	    }
-	    window = tf.getMilliseconds();
-	    
-	    if (count < 1) {
-		logger.log(INFO,1,CLASS,cid,"handleRequest",
-			   "RTML SeriesConstraint Count was negative or zero, failing request.");
-		return setError(document, "You have supplied a negative or zero repeat Count.");
-	    }
-	    
-	    if (period < 60000L) {
-		logger.log(INFO,1,CLASS,cid,"handleRequest",
-			   "RTML SeriesConstraint Interval is too short, failing request.");
-		return setError(document, "You have supplied a ludicrously short monitoring Interval.");
-	    }
-	    
-	    if ((window/period < 0.0) || (window/period > 1.0)) {
-		logger.log(INFO,1,CLASS,cid,"handleRequest",
-			   "RTML SeriesConstraint has an odd Window or Period.");
-		return setError(document, "Your window or Tolerance looks dubious.");
-	    }
-	    
-	}
-	
-	startDate = sched.getStartDate();
-	endDate   = sched.getEndDate();
-	
-	// FG and MG need an EndDate, No StartDate => Now.
-	if (startDate == null) {
-	    logger.log(INFO, 1, CLASS, cid,"executeRequest","Default start date setting to now");
-	    startDate = new Date(now);
-	    sched.setStartDate(startDate);
-	}
-	
-	// No End date => StartDate + 1 day (###this is MicroLens -specific).
-	if (endDate == null) {
-	    logger.log(INFO, 1, CLASS, cid,"executeRequest","Default end date setting to Start + 1 day");
-	    endDate = new Date(startDate.getTime()+24*3600*1000L);
-	    sched.setEndDate(endDate);
-	}
-	
-	// Basic and incomplete sanity checks.
-	if (startDate.after(endDate)) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest","RTML StartDate after EndDate, failing request.");
-	    return setError(document, "Your StartDate and EndDate do not make sense."); 
-	}
-	
-	if (expt < 1000.0) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest","Exposure time is too short, failing request.");
-	    return setError(document, "Your Exposure time is too short.");
-	}
-	
-	if (expCount < 1) {
-	    logger.log(INFO,1,CLASS,cid,"handleRequest",
-		       "Exposure Count is less than 1, failing request.");
-	    return setError(document, "Your Exposure Count is less than 1.");
-	}
-	
-	logger.log(INFO, 1, CLASS, cid,"executeScore",
-		   "Extracted dates: "+startDate+" -> "+endDate);
-	
-	// Look up proposal details.
-	
-	String proposalPathName = tea.getDBRootName()+"/"+userId+"/"+proposalId;
-	
-	
-	ExtraSolarSource source = new ExtraSolarSource(targetId);
-	source.setRA(ra.toRadians());
-	source.setDec(dec.toRadians());
-	source.setFrame(Source.FK5);
-	source.setEquinox(2000.0f);
-	source.setEpoch(2000.0f);
-	source.setEquinoxLetter('J');
-	
-	Position atarg = new Position(ra.toRadians(), dec.toRadians());
-	
-	Date completionDate = new Date(System.currentTimeMillis()+365*24*3600*1000L);
-	
-	
-	if (scon == null || count == 1) {
-	    
-	    // FlexGroup 
-	    
-	    group = new Group(requestId);
-	    
-	    
-	} else {
-	    
-	    // A MonitorGroup.
-	    
-	    group = new MonitorGroup(requestId);
-	    // MG-Specific
-	    ((MonitorGroup)group).setStartDate(startDate.getTime());
-	    ((MonitorGroup)group).setEndDate(endDate.getTime());
-	    ((MonitorGroup)group).setPeriod(period);
-	    ((MonitorGroup)group).setFloatFraction((float)((double)window/(double)period));
-	    
-	}
-	
-	group.setPath(proposalPathName);
-	
-	group.setExpiryDate(endDate.getTime());
-	group.setPriority(TelescopeEmbeddedAgent.GROUP_PRIORITY);
-	
-	group.setMinimumLunarDistance(mld);
-	group.setMinimumLunar(lunar);
-	group.setTwilightUsageMode(Group.TWILIGHT_USAGE_OPTIONAL);
-		
-	float expose = (float)expt;	
-	// Maybe split into chunks NO NOT YET.
-	//if ((double)expose > (double)tea.getMaxObservingTime()) {
-	//int nn = (int)Math.ceil((double)expose/(double)tea.getMaxObservingTime());
-	
-	//}	    
-	int mult = expCount;
-	
-	observation = new Observation(targetIdent);
-	
-	observation.setExposeTime(expose);
-	observation.setNumRuns(mult);
-	observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_NEVER);
-	
-	Mosaic mosaic = new Mosaic();
-	mosaic.setPattern(Mosaic.SINGLE);
-	observation.setMosaic(mosaic);
-	
-	observation.setSource(source);	
-	observation.setInstrumentConfig(config);
-
-	group.addObservation(observation);
-	
-	
-	// map rtml priorities to Phase2 priorities.
-	int priority = 0;
-	switch (schedPriority) {
-	case 0:
-	    priority = 4; // TOOP
-	    break;
-	case 1:
-	    priority = 3; // URGENT
-	    break;
-	case 2:
-	    priority = 2; // MEDIUM
-	    break;
-	case 3:
-	    priority = 1; // NORMAL
-	    break;
-	default:
-	    priority = 1; // NORMAL
-	}
-	group.setPriority(priority);
-	
-	// set seeing limits.
-	group.setMinimumSeeing(Group.POOR);
-	if (seeing >= 1.3) {
-	    group.setMinimumSeeing(Group.POOR);
-	} else if(seeing >= 0.8) {
-	    group.setMinimumSeeing(Group.AVERAGE);
-	} else {
-	    // this will also catch any with silly values like < 0.0 !
-	    group.setMinimumSeeing(Group.EXCELLENT);
-	}
+	// Send the scoring request
 	
 	double rankScore = 0.0;
 	double diff[];
 	double cum[];
-	double visibility = 0.0;
+	
 	String failureReasons = null;
 	
-	SCHEDULABILITY tsched = new SCHEDULABILITY(tea.getId()+":"+requestId);
+	SCHEDULABILITY tsched = new SCHEDULABILITY(tea.getId()+":"+document.getUId());
 	tsched.setClientDescriptor(new ClientDescriptor("EmbeddedAgent",
 							ClientDescriptor.ADMIN_CLIENT,
 							ClientDescriptor.ADMIN_PRIORITY));
@@ -428,12 +99,6 @@ public class ScoreDocumentHandler implements Logging {
 	
 	tsched.setGroup(group);
 	
-	// For calculating whether the target is visible.
-	VisibilityCalculator vc = new VisibilityCalculator(tea.getSiteLatitude(),
-							   tea.getSiteLongitude(),
-							   tea.getDomeLimit(),
-							   Math.toRadians(-12.0));
-
 	int npmax = 20;
 	try {
 	    npmax = Integer.parseInt(System.getProperty("max.granularity", "20"));
@@ -441,24 +106,69 @@ public class ScoreDocumentHandler implements Logging {
 	} catch (Exception nx) {
 	    logger.log(1, "Error parsing max granularity parameter- defaulting to 20");
 	}
-
+	
 	long s1 = 0L;
 	long s2 = 0L;
 	long resolution = 900000L; //start off at 15M
 	long delta = 0L;
 	int np = 1;
 	int nw = 1;
-	if (scon == null) {
+	
+	
+	if (group instanceof MonitorGroup) {
+
+            // Handle Monitor.
+            // TODO need to extract these buried schedule parameters again !
+
+            Date startDate = new Date(((MonitorGroup)group).getStartDate());
+	    Date endDate   = new Date(((MonitorGroup)group).getEndDate());
+	    
+            s1 = Math.max(startDate.getTime(), now);
+            s2 = endDate.getTime();
+            if (s2 <= s1)
+                return setError(document, "Start/end time problem");
+
+            tsched.setStart(s1);
+            tsched.setEnd(s2);
+            np = (int)((s2-s1)/((MonitorGroup)group).getPeriod());
+            nw = np; // same at this point
+
+            // try to choose a shorter granularity for short period monitors
+            long period = ((MonitorGroup)group).getPeriod();
+            if (period <= 900000L) {
+                resolution = period/5;
+                np = (int)((s2-s1)/resolution);
+                logger.log(INFO, 1, CLASS, cid,"executeScore",
+                           "Setting resolution for short period monitor to "+(resolution/1000)+" S with "+np+" samples");
+                // using p/3 resolution unless too many of them to process
+	    } else {
+                resolution = period/2;
+                np = (int)((s2-s1)/resolution);
+                logger.log(INFO, 1, CLASS, cid,"executeScore",
+                           "Setting resolution for long period monitor to "+(resolution/1000)+" S with "+np+" samples");
+            }
+            // now re-adjust back to a sensible number to avoid overloading the processor.
+            while (np > npmax) {
+                np /= 2;
+                resolution = (s2 - s1)/np;
+                logger.log(INFO, 1, CLASS, cid,"executeScore",
+                           "Adjusting resolution for monitor to "+(resolution/1000)+" S with "+np+" samples");
+            }
+
+            tsched.setResolution(resolution);
+	    
+            delta = resolution;
+	    
+	    
+	} else {
 	    
 	    // Handle Flexible.
-	    	  
-	    //tsched.setStart(now); // getStartingDate()
-	    // why not now - if start < now ?
+	    
 	    s1 = Math.max(group.getStartingDate(), now);
 	    s2 = group.getExpiryDate();
 	    if (s2 <= s1)
 		return setError(document, "Start/end time problem");
-
+	    
             tsched.setStart(s1);
 	    tsched.setEnd(s2);	   
 	    np = (int)((s2-s1)/resolution);
@@ -466,68 +176,12 @@ public class ScoreDocumentHandler implements Logging {
 		np = npmax;
 		resolution = (s2 - s1)/np;
 	    }
-
+	    
 	    tsched.setResolution(resolution); // using 30 minute resolution
 	    delta = resolution;
+	    
+	} 
 
-	    visibility = vc.calculateVisibility(atarg,
-						startDate.getTime(),
-						endDate.getTime());
-	    logger.log(INFO, 1, CLASS, cid,"executeScore",
-		       "Target scored "+visibility+" visibility for specified single period");
-	    
-	    
-	} else {
-	    
-	    // Handle Monitor.
-	    
-	    //tsched.setStart(startDate.getTime()); 
-	    // why not now - if start < now ?
-	    s1 = Math.max(startDate.getTime(), now);
-	    s2 = endDate.getTime();
-	    if (s2 <= s1)
-		return setError(document, "Start/end time problem");
-
-	    tsched.setStart(s1);
-	    tsched.setEnd(s2);	    
-	    np = (int)((s2-s1)/period); 
-	    nw = np; // same at this point
-	    
-	    // try to choose a shorter granularity for short period monitors   
-	    if (period <= 900000) {
-		resolution = period/5;
-		np = (int)((s2-s1)/resolution);
-		logger.log(INFO, 1, CLASS, cid,"executeScore",
-			   "Setting resolution for short period monitor to "+(resolution/1000)+" S with "+np+" samples");
-		// using p/3 resolution unless too many of them to process
-	    } else {
-		resolution = period/2;
-		np = (int)((s2-s1)/resolution);
-		logger.log(INFO, 1, CLASS, cid,"executeScore",
-			   "Setting resolution for long period monitor to "+(resolution/1000)+" S with "+np+" samples");
-	    }
-	    // now re-adjust back to a sensible number to avoid overloading the processor.
-	    while (np > npmax) {
-		np /= 2;
-		resolution = (s2 - s1)/np;
-		logger.log(INFO, 1, CLASS, cid,"executeScore",
-			   "Adjusting resolution for monitor to "+(resolution/1000)+" S with "+np+" samples");
-	    }
-	    
-	    tsched.setResolution(resolution);
-
-	    delta = resolution;
-
-	    visibility = vc.calculateVisibility(atarg,
-						startDate.getTime(),
-						endDate.getTime(),
-						period,
-						window);
-	    logger.log(INFO, 1, CLASS, cid,"executeScore",
-		       "Target scored "+visibility+" visibility for specified monitoring program");
-	
-	    }
-	
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
 		   "Submit to TscoreCalc using: "+
 		   " S1    = "+TelescopeEmbeddedAgent.sdf.format(new Date(s1))+
@@ -542,9 +196,9 @@ public class ScoreDocumentHandler implements Logging {
 							 tea.getOssConnectionSecure());
 	
 	long t1 = System.currentTimeMillis();
-	//freeLock();
+
 	client.send();
-	//waitOnLock();
+
 	long t2 = System.currentTimeMillis();
 
 	if (client.isError()) {
@@ -557,18 +211,21 @@ public class ScoreDocumentHandler implements Logging {
 	    rankScore = sched_done.getSchedulability();
 	    diff = sched_done.getDifferentialFunction();
 	    cum  = sched_done.getCumulativeFunction();
-	    // TODO snf on 3-jun-08 with OSS upgrade
-	    //failureReasons = sched_done.getFailureReasons();
+	    failureReasons = sched_done.getFailureReasons();
 	}
 	
 	// this will return the average score for the group in the specified interval...
 	logger.log(INFO, 1, CLASS, cid,"executeScore",
 		   "Target achieved rank score "+rankScore+" for specified period after "+((t2-t1)/1000)+"S");
 	
-// 	if (failureReasons != null) {
-// 	    logger.log(INFO, 1, CLASS, cid,"executeScore",
-// 		       "Scoring calculator  returned the following rather badly formatted list of reasons for lack of scoring: "+failureReasons );
-// 	}
+
+	if (failureReasons == null) {
+	    // No failure reasons for now....
+	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned valid score: "+rankScore+".");
+	} else {
+	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned (score "+
+				     rankScore+") with failed schedubility as follows: "+failureReasons);
+	}
 
 	for (int in = 0; in < diff.length; in++) {
 	    System.err.println("Differential["+in+"] = "+(diff != null ? ""+diff[in] : "null")+
@@ -592,11 +249,6 @@ public class ScoreDocumentHandler implements Logging {
 	    document.addScore(dscore);
 	}
 
-	//	if (visibility <= 0.0) {
-	//  return setError(document, "Target is not observable or unlikely to be selected during the specified period");		    
-	//}
-
-
 	// add this in to zero the score if we dont think the scope is available...
 	try {
 	    TelescopeAvailability ta = tea.getTap().getAvailabilityPrediction(); 
@@ -615,15 +267,17 @@ public class ScoreDocumentHandler implements Logging {
 	}
 	document.setScore(rankScore);
 	document.setScoreReply();
+	
+	// 
+	if (failureReasons == null) {
+	    // No failure reasons for now....
+	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned valid score: "+rankScore+".");
+	} else {
+	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned (score "+
+				     rankScore+") with *some* of requested period unschedulable as follows: "+failureReasons);
+	}
 
- 	//if (failureReasons == null) { 
 
-	// No failure reasons for now....
- 	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned score: "+rankScore+".");
- // 	} else {
-
-// 	    document.addHistoryEntry("TEA:"+tea.getId(),null,"Scored document and returned failure: "+failureReasons);
-// 	    }	
 	return document;
 	
     }
