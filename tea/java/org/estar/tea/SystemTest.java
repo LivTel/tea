@@ -76,12 +76,16 @@ public class SystemTest {
 
 	logger.log(INFO,1,CLASS,cid,"runTest", "TOCS connection test DUMMY IMPL ok");
 	
+	// There are a choice of return messages...
 	String errStr = null;
-	if (ossFail)
-	    errStr = "Error connecting to OSS: "+ossError;
-	if (tocsFail)
-	    errStr += " Error connecting to TOCS: "+tocsError;
-
+	if (ossFail) {
+	    //errStr = "Error connecting to OSS: "+ossError;
+	    errStr = "The OSS connection is bollocks: "+ossError;
+	}
+	if (tocsFail) {
+	    //errStr += " Error connecting to TOCS: "+tocsError;
+	    errStr = "The TOCS connection is bollocks: "+tocsError;
+	}
 	if (ossFail || tocsFail)
 	    throw new RemoteException("SystemTest: "+cc+" "+errStr);
 
