@@ -7,6 +7,10 @@ import org.estar.rtml.*;
 /** Tests the EARH to NAARH callback mechanism.*/
 public interface EmbeddedAgentTestHarness extends Remote {
 
+    /** Request the system to test ongoing throughput.*/
+    public void testThroughput() throws RemoteException;
+
+
     /** Request to return an RTML <i>update</i> document via the normal NodeAgentAsynchronousResponseHandler mechanism.
      * @param doc The source document.
      * @param howlong How long to wait before doing that which needs doing (ms).     
