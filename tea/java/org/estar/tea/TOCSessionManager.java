@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.16 2008-08-12 14:06:19 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.17 2008-08-20 11:04:17 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.16 $
+ * @version $Revision: 1.17 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.16 2008-08-12 14:06:19 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.17 2008-08-20 11:04:17 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -233,6 +233,26 @@ public class TOCSessionManager implements Runnable, Logging
 		pipelinePlugin.setId(id);
 		pipelinePlugin.setInstrumentId(instrumentId);
 		pipelinePlugin.initialise();
+	}
+
+	/**
+	 * Ping the RCS TOCA interface to ensure the port is open and working.
+	 * This sends the following command to the RCS TOCA port "STATUS STATE system.state".
+	 * This should return something like "OK system.state=462".
+	 * A TOCSessionManager without TUPI information set can be used for this call.
+	 * @exception Exception Thrown if the ping fails.
+	 * @see #session
+	 * @see org.estar.toop.TOCSession#status
+	 */
+	public void ping() throws Exception
+	{
+		String statusReturnString = null;
+
+		logger.log(INFO, 1, CLASS,"TOCSessionManager:ping:Start.");
+		statusReturnString = session.status("STATE","system.state");
+		logger.log(INFO, 1, CLASS,"TOCSessionManager:ping:STATE:system.state returned :"+
+			   statusReturnString+".");
+		logger.log(INFO, 1, CLASS,"TOCSessionManager:ping:Finished.");
 	}
 
 	/**
@@ -1158,6 +1178,25 @@ public class TOCSessionManager implements Runnable, Logging
 			return null;
 	}
 		       
+	/**
+	 * Static method to get a TOCSessionManager instance without specifying a TAG/User/Project.
+	 * This session manager can only be used to call TOCA commands that don't need an active session to run,
+	 * e.g. STATUS/INFO/WHEN etc. The returned session manager is NOT put into the sessionManagerMap,
+	 * as there is no way to specify the TUPI key.
+	 * A thread is NOT started to run the session, as no active session is needed for STATUS/INFO/WHEN.
+	 * @param tea The telescope embedded agent reference.
+	 */
+	public static TOCSessionManager getSessionManagerInstance(TelescopeEmbeddedAgent tea) throws Exception
+	{
+		TOCSessionManager sessionManager = null;
+
+		// setup new session manager
+		sessionManager = new TOCSessionManager();
+		sessionManager.setTea(tea);
+		sessionManager.setProperties(tea);
+		return sessionManager;
+	}
+
 	// internal classes
 	/**
 	 * Internal class holding data on Tag/User/Proposal extracted from an RTML document.
@@ -1551,6 +1590,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.16  2008/08/12 14:06:19  cjm
+** Added test in addDocument, such that documents with more than one observation are rejected.
+**
 ** Revision 1.15  2008/05/27 13:57:41  cjm
 ** Changes relating to RTML parser upgrade.
 ** getUId used for unique Id retrieval.
