@@ -84,6 +84,7 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	    reply = rdh.handleRequest(doc);
 	    logger.log(1, "RequestDocHandler returned doc: "+reply);
 	    tea.logRTML(logger,1,"RequestDocHandler returned doc: ",reply);
+
 	} catch (Exception e) {
 	    throw new RemoteException("Exception while handling request: "+e);
 	}
@@ -107,6 +108,19 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	    throw new RemoteException("Exception while handling abort: "+e);
 	}
 	return reply;
+    }
+
+
+
+    /** Request the system to test ongoing throughput.*/
+    public void testThroughput() throws RemoteException {
+
+	try {
+	    tea.checkOngoingConnections();
+	} catch (Exception e) {
+	    throw new RemoteException("Exception while handling testThroughput: "+e);
+	}
+
     }
 
     /** 
