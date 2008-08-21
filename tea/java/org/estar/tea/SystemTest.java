@@ -1,6 +1,29 @@
 package org.estar.tea;
 
-public class SystemTest {
+import java.io.*;
+import java.util.*;
+import java.net.*;
+import java.util.*;
+import java.text.*;
+import javax.net.ssl.*;
+import java.rmi.*;
+
+import org.estar.astrometry.*;
+import org.estar.rtml.*;
+import org.estar.io.*;
+
+import ngat.util.*;
+import ngat.util.logging.*;
+import ngat.phase2.*;
+import ngat.net.*;
+import ngat.net.camp.*;
+import ngat.astrometry.*;
+
+import ngat.message.base.*;
+import ngat.message.GUI_RCS.*;
+import ngat.message.OSS.*;
+
+public class SystemTest  implements Logging {
 
     /** Classname for logging.*/
     public static final String CLASS = "SYST";
@@ -52,7 +75,7 @@ public class SystemTest {
 	
 	// Send it onwards
 	JMSCommandHandler client = new JMSCommandHandler(tea.getConnectionFactory(), 
-							 tsched, 
+							 test, 
 							 tea.getOssConnectionSecure());
 
 	client.send();
@@ -73,9 +96,17 @@ public class SystemTest {
 		   "Starting TOCS connection test DUMMY IMPL...");
 
 	// TODO Insert code to test the TOCS connection - some harmless command.
+	// Try and get TOCSessionManager context.
+	TOCSessionManager sessionManager =
+	    TOCSessionManager.getSessionManagerInstance(tea);
+	try {
+	    sessionManager.ping();
+	    logger.log(INFO,1,CLASS,cid,"runTest", "TOCS connection test ok");	
+	} catch(Exception e) { 
+	    tocsFail = true;
+	    tocsError = e.getMessage();
+	}
 
-	logger.log(INFO,1,CLASS,cid,"runTest", "TOCS connection test DUMMY IMPL ok");
-	
 	// There are a choice of return messages...
 	String errStr = null;
 	if (ossFail) {
