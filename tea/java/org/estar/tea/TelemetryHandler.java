@@ -91,9 +91,9 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 	    // get the oid and filename from the telemetry
 	    String oid = ((ReductionInfo)telem).getObsPathName();
 
-	    String obsPath = new Path(oid);
-	    String gid = obsPath.getProposalPathByName()+"/"+obsPath.getGroupByName();
-	    String obsId = obsPath.getObservationByName();
+	    Path   obsPath = new Path(oid);
+	    String gid     = obsPath.getProposalPathByName()+"/"+obsPath.getGroupByName();
+	    String obsId   = obsPath.getObservationByName();
 
 	    int iobs = 0;
 	    // if we cant extract the obsid were stuffed
@@ -118,27 +118,33 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
 		logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
 			   "TELH::No AgentRequestHandler found for: "+gid+" - Not one of ours");
 	    } else {
-		
-		if (arq.wantsReducedImagesOnly(obsId)) {
 
-		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			       "TELH::UpdateHandler located: Adding image:"+imageFileName);
-		    arq.addImageInfo(new ImageInfo(iobs, imageFileName));
+		try {
+		    if (arq.wantsReducedImagesOnly(iobs)) {
+			
+			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+				   "TELH::UpdateHandler located: Adding image:"+imageFileName);
+			arq.addImageInfo(new ImageInfo(iobs, imageFileName));
+		    }
+		} catch (Exception dx) {
+		    done.setSuccessful(false);
+		    sendDone(done);
+		    return;
 		}
 	    }
 	} else if
 	      (telem instanceof ExposureInfo) {
-
+	    
 	    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-                       "TELH::This is instance of ReductionInfo.");
-
+                       "TELH::This is instance of ExposureInfo.");
+	    
             // get the oid and filename from the telemetry
-            String oid = ((ReductionInfo)telem).getObsPathName();
-
-            String obsPath = new Path(oid);
+            String oid = ((ExposureInfo)telem).getObsPathName();
+	    
+            Path obsPath = new Path(oid);
             String gid = obsPath.getProposalPathByName()+"/"+obsPath.getGroupByName();
             String obsId = obsPath.getObservationByName();
-
+	    
             int iobs = 0;
             // if we cant extract the obsid were stuffed
             try {
@@ -149,25 +155,31 @@ public class TelemetryHandler implements CAMPRequestHandler, Logging {
                 sendDone(done);
                 return;
             }
-
+	    
             // The observation id is the group id with a /obsid on the end e.g.:
             // /LT_Phase2_001/PATT/keith.horne/PL04B17/000086:UA:v1-15:run#10:user#agent/ExoPlanetMonitor
             logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-                       "TELH::ReductionInfo has oid: "+oid+".");
-
-            String imageFileName = ((ReductionInfo)telem).getFileName();
-
+                       "TELH::ExposureInfo has oid: "+oid+".");
+	    
+            String imageFileName = ((ExposureInfo)telem).getFileName();
+	    
             arq  = tea.getUpdateHandler(gid);
             if (arq == null) {
                 logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
                            "TELH::No AgentRequestHandler found for: "+gid+" - Not one of ours");
             } else {
-
-                if (! arq.wantsReducedImagesOnly()) {
-
-		    logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
-			       "TELH::UpdateHandler located: Adding image:"+imageFileName);
-		    arq.addImageInfo(new ImageInfo(iobs, imageFileName));
+		
+		try {
+		    if (! arq.wantsReducedImagesOnly(iobs)) {
+			
+			logger.log(INFO, 1, CLASS, tea.getId(),"handleRequest",
+				   "TELH::UpdateHandler located: Adding image:"+imageFileName);
+			arq.addImageInfo(new ImageInfo(iobs, imageFileName));
+		    }
+		} catch (Exception dx) {
+		    done.setSuccessful(false);
+		    sendDone(done);
+		    return;
 		}
 
             }
