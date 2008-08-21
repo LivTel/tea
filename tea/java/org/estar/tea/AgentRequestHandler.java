@@ -106,7 +106,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      *  <li>when we receive an update (ObsInfo) from RCS.
      * </ul>
      */
-    private Observation observation;
+    //    private Observation observation;
 
    /** The update document - temporarily created to send back to remote UA.*/
     private RTMLDocument updateDoc;
@@ -218,9 +218,14 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     public File getDocumentFile() { return file; }
 
     /** Returns true if this ARQ will only accept reduced images from the scope.*/
-    public boolean wantsReducedImagesOnly() {
-	// TODO work out from rtmldevice etc whether we want reduced or raw images
-	return false;
+    public boolean wantsReducedImagesOnly(int obsId) throws Exception {
+
+	RTMLObservation obs = baseDocument.getObservation(obsId);
+	RTMLDevice dev = obs.getDevice();
+
+	boolean wantsReducedImagesOnly = DeviceInstrumentUtilites.instrumentUpdateRequiresReductionTelemetry(tea, dev);
+	return wantsReducedImagesOnly;
+
     }
     
     
@@ -630,8 +635,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	// extract enddate from master schedule (obs-0)
 	RTMLObservation obs0 = baseDocument.getObservation(0);
 	Date            endDate     = null;
-	if (observation != null) {
-	    RTMLSchedule schedule = observation.getSchedule();
+	if (obs0 != null) {
+	    RTMLSchedule schedule = obs0.getSchedule();
 	    if (schedule != null) {
 		endDate = schedule.getEndDate();
 	    }
@@ -649,7 +654,6 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	    RTMLObservation observation = baseDocument.getObservation(iobs);
 	    RTMLSchedule    schedule    = null;
-	    Date            endDate     = null;
 	    
 	    if (observation != null) {
 		
