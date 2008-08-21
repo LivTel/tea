@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.41 2008-07-25 15:32:16 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.42 2008-08-21 10:02:23 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -973,9 +973,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     "Read document "+file.getPath());
 		
 		// If we fail to extract an oid, log but keep going.
-		String oid = createKeyFromDoc(doc);
+		String gid = createKeyFromDoc(doc);
 		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			     "Created ObservationID: "+oid);
+			     "Created GroupID: "+gid);
 		
 		String requestId = createRequestIdFromDoc(doc);
 		
@@ -984,7 +984,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		arq.setName(requestId);
 		arq.setARQId(getId()+"/"+arq.getName());
 		arq.setDocumentFile(file);
-		arq.setOid(oid);
+		arq.setGid(gid);
 		
 		// If we cant prepare the ARQ for UpdateHandling then it wont be started.
 		arq.prepareUpdateHandler();
@@ -994,9 +994,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     "Started ARQ UpdateHandler thread: "+arq);
 		
 		// Ok, now register it.
-		agentMap.put(oid, arq);	    
+		agentMap.put(gid, arq);	    
 		traceLog.log(INFO, 1, CLASS, id, "loadDocuments",
-			     "Registered running ARQ for: "+oid+" Using file: "+file.getPath());
+			     "Registered running ARQ for: "+gid+" Using file: "+file.getPath());
 		arqCount++;
 	    } catch (Exception e) {
 		traceLog.log(WARNING, 1, CLASS, id, "loadDocuments",
@@ -1059,7 +1059,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/** Creates a new unique filename.
 	 * @param oid Not currently used.
 	 */
-	public String createNewFileName(String oid) {
+	public String createNewFileName(String gid) {
 		File base    = new File(documentDirectory);
 		File newFile = new File(base, "doc-"+System.currentTimeMillis()+".rtml");
 		return newFile.getPath();
@@ -1067,7 +1067,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
     
 	/** 
-	 * Gets the ObservationID from the RTMLDocument supplied.
+	 * Gets the GroupID from the RTMLDocument supplied.
 	 * @param doc The RTMLDocument.
 	 * @return A string unique to a document (observation).
 	 * @exception Exception Thrown if any of the document's contact/project/obs/target are null.
@@ -1082,7 +1082,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 						       ":createKeyFromDoc:Contact was null for document.");
 		}
 		String userId = contact.getUser();
-	
+		//userId = userId.replaceAll("\\W","_");	
+
 		RTMLProject project = doc.getProject();
 		if(project == null)
 		{
@@ -1090,6 +1091,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 						       ":createKeyFromDoc:Project was null for document.");
 		}
 		String proposalId = project.getProject();
+		proposalId = proposalId.replaceAll("\\W","_");
+
 		// get document UId
 		String requestId = doc.getUId();
 		if(requestId == null)
@@ -1097,23 +1100,25 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			throw new NullPointerException(this.getClass().getName()+
 						       ":createKeyFromDoc:Unique ID was null for document.");
 		}
+		requestId = requestId.replaceAll("\\W","_");
+
 	
-		RTMLObservation observation = doc.getObservation(0);
-		if(observation == null)
-		{
-			throw new NullPointerException(this.getClass().getName()+
-						       ":createKeyFromDoc:Observation(0) was null for document.");
-		}
+		//		RTMLObservation observation = doc.getObservation(0);
+		//if(observation == null)
+		//{
+		//throw new NullPointerException(this.getClass().getName()+
+		//			       ":createKeyFromDoc:Observation(0) was null for document.");
+		//}
 	
-		RTMLTarget target = observation.getTarget();
-		if(target == null)
-		{
-			throw new NullPointerException(this.getClass().getName()+
-						       ":createKeyFromDoc:Target was null for document.");
-		}
-		String targetIdent = target.getIdent();
+		//RTMLTarget target = observation.getTarget();
+		//if(target == null)
+		//	{
+		//throw new NullPointerException(this.getClass().getName()+
+		///			       ":createKeyFromDoc:Target was null for document.");
+		//}
+		//String targetIdent = target.getIdent();
 	
-		return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId+"/"+targetIdent;
+		return getDBRootName()+"/"+userId+"/"+proposalId+"/"+requestId;
 	
 	} // [createKeyFromDoc(RTMLDocument doc)]
 
@@ -1149,7 +1154,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			throw new NullPointerException(this.getClass().getName()+
 						       ":createKeyFromDoc:Unique ID null for document.");
 		}
-	
+		requestId = requestId.replaceAll("\\W","_");
+
 		return requestId;
 	
 	} // [createRequestIdFromDoc(RTMLDocument doc)]
@@ -1639,6 +1645,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.41  2008/07/25 15:32:16  cjm
+** Changed AgentRequestHandler setId to setARQId.
+**
 ** Revision 1.40  2008/06/11 14:21:15  cjm
 ** First attempt at a fix for logRTML.
 **
