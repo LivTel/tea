@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.42 2008-08-21 10:02:23 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.43 2008-08-29 09:26:05 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -40,6 +40,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
     public static final int ASYNC_MODE_RMI = 2;
 
+    /** Global Logging System server port.*/
+    public static final int DEFAULT_GLS_PORT = 2371;
 
 	/** Default agent name for logging.*/
 	public static final String DEFAULT_ID = "TELESCOPE_EA";
@@ -132,6 +134,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      
     /** Number formatter for scores.*/
     public static NumberFormat nf;
+
+    /** GLS server port (on localhost assumed).*/
+    protected int glsPort;
 
 	/** DN Server port.*/
 	protected int dnPort;
@@ -331,6 +336,12 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 */
 	protected void start() throws Exception {
 
+	    // global logging support
+	    DatagramLogHandler dlh = new DatagramLogHandler(glsHost, glsPort);
+	    dlh.setLogLevel(1); // only level-1 messages to go to GLS
+	    traceLog.addHandler(dlh);
+
+
 		// TelemRecvr
 		telemetryServer = new TelemetryReceiver(this, "TR-TEST");
 		telemetryServer.bind(telemetryPort);	
@@ -393,6 +404,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     "\n    Connect:    "+(ossConnectionSecure ? " SECURE" : " NON_SECURE")+
 			     "\n  Ctrl:         "+ctrlHost+" : "+ctrlPort+
 			     "\n  Async Mode:   "+asmode+
+			     "\n  GLS Support:  "+glsHost+":"+glsPort+
 			     "\n Telescope:"+
 			     "\n  Lat:          "+Position.toDegrees(siteLatitude, 3)+
 			     "\n  Long:         "+Position.toDegrees(siteLongitude,3)+
@@ -523,8 +535,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	
 	}
 
-	/** Sets the incoming request port ###dn is an old name.*/
-	public void setDnPort(int p) { this.dnPort = p; }
+    /** Sets the GLS server port.*/
+    public void setGlsPort(int p) { this.glsPort = p;}
+    
+    /** Sets the incoming request port ###dn is an old name.*/
+    public void setDnPort(int p) { this.dnPort = p; }
     
 	/** Sets the OSS port.*/
 	public void setOssPort(int p) { this.ossPort = p; }
@@ -1343,11 +1358,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			documentUId = document.getUId();
 			create.create(document);
 			documentString = create.toXMLString();
-			l.log(logLevel,description+documentString);
+			l.log(2,description+documentString);
 		}
 		catch(Exception e)
 		{
-			l.log(logLevel, "logRTML:Failed to create XML String for document:"+documentUId+":"+e,e);
+			l.log(2, "logRTML:Failed to create XML String for document:"+documentUId+":"+e,e);
 			e.printStackTrace();
 		}
 	}
@@ -1416,7 +1431,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @throws IllegalArgumentException if any properties missing, wrong, illegal.
 	 */
 	public void configure(ConfigurationProperties config) throws IOException, IllegalArgumentException {
-	
+
+	    // global logging support
+	    int glsPort = config.getIntValue("gls.port", DEFAULT_GLS_PORT);
+
 		int dnPort = config.getIntValue("dn.port", DEFAULT_DN_PORT);
 	
 		int ossPort = config.getIntValue("oss.port", DEFAULT_OSS_PORT);
@@ -1497,6 +1515,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		String tpf = config.getProperty("tap.persistance.file", DEFAULT_TAP_PERSISTANCE_FILE_NAME);
 		File tpFile = new File(tpf);
 	
+		setGlsPort(glsPort);
 		setDnPort(dnPort);
 		setOssHost(ossHost);
 		setOssPort(ossPort);
@@ -1645,6 +1664,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.42  2008/08/21 10:02:23  eng
+** no change.
+**
 ** Revision 1.41  2008/07/25 15:32:16  cjm
 ** Changed AgentRequestHandler setId to setARQId.
 **
