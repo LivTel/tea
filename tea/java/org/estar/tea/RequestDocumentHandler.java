@@ -1,4 +1,4 @@
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.22 2008-08-21 10:02:56 eng Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/RequestDocumentHandler.java,v 1.23 2008-09-15 12:10:38 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -69,16 +69,22 @@ public class RequestDocumentHandler implements Logging {
 	long now = System.currentTimeMillis();
 	
 	
-	if (document.isTOOP()) {
-	    // Try and get TOCSessionManager context.
-	    TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea,document);
-	    // add the document to the TOCSessionManager
-	    // if it succeeds addDocument sets the type to "confirmation".
-	    document = sessionManager.addDocument(document);
-	    return document;
+	logger.log(INFO, 1, CLASS, cid,"handleRequest","handleRequest for document UId: "+document.getUId());
+	if (document.isTOOP())
+	{
+		// Try and get TOCSessionManager context.
+		logger.log(INFO, 1, CLASS, cid,"handleRequest","Request is a TOOP: finding session manager.");
+		TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea,document);
+		// add the document to the TOCSessionManager
+		// if it succeeds addDocument sets the type to "confirmation".
+		logger.log(INFO, 1, CLASS, cid,"handleRequest",
+			   "Request is a TOOP: Adding document to session manager.");
+		document = sessionManager.addDocument(document);
+		return document;
 	} 
 	
 	// Non toop
+	logger.log(INFO, 1, CLASS, cid,"handleRequest","Extracting PhaseII information.");
 	
 	Phase2GroupExtractor p2x = new Phase2GroupExtractor(tea);
 	Group group = p2x.extractGroup(document);
@@ -94,6 +100,7 @@ public class RequestDocumentHandler implements Logging {
 	Map tmap = new HashMap();
 	
 	
+	logger.log(INFO, 1, CLASS, cid,"handleRequest","Adding Observations.");
 	Iterator iobs = group.listAllObservations();
 	while (iobs.hasNext()) {
 	    
@@ -175,6 +182,7 @@ public class RequestDocumentHandler implements Logging {
 
 	} // next obs
 	
+	logger.log(INFO, 1, CLASS, cid,"handleRequest","Adding Group.");
 	ADD_GROUP addgroup = new ADD_GROUP(tea.getId()+":"+document.getUId());
 	addgroup.setClientDescriptor(new ClientDescriptor("EmbeddedAgent",
 							  ClientDescriptor.ADMIN_CLIENT,
@@ -206,6 +214,7 @@ public class RequestDocumentHandler implements Logging {
 	// ### this maybe should go in a seperate method to be called by the CH
 	// ### or the CH calls these methods itself one-by-one.
 
+	logger.log(INFO, 1, CLASS, cid,"handleRequest","Creating AgentRequestHandler.");
 	AgentRequestHandler arq = new  AgentRequestHandler(tea, document);
 
 	// Extract the observation path - we already have it anyway.
@@ -275,6 +284,9 @@ public class RequestDocumentHandler implements Logging {
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.22  2008/08/21 10:02:56  eng
+// HTNIV
+//
 // Revision 1.21  2008/07/25 15:31:33  cjm
 // Changed AgentRequestHandler setId to setARQId.
 //
