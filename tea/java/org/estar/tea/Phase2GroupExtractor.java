@@ -201,6 +201,10 @@ public class Phase2GroupExtractor implements Logging {
 	if (scon == null || count == 1) {
 	    // FlexGroup
 	    group = new Group(requestId);
+	    // set the startingdate which is the only way a flex-group can pass over 
+	    // its start time to scoredoc handler.
+	    group.setStartingDate(startDate.getTime());
+
 	} else {
 	    // A MonitorGroup.
 	    group = new MonitorGroup(requestId);
