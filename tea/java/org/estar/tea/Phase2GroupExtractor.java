@@ -87,7 +87,7 @@ public class Phase2GroupExtractor implements Logging {
 	    seeing = sc.getMaximum();
 	}
 
-	double mld = 0.0;
+	double mld = Math.toRadians(15.0); // default minimum disatance unless otherwise selected
 	RTMLMoonConstraint mc = master.getMoonConstraint();
 	if (mc != null) {
 	    mld = mc.getDistanceRadians();
