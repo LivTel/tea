@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.43 2008-08-29 09:26:05 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.44 2009-01-05 09:37:22 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -104,7 +104,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	public static final String DEFAULT_DOCUMENT_DIR   = "data";
     
 	public static final String DEFAULT_EXPIRED_DOCUMENT_DIR   = "expired";
-    
+         public static final String DEFAULT_LOGGING_DOCUMENT_DIR = "logging";
+
 	public static final long DEFAULT_EXPIRATOR_POLLING_TIME   = 3600*1000L;
     
 	public static final long DEFAULT_EXPIRATOR_OFFSET_TIME    = 1800*1000L;
@@ -225,6 +226,12 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 */
 	protected String expiredDocumentDirectory = new String("expired");
 	
+    	/**
+	 * The directory to store logging serialized documents in.
+	 */
+	protected String loggingDocumentDirectory = new String("logging");
+	
+    
 	/**
 	 * The number of milliseconds between runs of the expirator.
 	 * @see #DEFAULT_EXPIRATOR_POLLING_TIME
@@ -304,7 +311,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		traceLog   = LogManager.getLogger("TRACE");
 		traceLog.setLogLevel(ALL);	
 		traceLog.addHandler(console);
-	
+		traceLog.setChannelID("TEA");
+
 		// add handler to other loggers used
 	
 	
@@ -337,11 +345,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	protected void start() throws Exception {
 
 	    // global logging support
-	    DatagramLogHandler dlh = new DatagramLogHandler(glsHost, glsPort);
-	    dlh.setLogLevel(1); // only level-1 messages to go to GLS
-	    traceLog.addHandler(dlh);
-
-
+	    try {
+		DatagramLogHandler dlh = new DatagramLogHandler("localhost", glsPort);
+		dlh.setLogLevel(1);
+		traceLog.addHandler(dlh);
+	    } catch (Exception e) {
+		traceLog.log(INFO, 1, CLASS, id, "init",
+			     "WARNING - Unable to connect to GLS: "+e);
+	    }
+	    
 		// TelemRecvr
 		telemetryServer = new TelemetryReceiver(this, "TR-TEST");
 		telemetryServer.bind(telemetryPort);	
@@ -404,7 +416,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 			     "\n    Connect:    "+(ossConnectionSecure ? " SECURE" : " NON_SECURE")+
 			     "\n  Ctrl:         "+ctrlHost+" : "+ctrlPort+
 			     "\n  Async Mode:   "+asmode+
-			     "\n  GLS Support:  "+glsHost+":"+glsPort+
+			     "\n  GLS Support:  "+"localhost:"+glsPort+
 			     "\n Telescope:"+
 			     "\n  Lat:          "+Position.toDegrees(siteLatitude, 3)+
 			     "\n  Long:         "+Position.toDegrees(siteLongitude,3)+
@@ -625,6 +637,12 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		expiredDocumentDirectory = s;
 	}
     
+    public void setLoggingDocumentDirectory(String s)
+	{
+		loggingDocumentDirectory = s;
+	}
+    
+
 	/**
 	 * Set how long to sleep between calls to the document exirator.
 	 * @param l A long, representing a period in milliseconds.
@@ -1081,6 +1099,15 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	}
 
     
+	/** Creates a new unique filename for log storage.
+	 * @param oid Not currently used.
+	 */
+	public String createLogFileName(String gid) {
+		File base    = new File(loggingDirectory);
+		File newFile = new File(base, "doc-"+System.currentTimeMillis()+".rtml");
+		return newFile.getPath();
+	}
+    
 	/** 
 	 * Gets the GroupID from the RTMLDocument supplied.
 	 * @param doc The RTMLDocument.
@@ -1367,6 +1394,41 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 	}
 
+    /** Create an ELR record for an RTML doc with the doc hived off to a seperate but identifiable url.
+     * @param logger A LogCollator already built up with relevant info.
+     * @param document The document to hive off.
+    */
+    protected void xlogRTML(LogCollator logger, RTMLDocument document) {
+	
+	String documentUId = null;
+
+	// make a file to dump the document content to...
+	File docFile = createLogFileName(""); // any old name
+	
+	try {
+	    RTMLCreate create = new RTMLCreate();
+	    documentUId = document.getUId();  
+	    logger.context("document-uid", documentUId);
+
+	    create.create(document);
+	    create.toStream(new FileOutputStream(docFile));
+	    
+	} catch(Exception e) {
+	
+	    logger.msg("Error saving RTML document: "+e).send();
+	    
+	    e.printStackTrace();
+	    return;
+	}
+		
+	// Now add context so we can find the document - this should really be an URL not a file...
+	logger.context("document-url", docFile.getPath());
+	
+	
+    }	
+
+
+
 	/** Configures and starts a Telescope Embedded Agent.*/
 	public static void main(String args[]) {
 	
@@ -1498,6 +1560,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		String documentDirectory        = config.getProperty("document.dir", DEFAULT_DOCUMENT_DIR);
 		String expiredDocumentDirectory = config.getProperty("expired.document.dir",
 								     DEFAULT_EXPIRED_DOCUMENT_DIR);
+
+		String loggingDocumentDirectory = config.getProperty("logging.document.dir",
+								     DEFAULT_LOGGING_DOCUMENT_DIR);
 		long expiratorSleepMs = config.getLongValue("expirator.sleep", DEFAULT_EXPIRATOR_POLLING_TIME);
 
 		String arm = config.getProperty("async.response.mode", "SOCKET");
@@ -1545,6 +1610,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 		setDocumentDirectory(documentDirectory);
 		setExpiredDocumentDirectory(expiredDocumentDirectory);
+		setLoggingDocumentDirectory(loggingDocumentDirectory);
 		setExpiratorSleepMs(expiratorSleepMs);
 
 		setTapPersistanceFile(tpFile);
@@ -1664,6 +1730,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.43  2008/08/29 09:26:05  eng
+** added support for GLS
+**
 ** Revision 1.42  2008/08/21 10:02:23  eng
 ** no change.
 **
@@ -1756,7 +1825,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 /** Disabled the DocExpirator for testing of ARQ's internal checking.
 /**
 /** Revision 1.13  2005/06/02 06:29:18  snf
-/** Changed createNewFileName() to include document-base directory.
+/** Changed creatwFileName() to include document-base directory.
 /**
 /** Revision 1.12  2005/06/01 16:07:24  snf
 /** Updated to use new architecture.
