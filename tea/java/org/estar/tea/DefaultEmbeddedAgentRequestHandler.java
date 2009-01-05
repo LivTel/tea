@@ -11,13 +11,19 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 
     TelescopeEmbeddedAgent tea;
 
-    Logger logger;
+    Logger alogger;
 
+    LogGenerator logger;
 
     /** Create a DefaultEmbeddedAgentRequestHandler for the TEA.*/
     public DefaultEmbeddedAgentRequestHandler(TelescopeEmbeddedAgent tea) throws RemoteException {
 	this.tea = tea;
-	logger = LogManager.getLogger("TRACE");
+	alogger = LogManager.getLogger("TRACE");
+	logger = alogger.generate()
+	    .system("TEA")
+	    .subSystem("Handling")
+	    .srcCompClass(this.getClass().getName())
+	    .srcCompID(this.toString());
     } 
 
     /** 
@@ -27,28 +33,26 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
      * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
      */
     public RTMLDocument handleScore(RTMLDocument doc) throws RemoteException {
+	
 	RTMLDocument reply = null;
-
-	// GENERIC start snf 8-apr-2008>>
-        //ScoreHandlerFactory shf = tea.getScoreHandlerFactory();
-        //if (shf == null)
-	//  throw new RemoteException("Could not locate ScoreHandlerFactory");
-        // ScoreHandler sdh = null;
-	//try {
-	//  sdh = shf.createScoreHandler();
-        //} catch (Exception e) {
-	//  // Either couldnt create sdh or there was no shfactory
-	//  throw new RemoteException("Exception while creating score handler: "+e);
-        //}
-        // << GENERIC end
-
+	
 	try {
-	    // remove line for generic
+	   
 	    ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea);	
-	    tea.logRTML(logger,1,"ScoreDocHandler scoring doc: ",doc);
+	    tea.logRTML(alogger,1,"ScoreDocHandler scoring doc: ",doc);
 	    reply = sdh.handleScore(doc);
-	    logger.log(1, "ScoreDocHandler returned doc: "+reply);
-	    tea.logRTML(logger,1,"ScoreDocHandler returned doc: ",reply);
+	    alogger.log(1, "ScoreDocHandler returned doc: "+reply);
+	    tea.logRTML(alogger,1,"ScoreDocHandler returned doc: ",reply);
+	 
+	    LogCollator collator = logger.create()	
+		.info()
+		.level(1)
+		.extractCallInfo()
+		.msg("ScoreDocHandler returned document")
+
+	    tea.xlogRTML(collator, reply);
+
+      
 	} catch (Exception e) { 	  
 	    throw new RemoteException("Exception while handling score: "+e);
 	}
@@ -62,28 +66,25 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
      * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
      */
     public RTMLDocument handleRequest(RTMLDocument doc) throws RemoteException {
+	
 	RTMLDocument reply = null;
 	
-	// GENERIC start snf 8-apr-2008>>
-        //RequestHandlerFactory rhf = tea.getRequestHandlerFactory();
-        //if (rhf == null)
-        //  throw new RemoteException("Could not locate RequestHandlerFactory");
-        // (EA?)RequestHandler rdh = null;
-        //try {
-        //  rdh = rhf.createRequestHandler();
-        //} catch (Exception e) {
-        //  // Either couldnt create rdh or there was no rhfactory
-        //  throw new RemoteException("Exception while creating request handler: "+e);
-        //}
-        // << GENERIC end
-
 	try {
-	    // remove line for generic
+	 
 	    RequestDocumentHandler rdh = new RequestDocumentHandler(tea);
-	    tea.logRTML(logger,1,"RequestDocHandler handling request: ",doc);
+	    tea.logRTML(alogger,1,"RequestDocHandler handling request: ",doc);
 	    reply = rdh.handleRequest(doc);
-	    logger.log(1, "RequestDocHandler returned doc: "+reply);
-	    tea.logRTML(logger,1,"RequestDocHandler returned doc: ",reply);
+	    alogger.log(1, "RequestDocHandler returned doc: "+reply);
+	    tea.logRTML(alogger,1,"RequestDocHandler returned doc: ",reply);
+
+	    LogCollator collator = logger.create()	
+		.info()
+		.level(1)
+		.extractCallInfo()
+		.msg("RequestDocHandler returned document")
+		
+	    tea.xlogRTML(collator, reply);
+
 
 	} catch (Exception e) {
 	    throw new RemoteException("Exception while handling request: "+e);
@@ -97,13 +98,13 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
      * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
      */
     public RTMLDocument handleAbort(RTMLDocument doc) throws RemoteException {
+
 	RTMLDocument reply = null;
-	// add generics - how ?
 
 	try {	
 	    AbortDocumentHandler adh = new AbortDocumentHandler(tea);
 	    reply = adh.handleAbort(doc);
-	    tea.logRTML(logger,1,"handleAbort returned doc: ",reply);
+	    tea.logRTML(alogger,1,"handleAbort returned doc: ",reply);
 	} catch (Exception e) {
 	    throw new RemoteException("Exception while handling abort: "+e);
 	}
@@ -141,11 +142,11 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 
 	agid = doc.getUId();
 	if(userAgent == null) {
-	    logger.log(1, "testUpdateCallback: Warning, User agent was null.");
+	    alogger.log(1, "testUpdateCallback: Warning, User agent was null.");
 	} else {
 	    host = userAgent.getHostname();
 	    port = userAgent.getPort();
-	    logger.log(1, "TestHarness: testUpdateCallback: Sending update to: "+agid+"@ "+host+":"+port+" in "+howlong+" msec");
+	    alogger.log(1, "TestHarness: testUpdateCallback: Sending update to: "+agid+"@ "+host+":"+port+" in "+howlong+" msec");
 	}
 
 	doc.setUpdate();
@@ -160,9 +161,9 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 		    try {	
 			try {Thread.sleep(myhowlong);} catch (InterruptedException ix) {}
 			mytea.sendDocumentToIA(mydoc);
-			logger.log(1, "TestHarness: testUpdateCallback: Sent update to: "+myagent);
+			alogger.log(1, "TestHarness: testUpdateCallback: Sent update to: "+myagent);
 		    } catch (Exception e) {
-			logger.log(1, "An error occurred during TestHarness callback test: "+e);
+			alogger.log(1, "An error occurred during TestHarness callback test: "+e);
 			e.printStackTrace();
 		    }
 		}
