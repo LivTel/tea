@@ -28,3 +28,34 @@ Currently "Urgent" cannot be specified in RTML 3.1a, as "0" equates to TOOP.
 We have recently moved the priorities so RTML 2.2 "0" equates to PhaseII priority "5" (Urgent). 
 This is currently different from the FTN and FTS TEAs, where RTML 2.2 "0" 
 equates to PhaseII priority "4" (Quite Urgent), and PhaseII priority "5" (Urgent) is not specifiable.
+
+FTN and FTS update (2009/04/20) from email by Eric Hawkins:
+------------------
+
+Phase 2 GUI | ODB
+---------------------
+Background	 | -2
+Normal		 | 1
+Medium		 | 2
+High		 | 3
+Urgent		 | 5
+Photom		 | -1
+
+
+Our current RTML priority mappings are:
+
+RTML	| ODB
+----------------
+0	| 5
+1	| 4
+2	| 3
+3	| 2
+4	| 1
+
+So it looks like we match up with the LT except for the fact that 'Quite
+Urgent' (ODB priority 4) is not available via our phase2 GUI. Groups
+with this priority will show up as priority 'Normal' in our phase2 GUI
+since that is the default.
+
+Regarding the SDSS-i filter issue, we already have the generic 'I' filter
+mapped to SDSS-i.
