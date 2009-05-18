@@ -311,6 +311,7 @@ public class Phase2GroupExtractor implements Logging {
 		} catch (Exception e) {
 		    logger.log(INFO,1,CLASS,cid,"handleRequest",
 			       "Device configuration error: "+e);
+		    logger.dumpStack(1,e);
 		    throw new IllegalArgumentException("Device configuration error: "+e);
 		}
 		// END New DEVINST stuff
