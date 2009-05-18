@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.4 2008-08-12 09:45:12 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.5 2009-05-18 13:55:16 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -33,14 +33,14 @@ import ngat.util.*;
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class DeviceInstrumentUtilites
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.4 2008-08-12 09:45:12 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.5 2009-05-18 13:55:16 cjm Exp $";
 	/**
 	 * The type of instrument.
 	 */
@@ -135,6 +135,11 @@ public class DeviceInstrumentUtilites
 		instrumentId = getInstrumentId(tea,device);
 		// get config class name for id
 		configClassName = tea.getFilterMap().getProperty("filter."+instrumentId+".config.class");
+		if(configClassName == null)
+		{
+			throw new IllegalArgumentException("getInstrumentConfig:No Config class name "+
+							   "found for instrument "+instrumentId+".");
+		}
 		// fill in config based on config class name
 		// ugly but it works.
 		if(configClassName.equals("dev.lt.RATCamConfig")||configClassName.equals("ngat.phase2.CCDConfig"))
@@ -805,6 +810,10 @@ public class DeviceInstrumentUtilites
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2008/08/12 09:45:12  cjm
+** Added methods to return what sort of telemetry triggers an update document for each instrument.
+** Some instruments generate ReductionInfo, whilst some only generate ExposureInfo.
+**
 ** Revision 1.3  2008/03/28 17:18:41  cjm
 ** Rewritten to allow multiple instrument per each instrument type.
 ** Instrument Type uses a combination of Device type and spectralRegion to determine type.
