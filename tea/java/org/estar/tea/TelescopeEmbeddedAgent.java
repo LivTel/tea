@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.44 2009-01-05 09:37:22 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.45 2009-05-18 09:55:13 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -280,6 +280,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     /** The host where we can lookup the NAR if RMI mode.*/
     protected String narHost;
 
+    /** True if we are using new phase2 models.*/
+    protected boolean useEnhancedPhase2 = true;
+
     /** Predicts availability of telescope over various time frames.*/
     protected TelescopeAvailabilityPredictor tap;
 
@@ -347,8 +350,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    // global logging support
 	    try {
 		DatagramLogHandler dlh = new DatagramLogHandler("localhost", glsPort);
-		dlh.setLogLevel(1);
+		dlh.setLogLevel(2);
+		// NOTE adding as both a standard AND as an Extended handler
 		traceLog.addHandler(dlh);
+		traceLog.addExtendedHandler(dlh);
 	    } catch (Exception e) {
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "WARNING - Unable to connect to GLS: "+e);
@@ -434,26 +439,50 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    traceLog.dumpStack(1,e);
 		}
 		
-              
-		traceLog.log(INFO, 1, CLASS, id, "init",
-			     "Registering EA-RequestHandler...");
-		try {
-		    DefaultEmbeddedAgentRequestHandler ear = new DefaultEmbeddedAgentRequestHandler(this);
-		    Naming.rebind("rmi://localhost/EARequestHandler", ear);
-		    traceLog.log(INFO, 1, CLASS, id, "init",
-				 "EmbeddedAgentRequestHandler bound to registry");
-		} catch (Exception e) {
-		    traceLog.log(INFO, 1, CLASS, id, "init",
-				 "Failed to register EAR: "+e);
+		if (useEnhancedPhase2) {
 		    
+		    // This is the new EAR which communicates with the new OSS using new Phase2 stuff. 
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Registering EA-RequestHandler: EnhancedEmbeddedAgentRequestHandler");
 		    try {
-			if (mailer != null)
-			    mailer.send("Starting TEA ("+id+") Failed to bind [EmbeddedAgentRequestHandler] to local registry: "+e);
-			e.printStackTrace();
-		    } catch (Exception tx) {
-			tx.printStackTrace();
+			EnhancedEmbeddedAgentRequestHandler ear = new EnhancedEmbeddedAgentRequestHandler(this);
+			Naming.rebind("rmi://localhost/EARequestHandler", ear);
+			traceLog.log(INFO, 1, CLASS, id, "init",
+				     "EnhancedEmbeddedAgentRequestHandler bound to registry");
+		    } catch (Exception e) {
+			traceLog.log(INFO, 1, CLASS, id, "init",
+				     "Failed to register EAR: "+e);
+			
+			try {
+			    if (mailer != null)
+				mailer.send("Starting TEA ("+id+") Failed to bind [EnhancedEmbeddedAgentRequestHandler] to local registry: "+e);
+			    e.printStackTrace();
+			} catch (Exception tx) {
+			    tx.printStackTrace();
+			}
+			
 		    }
-		    
+		} else {
+		    traceLog.log(INFO, 1, CLASS, id, "init",
+				 "Registering EA-RequestHandler: DefaultEmbeddedAgentRequestHandler");
+		    try {
+			DefaultEmbeddedAgentRequestHandler ear = new DefaultEmbeddedAgentRequestHandler(this);
+			Naming.rebind("rmi://localhost/EARequestHandler", ear);
+			traceLog.log(INFO, 1, CLASS, id, "init",
+				     "DefaultEmbeddedAgentRequestHandler bound to registry");
+		    } catch (Exception e) {
+			traceLog.log(INFO, 1, CLASS, id, "init",
+				     "Failed to register EAR: "+e);
+			
+			try {
+			    if (mailer != null)
+				mailer.send("Starting TEA ("+id+") Failed to bind [DefaultEmbeddedAgentRequestHandler] to local registry: "+e);
+			    e.printStackTrace();
+			} catch (Exception tx) {
+			    tx.printStackTrace();
+			}
+			
+		    }
 		}
 
 		traceLog.log(INFO, 1, CLASS, id, "init",
@@ -596,6 +625,8 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
     /** Set the NodeAgent Asynch Response Handler host address.*/
     public void setNarHost(String h) { this.narHost = h; }
+
+    public void setUseEnhancedPhase2(boolean u) {this.useEnhancedPhase2 = u;}
 
     public void setAsyncResponseMode(int m) { this.asyncResponseMode = m; }
 
@@ -1103,7 +1134,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	 * @param oid Not currently used.
 	 */
 	public String createLogFileName(String gid) {
-		File base    = new File(loggingDirectory);
+		File base    = new File(loggingDocumentDirectory);
 		File newFile = new File(base, "doc-"+System.currentTimeMillis()+".rtml");
 		return newFile.getPath();
 	}
@@ -1399,11 +1430,13 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
      * @param document The document to hive off.
     */
     protected void xlogRTML(LogCollator logger, RTMLDocument document) {
-	
+	   
+	System.err.println("TEA::xlogRTML()::Entered");
+
 	String documentUId = null;
 
 	// make a file to dump the document content to...
-	File docFile = createLogFileName(""); // any old name
+	File docFile = new File(createLogFileName("")); // any old name
 	
 	try {
 	    RTMLCreate create = new RTMLCreate();
@@ -1420,10 +1453,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	    e.printStackTrace();
 	    return;
 	}
-		
+		 
+	System.err.println("TEA::xlogRTML()::About to call LogCollator,send() using: "+logger);
+
 	// Now add context so we can find the document - this should really be an URL not a file...
-	logger.context("document-url", docFile.getPath());
-	
+	logger.context("document-url", docFile.getPath()).send();	
 	
     }	
 
@@ -1576,6 +1610,10 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		    setAsyncResponseMode(ASYNC_MODE_SOCKET);	
 		} else
 		    throw new IllegalArgumentException("Unknown response handler mode; "+arm);
+
+		// Shall we be using the new phase2/oss  ?
+		boolean uep = (config.getProperty("use.enhanced.phase2") != null);
+		setUseEnhancedPhase2(uep);
 
 		String tpf = config.getProperty("tap.persistance.file", DEFAULT_TAP_PERSISTANCE_FILE_NAME);
 		File tpFile = new File(tpf);
@@ -1730,6 +1768,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.44  2009/01/05 09:37:22  eng
+** add xlogRTML to allow rtml docs to be dumped to file
+**
 ** Revision 1.43  2008/08/29 09:26:05  eng
 ** added support for GLS
 **
