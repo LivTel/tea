@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.45 2009-05-18 09:55:13 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.46 2009-05-18 13:41:16 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -281,7 +281,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
     protected String narHost;
 
     /** True if we are using new phase2 models.*/
-    protected boolean useEnhancedPhase2 = true;
+    protected boolean useEnhancedPhase2 = false;
 
     /** Predicts availability of telescope over various time frames.*/
     protected TelescopeAvailabilityPredictor tap;
@@ -1768,6 +1768,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.45  2009/05/18 09:55:13  eng
+** added switching and flag for EnhancedEAR
+**
 ** Revision 1.44  2009/01/05 09:37:22  eng
 ** add xlogRTML to allow rtml docs to be dumped to file
 **
