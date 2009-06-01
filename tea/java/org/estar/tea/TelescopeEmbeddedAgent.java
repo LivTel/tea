@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.46 2009-05-18 13:41:16 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.47 2009-06-01 12:39:08 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -192,7 +192,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	protected String imageDir;
     
 	/** Handles estar communications.*/
-	protected eSTARIO io;
+	//protected eSTARIO io;
     
 	// Logging.
 	protected Logger traceLog;
@@ -541,7 +541,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		//     "Started DocExpirator with polling interval: "+
 		//     (expiratorSleepMs/1000)+" secs");
 		
-		io.serverStart(8088, this);	
+		//io.serverStart(8088, this);	
 		traceLog.log(INFO, 1, CLASS, id, "init",
 			     "Started eSTAR IO server on a dodgy port.");
 
@@ -569,7 +569,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		}
 
 		if (io != null) {	     
-			io.serverClose();	
+		    //io.serverClose();	
 			traceLog.log(INFO, 2, CLASS, id, " shutdown",
 				     "Closed down eSTARIO server:");	    
 		}
@@ -1330,47 +1330,48 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 		{
 			case ASYNC_MODE_SOCKET:
 		
-				RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
-				if(userAgent == null)
-				{
-					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
-						     "): User agent was null.");
-					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
-							    documentUId+"):user agent was null");
-				}
-				String agid = userAgent.getId();
-				String host = userAgent.getHostname();
-				int    port = userAgent.getPort();
-				if((host == null)||(port == 0))
-				{
-					traceLog.log(INFO, 1, CLASS,
-						     "sendDocumentToIA("+documentUId+
-						     "): IA host was null/port was 0:not sending document "+agid+
-						     " back to IA.");
-					// don't throw an excetption, just return so TEA deletes ARQ.
-					// This assumes null host/0 port means no IA to send document back to.
-					return;
-				}
-				traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
-					     "): Opening eSTAR IO client connection to ("+host+
-					     ","+port+").");
-				GlobusIOHandle handle = io.clientOpen(host, port);
-				if(handle == null) {
-					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
-						     "):Failed to open client connection to ("+host+
-						     ","+port+").");
-					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
-							    documentUId+"):handle was null");
-				}
-				String reply = createReply(document);
+		// 		RTMLIntelligentAgent userAgent = document.getIntelligentAgent();
+// 				if(userAgent == null)
+// 				{
+// 					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+// 						     "): User agent was null.");
+// 					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
+// 							    documentUId+"):user agent was null");
+// 				}
+// 				String agid = userAgent.getId();
+// 				String host = userAgent.getHostname();
+// 				int    port = userAgent.getPort();
+// 				if((host == null)||(port == 0))
+// 				{
+// 					traceLog.log(INFO, 1, CLASS,
+// 						     "sendDocumentToIA("+documentUId+
+// 						     "): IA host was null/port was 0:not sending document "+agid+
+// 						     " back to IA.");
+// 					// don't throw an excetption, just return so TEA deletes ARQ.
+// 					// This assumes null host/0 port means no IA to send document back to.
+// 					return;
+// 				}
+// 				traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+// 					     "): Opening eSTAR IO client connection to ("+host+
+// 					     ","+port+").");
+// 				GlobusIOHandle handle = null;
+// 				//io.clientOpen(host, port);
+// 				if(handle == null) {
+// 					traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+// 						     "):Failed to open client connection to ("+host+
+// 						     ","+port+").");
+// 					throw new Exception(this.getClass().getName()+":sendDocumentToIA("+
+// 							    documentUId+"):handle was null");
+// 				}
+// 				String reply = createReply(document);
 				
-				traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
-					     "):Writing:...\n"+reply+"\n ...to handle "+handle+".");
-				// how do we check this has failed?
-				io.messageWrite(handle, reply);
-				traceLog.log(INFO, 1, CLASS,"sendDocumentToIA("+documentUId+"):Sent document "+
-					     agid+".");
-				io.clientClose(handle);
+// 				traceLog.log(INFO, 1, CLASS, "sendDocumentToIA("+documentUId+
+// 					     "):Writing:...\n"+reply+"\n ...to handle "+handle+".");
+// 				// how do we check this has failed?
+// 				io.messageWrite(handle, reply);
+// 				traceLog.log(INFO, 1, CLASS,"sendDocumentToIA("+documentUId+"):Sent document "+
+// 					     agid+".");
+// 				io.clientClose(handle);
 				
 				break;
 			case ASYNC_MODE_RMI:
@@ -1768,6 +1769,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.46  2009/05/18 13:41:16  eng
+** set enhanced phase2 as optional -ie defaults to false if no config present
+**
 ** Revision 1.45  2009/05/18 09:55:13  eng
 ** added switching and flag for EnhancedEAR
 **
