@@ -84,11 +84,11 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Where we store the base document persistantly.*/ 
     private File file;
 
-    /** EstarIO for responses.*/
-    private eSTARIO io; 
+    //    /** EstarIO for responses.*/
+    //private eSTARIO io; 
 
-    /** GLobusIO handle for responses.*/
-    private GlobusIOHandle handle;
+    ///** GLobusIO handle for responses.*/
+    //private GlobusIOHandle handle;
 
     /** Lock for synchronization - used by JMSCommandClient ?. */
     private volatile BooleanLock lock  = new BooleanLock(true);
@@ -141,8 +141,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     private String id;
 
     /** Class logger.*/
-    private Logger logger = null;
+    private Logger alogger = null;
     
+    private LogGenerator logger = null;
+
     /**
      * Create an AgentRequestHandler. This constructor is used to create ARQs on
      * startup by the TEA during loadDocuments and by the ConnectionHandler when a
@@ -150,12 +152,12 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * @param tea          The TEA instance.
      * @param baseDocument The base request document.
      */
-    AgentRequestHandler(TelescopeEmbeddedAgent tea, RTMLDocument baseDocument) {
+    public AgentRequestHandler(TelescopeEmbeddedAgent tea, RTMLDocument baseDocument) {
 	super("ARQ", true);
 	this.tea          = tea;
 	this.baseDocument = baseDocument;
 
-	io = tea.getEstarIo();
+	//	io = tea.getEstarIo();
 
 	pending   = new Vector();
 	processed = new Vector();
@@ -165,12 +167,22 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	expiryOffset = DEFAULT_EXPIRY_OFFSET;
 
-	logger = LogManager.getLogger("TRACE");
-
+	alogger = LogManager.getLogger("TRACE");
+	
+	logger = alogger.generate()
+	    .system("TEA")
+	    .subSystem("RequestManagement")
+	    .srcCompClass(this.getClass().getName())
+	    .srcCompId("ARQ");
+	
     }
 
     /** Sets the id from a supplied string. Usually this includes the TEA's id as prepend.*/
-    public void setARQId(String id) { this.id = id; }
+    public void setARQId(String id) { 
+	this.id = id; 
+	// reset the srcid for logging
+	logger.srcCompId(id);
+    }
 
     public String getARQId() { return id;}
 
@@ -273,18 +285,22 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     /** Waits on a Thread lock.*/
     private void waitOnLock() {
     	
-	logger.log(INFO, 1, CLASS, getName(),"waitOnLock","Waiting in lock");
+	logger.create().info().level(5).extractCallInfo()
+	    .msg("Method entry").send();
 	try {
 	    lock.waitUntilTrue(0L);
 	} catch (InterruptedException ix) {
-	    logger.log(INFO, 1, CLASS, getName(),"waitOnLock","Interrupted waiting on lock");
+	    logger.create().info().level(4).extractCallInfo()
+		.msg("Interrupted waiting on lock").send();
 	}
-	logger.log(INFO, 1, CLASS, getName(),"waitOnLock","Lock is free");
+	logger.create().info().level(5).extractCallInfo()
+	    .msg("Lock is free").send();
     }
     
     /** Frees the Thread lock.*/
     private void freeLock() {
-	logger.log(INFO, 1, CLASS, getName(),"freeLock"," Releasing lock");
+	logger.create().info().level(4).extractCallInfo()
+	    .msg("Releasing lock").send();
 	lock.setValue(true);
     }
     
@@ -317,7 +333,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
     	
 // 	io.messageWrite(handle, reply);     
     	
-// 	logger.log(INFO, 1, CLASS, getName(),"sendError","Sent error message: "+errorMessage);
+// 	logger.create().info().level(1).extractCallInfo().msg(INFO, 1, CLASS, getName(),"sendError","Sent error message: "+errorMessage);
     	
 // 	io.clientClose(handle);
     	
@@ -336,7 +352,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	
 // 	io.messageWrite(handle, reply);     
     	
-// 	logger.log(INFO, 1, CLASS, getName(),"sendDoc","Sent doc type: "+type);
+// 	logger.create().info().level(1).extractCallInfo().msg(INFO, 1, CLASS, getName(),"sendDoc","Sent doc type: "+type);
     	
 // 	io.clientClose(handle);
     	
@@ -365,7 +381,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
         try {Thread.sleep(sleepTime);} catch (InterruptedException ix) {}
 	sleeping = false;
 
-	System.err.println("ARQ/UH::Polling, entered maintask");
+	logger.create().info().level(5).extractCallInfo()
+	    .msg("Polling, entered maintask").send();
 	
 	RTMLImageData imageData = null;
 		
@@ -387,8 +404,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    int iobs = info.getObsId();
 	    String imageFileName = info.getImageFileName();
 	    
-	    logger.log(INFO, 1, CLASS, id,"mainTask",
-		       "ARQ::Processing image filename "+imageFileName+" for "+gid+"/"+iobs);
+	    logger.create().info().level(2).extractCallInfo()
+		.msg("Processing image filename "+imageFileName+" for "+gid+"/"+iobs).send();
 	    
 	    // Generate the correct destination file name.			
 	    String destDirName = null;
@@ -396,10 +413,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		destDirName = pipelinePlugin.getInputDirectory();
 	    }
 	    catch(Exception e) {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Getting input directory failed for pipeline plugin "
-			   +pipelinePlugin+":"+e);
-		logger.dumpStack(1,e);
+		logger.create().error().level(3).extractCallInfo()
+		    .msg("Getting input directory failed for pipeline plugin "+pipelinePlugin+":"+e).send();
+		alogger.dumpStack(1,e);
 		return;
 	    }
 
@@ -411,18 +427,16 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		
 	    // Grab image from OCC/ICC.
 	    try {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Transferring image filename "+
-			   imageFileName+" to "+destFileName+" for "+gid+".");
+		logger.create().info().level(2).extractCallInfo()
+		    .msg("Transferring image filename "+imageFileName+" to "+destFileName+" for "+gid+".").send();
 		transfer(imageFileName, destFileName);		    
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Transfered image okay");
+		logger.create().info().level(2).extractCallInfo()
+		    .msg("Transfered image okay").send();
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Transferring image filename "+
-			   imageFileName+" to "+destFileName+" failed for "+
-			   gid+":"+e);
-		logger.dumpStack(1,e);
+		logger.create().error().level(3).extractCallInfo()
+		    .msg("Transferring image filename "+imageFileName+" to "+destFileName+
+			 " failed for "+gid+":"+e).send();
+		alogger.dumpStack(1,e);
 		return;
 	    }
 	    
@@ -430,10 +444,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    try {
 		imageData = pipelinePlugin.processFile(destFile);
 	    } catch(Exception e) {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::pipelinePlugin.processFile "+
-			   destFile+" failed:"+e);
-		logger.dumpStack(1,e);
+		logger.create().error().level(3).extractCallInfo()
+		    .msg("pipelinePlugin.processFile "+destFile+" failed:"+e).send();
+		alogger.dumpStack(1,e);
 		return;
 	    }
 	    
@@ -443,23 +456,22 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		try {
 		    obs.addImageData(imageData);
 		} catch (Exception e) {
-		    logger.log(INFO, 1, CLASS, id,"mainTask",
-			       "ARQ::addImageData "+
-			       imageData+" failed:"+e);
-		    logger.dumpStack(1,e);
+		    logger.create().error().level(3).extractCallInfo()
+			.msg("addImageData "+imageData+" failed:"+e).send();
+		    alogger.dumpStack(1,e);
 		    return;
 		}
 	    }
 		
 	    // Save the modified base document.
 	    try {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Saving document for "+gid+".");
+		logger.create().info().level(1).extractCallInfo()
+		    .msg("Saving document for "+gid+".").send();
 		tea.saveDocument(baseDocument, getDocumentFile());
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::saveDocument for "+gid+" failed:"+e);
-		logger.dumpStack(1,e);
+		logger.create().error().level(3).extractCallInfo()
+		    .msg("saveDocument for "+gid+" failed:"+e).send();
+		alogger.dumpStack(1,e);
 		return;
 	    }
 	    
@@ -475,10 +487,9 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		    // add just-received reduced image data.
 		    obs.addImageData(imageData);
 		} catch (Exception e) {
-		    logger.log(INFO, 1, CLASS, id,"mainTask",
-			       "ARQ::addImageData for "+gid+" "+
-			       imageData+" failed:"+e);
-		    logger.dumpStack(1,e);
+		    logger.create().error().level(3).extractCallInfo()
+			.msg("addImageData for "+gid+" "+imageData+" failed:"+e).send();
+		    alogger.dumpStack(1,e);
 		    return;
 		}
 	    }
@@ -488,18 +499,18 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    // tea.sendDoc(doc); This may need to go in athread
 	    // as it may block for a while if the connection is blocked
 	    try {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Sending update document for "+gid+".");
+		logger.create().info().level(2).extractCallInfo()
+		    .msg("Sending update document for "+gid+".").send();
 		updateDoc.setUpdate();
 		updateDoc.addHistoryEntry("TEA:"+tea.getId(),null,"ARQ::Sending update document for "+gid+"/"+iobs+".");
 		baseDocument.addHistoryEntry("TEA:"+tea.getId(),null,"ARQ::Sending update document for "+gid+"/"+iobs+".");
 		tea.sendDocumentToIA(updateDoc);
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Sent update document for "+gid+".");
+		logger.create().info().level(2).extractCallInfo()
+		    .msg("Sent update document for "+gid+".").send();
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::sendDocumentToIA failed for "+gid+":"+e);
-		logger.dumpStack(1,e);
+		logger.create().error().level(3).extractCallInfo()
+		    .msg("sendDocumentToIA failed for "+gid+":"+e).send();
+		alogger.dumpStack(1,e);
 		return;
 	    }
 	    
@@ -515,12 +526,12 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	switch (observationState) {
 	case OBSERVATION_STATE_ACTIVE:
-	    logger.log(INFO, 1, CLASS, id,"mainTask",
-		       "ARQ::Observation is still active: "+gid);
+	    logger.create().info().level(3).extractCallInfo()
+		.msg("Observation is still active: "+gid).send();
 	    break;
 	case OBSERVATION_STATE_UNKNOWN:
-	    logger.log(INFO, 1, CLASS, id,"mainTask",
-		       "ARQ::Unable to determine observation state for: "+gid);
+	    logger.create().info().level(3).extractCallInfo()
+		.msg("Unable to determine observation state for: "+gid).send();
 	    break;
 	case OBSERVATION_STATE_DONE:
 	    docType = "observation";
@@ -542,49 +553,48 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	// All done, send final document and disengage.
 	if (docType != null) {
 	    try {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Sending observation final status document ("+docType+") document for "+gid+".");
+		logger.create().info().level(2).extractCallInfo()
+		    .msg("Sending observation final status document ("+docType+") document for "+gid+".").send();
 		tea.sendDocumentToIA(baseDocument);
 		// Only if we succeeded in sending can we disengage the ARQ.
 		
 		// Deregister immediately.
 		tea.deleteUpdateHandler(gid);
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Deregistering handler: "+getName()+" for "+gid+".");
+		logger.create().info().level(3).extractCallInfo()
+		    .msg("Deregistering handler: "+getName()+" for "+gid+".").send();
 		
 		try {
 		    
-		    logger.log(INFO, 1, CLASS, id,"mainTask",
-			       "ARQ::Saving observation-completed document for "+gid+".");
+		    logger.create().info().level(2).extractCallInfo()
+			.msg("Saving observation-completed document for "+gid+".").send();
 		    
 		    // save document - pass the filename aswell
 		    tea.saveDocument(baseDocument, getDocumentFile());
 		    
-		    logger.log(INFO, 1, CLASS, id,"mainTask",
-			       "ARQ::Moving observation-completed document for "+gid+
-			       " (to expired directory).");
+		    logger.create().info().level(2).extractCallInfo()
+			.msg("Moving observation-completed document for "+gid+" (to expired directory).").send();
 		    
 		    expireDocument();
 		    
 		    // ####Need to sort out the sequence here- e.g. ARQ terminates ARQ on diposal.
 		    // probably delete the registeration first to prevent spurious extra updates!
-		    logger.log(INFO, 1, CLASS, id,"mainTask",
-			       "ARQ::Terminating ARQ/UH thread for "+gid+".");
+		    logger.create().info().level(2).extractCallInfo()
+			.msg("Terminating ARQ/UH thread for "+gid+".").send();
 		    
 		    // Terminate this thread.
 		    terminate();
 		    
 		} catch (Exception e) {
-		    logger.log(INFO, 1, CLASS, id,"mainTask",
-			       "ARQ::Failed to disengage correctly on completion of observations:"+e);
-		    logger.dumpStack(1,e);	
+		    logger.create().error().level(3).extractCallInfo()
+			.msg("Failed to disengage correctly on completion of observations:"+e).send();
+		    alogger.dumpStack(1,e);	
 		}
 
 		
 	    } catch (Exception e) {
-		logger.log(INFO, 1, CLASS, id,"mainTask",
-			   "ARQ::Failed to send final document to UA: "+e);
-		logger.dumpStack(1,e);	
+		logger.create().error().level(3).extractCallInfo()
+		    .msg("Failed to send final document to UA: "+e).send();
+		alogger.dumpStack(1,e);	
 	    }
 	    
 	}
@@ -598,8 +608,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
      * Nothing to do here now...
      */
     protected void shutdown() {
-	logger.log(INFO, 1, CLASS, id,"shutdown",
-		   "Shutting down "+getName());
+	logger.create().info().level(1).extractCallInfo()
+	    .msg("Shutting down "+getName()).send();
     }
 
     /**
@@ -622,8 +632,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	int actualImageDataCount = 0;
 
 
-	logger.log(INFO, 1, CLASS, id,"testCompletion",
-		   "ARQ::Testing for completion of handler for "+gid+".");
+	logger.create().info().level(3).extractCallInfo()
+	    .msg("Testing for completion of handler for "+gid+".").send();
 	
 	// if we have completed the number of observations requested by the UA,
 	// send a complete.
@@ -645,7 +655,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	// count totals over all obs in document
 	int nobs = baseDocument.getObservationListCount();
 	for (int iobs = 0; iobs < nobs; iobs++) {
-
+ 
 	    int multrunExposureCount = 0;
 
 	    // if no series constraint present, default to 1 set of multruns (flexibly scheduled)
@@ -687,11 +697,11 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	} // next obs
 	
-	logger.log(INFO, 1, CLASS, id,"testCompletion",
-		   "ARQ::Testing whether total image data count "+actualImageDataCount+
-		   " is greater than expected number of images "+
-		   totalRequiredExposureCount+" for "+gid+".");
-	    
+	logger.create().info().level(3).extractCallInfo()
+	    .msg("Testing whether total image data count "+actualImageDataCount+
+		 " is greater than expected number of images "+
+		   totalRequiredExposureCount+" for "+gid+".").send();
+	
 	// At this point we have the following:
 	// multrunExposureCount  == obs.getNumRuns()
 	// imageDataCount        == No of images we processed.
@@ -706,8 +716,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    
 	    long end = endDate.getTime();
 	    
-	    logger.log(INFO,1,CLASS,id,"testCompletion",
-		       "ARQ::Testing document for expiry against end date "+endDate+".");
+	    logger.create().info().level(3).extractCallInfo()
+		.msg("Testing document for expiry against end date "+endDate+".").send();
 	    
 	    if (end < (System.currentTimeMillis()-expiryOffset)) {
 		
@@ -740,8 +750,8 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	if (client == null) 
 	    throw new Exception("The transfer client is not available");
 	
-	logger.log(INFO, 1, CLASS, id,"transfer",
-		   "ARQ::Requesting image file: "+imageFileName+" -> "+destFileName);
+	logger.create().info().level(2).extractCallInfo()
+	    .msg("Requesting image file: "+imageFileName+" -> "+destFileName).send();
 	
 	client.request(imageFileName, destFileName);
 	
@@ -776,10 +786,11 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	    String pluginId = null;
 	    String key = null;
 	
-	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc","ARQ:: Started.");
-	
+	    logger.create().info().level(5).extractCallInfo()
+		.msg("Method entry").send();
+	    
 	    if(baseDocument == null)
-	    {
+		{
 		throw new NullPointerException(this.getClass().getName()+
 					       ":getPipelinePluginFromDoc:base document was null.");
 	    }
@@ -806,32 +817,32 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 		    device = obs.getDevice();
 	    if (device == null)
 		    device = baseDocument.getDevice();
-	     logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-			"ARQ::Getting inst-type for device: "+device);
+	     logger.create().info().level(4).extractCallInfo()
+		 .msg("Getting inst-type for device: "+device).send();
 	     instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
 	    // get pipeline plugin class name
-	    pluginId = new String(userId+"."+proposalId);
-	    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentId);
-	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-		       "ARQ:: Trying to get pipeline classname using key "+key+".");
+	     pluginId = new String(userId+"."+proposalId);
+	     key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentId);
+	     logger.create().info().level(4).extractCallInfo()
+		 .msg("Trying to get pipeline classname using key "+key+".").send();
 	    pipelinePluginClassname = tea.getPropertyString(key);
 	    if(pipelinePluginClassname == null)
 	    {
 		    pluginId = new String("default");
 		    key = new String("pipeline.plugin.classname."+pluginId+"."+instrumentId);
-		    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-			       "ARQ:: Project specific pipeline does not exist, "+
-			       "trying default key "+key);
+		    logger.create().info().level(3).extractCallInfo()
+			.msg("Project specific pipeline does not exist, "+
+			     "trying default key "+key).send();
 		    pipelinePluginClassname = tea.getPropertyString(key);
 	    }
-	    logger.log(INFO, 1, CLASS, id,"getPipelinePluginFromDoc",
-		       "ARQ:: Pipeline classname found was "+pipelinePluginClassname+".");
+	    logger.create().info().level(3).extractCallInfo()
+		.msg("Pipeline classname found was "+pipelinePluginClassname+".").send();
 	    // if we could not find a class name to instansiate, fail.
 	    if(pipelinePluginClassname == null)
-	    {
+		{
 		    throw new NullPointerException(this.getClass().getName()+
 						   ":getPipelinePluginFromDoc:Pipeline classname found was null.");
-	    }
+		}
 	    // get pipeline plugin class from class name
 	    pipelinePluginClass = Class.forName(pipelinePluginClassname);
 	    // get pipeline plugin instance from class
