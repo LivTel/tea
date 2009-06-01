@@ -32,7 +32,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.47 2009-06-01 12:39:08 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.48 2009-06-01 12:40:53 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
     
@@ -306,7 +306,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 		this.id = id;
 
-		io = new eSTARIO();
+		//io = new eSTARIO();
 	
 		ConsoleLogHandler console = new ConsoleLogHandler(new BogstanLogFormatter());
 		console.setLogLevel(ALL);
@@ -568,11 +568,11 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 				     "Closed down DocExpirator:");
 		}
 
-		if (io != null) {	     
+		//		if (io != null) {	     
 		    //io.serverClose();	
-			traceLog.log(INFO, 2, CLASS, id, " shutdown",
-				     "Closed down eSTARIO server:");	    
-		}
+		//traceLog.log(INFO, 2, CLASS, id, " shutdown",
+		//	     "Closed down eSTARIO server:");	    
+		//}
 	
 	}
 
@@ -884,7 +884,7 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 	}
     
 	/** Handles estar communications.*/
-	public eSTARIO getEstarIo() { return io; }   
+    //	public eSTARIO getEstarIo() { return io; }   
     
     
 	/** Handle the connection - creates a new ConnectionHandler for the connection.
@@ -1769,6 +1769,9 @@ public class TelescopeEmbeddedAgent implements eSTARIOConnectionListener, Loggin
 
 /* 
 ** $Log: not supported by cvs2svn $
+** Revision 1.47  2009/06/01 12:39:08  eng
+** commented out all references to the estarIO
+**
 ** Revision 1.46  2009/05/18 13:41:16  eng
 ** set enhanced phase2 as optional -ie defaults to false if no config present
 **
