@@ -20,6 +20,17 @@ foreach file (${TEA_CLASS}/*.jar)
     endif
 end
 
+
+# Add NodeAgent remote classes
+set NA_JAR = /usr/local/tomcat/webapps/org_estar_nodeagent/WEB-INF/lib/org_estar_nodeagent.jar
+
+echo $CLASSPATH | grep $NA_JAR > /dev/null
+if ($status != 0) then
+    setenv CLASSPATH ${CLASSPATH}:${NA_JAR}
+    echo "Add $NA_JAR to classpath"
+endif
+
+
 # Add TEA C Libraries
 echo $LD_LIBRARY_PATH | grep -q $TEA_LIB
 if ($status != 0) then
