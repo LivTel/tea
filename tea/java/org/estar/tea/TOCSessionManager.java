@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.17 2008-08-20 11:04:17 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.18 2010-09-21 16:35:12 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.17 $
+ * @version $Revision: 1.18 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.17 2008-08-20 11:04:17 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.18 2010-09-21 16:35:12 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -719,6 +719,21 @@ public class TOCSessionManager implements Runnable, Logging
 					// acquire if neccessary
 					if(acquireNeeded(document))
 						acquire(document);
+					// autoguider on if necessary
+					if(autoguiderNeeded(document))
+					{
+						// don't worry if it fails, log error and continue.
+						try
+						{
+							auto(true);
+						}
+						catch(Exception e)
+						{
+							logger.log(INFO, 1, CLASS,this.getClass().getName()+
+								   ":run:Autoguider on failed:"+e);
+							logger.dumpStack(1,e);
+						}
+					}
 					// expose
 					filenameList = expose(document);
 					// pass filenameList into inner class thread to handle data
@@ -731,7 +746,20 @@ public class TOCSessionManager implements Runnable, Logging
 					t.start();
 					logger.log(INFO, 1, CLASS,
 						   "TOCSessionManager::run: Started new post-process thread.");
-
+					// if auroguider was turned on, now turn it off
+					if(autoguiderNeeded(document))
+					{
+						try
+						{
+							auto(false);
+						}
+						catch(Exception e)
+						{
+							logger.log(INFO, 1, CLASS,this.getClass().getName()+
+								   ":run:Autoguider off failed:"+e);
+							logger.dumpStack(1,e);
+						}
+					}
 				}
 				catch(Exception e)
 				{
@@ -949,6 +977,47 @@ public class TOCSessionManager implements Runnable, Logging
 		device = getDeviceFromDocument(document);
 		// Parse RTMLDevice and send appropriate instr using TOCSession session.
 		DeviceInstrumentUtilites.sendInstr(tea,session,device);
+	}
+
+	/** 
+	 * Do we need to autoguide? Try to turn on autoguider if exposure length less than 60s.
+	 * @return true if we want to try and turn the autoguider on, false otherwise.
+	 */
+	private boolean autoguiderNeeded(RTMLDocument document) throws IllegalArgumentException
+	{
+		RTMLObservation observation = null;
+		RTMLSchedule schedule = null;
+		int exposureLength;
+
+		// get observation
+		if(document.getObservationListCount() != 1)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+			    ":autoguiderNeeded:Illegal number of observations "+document.getObservationListCount()+
+							   " found in document.");
+		}
+		observation = document.getObservation(0);
+		// get schedule
+		schedule = observation.getSchedule();
+		if(schedule == null)
+		{
+			throw new NullPointerException(this.getClass().getName()+
+			    ":autoguiderNeeded:No schedule found in observation.");
+		}
+		exposureLength = (int)(schedule.getExposureLengthMilliseconds());// throws IllegalArgumentException
+		if(exposureLength > 60000)
+			return true;
+		return false;
+	}
+
+	/** 
+	 * Turn the autoguider on or off.
+	 * @param on If true try to turn the autoguider on, else off.
+	 * @see #session
+	 */
+	private void auto(boolean on) throws TOCException
+	{
+		session.auto(on);
 	}
 
 	/**
@@ -1590,6 +1659,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.17  2008/08/20 11:04:17  cjm
+** Added ping method, and a new getSessionManagerInstance that only has the tea as a parameter.
+**
 ** Revision 1.16  2008/08/12 14:06:19  cjm
 ** Added test in addDocument, such that documents with more than one observation are rejected.
 **
