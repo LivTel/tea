@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.18 2010-09-21 16:35:12 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.19 2010-09-22 09:33:09 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.18 $
+ * @version $Revision: 1.19 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.18 2010-09-21 16:35:12 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.19 2010-09-22 09:33:09 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -987,8 +987,10 @@ public class TOCSessionManager implements Runnable, Logging
 	{
 		RTMLObservation observation = null;
 		RTMLSchedule schedule = null;
-		int exposureLength;
+		int minExposureLength,exposureLength;
 
+		// get config
+		minExposureLength = properties.getPropertyInteger("toop.autoguider.exposure_length.min");
 		// get observation
 		if(document.getObservationListCount() != 1)
 		{
@@ -1005,7 +1007,7 @@ public class TOCSessionManager implements Runnable, Logging
 			    ":autoguiderNeeded:No schedule found in observation.");
 		}
 		exposureLength = (int)(schedule.getExposureLengthMilliseconds());// throws IllegalArgumentException
-		if(exposureLength > 60000)
+		if(exposureLength > minExposureLength)
 			return true;
 		return false;
 	}
@@ -1659,6 +1661,10 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.18  2010/09/21 16:35:12  cjm
+** Added code to turn the autoguider on and off around an exposure, If the exposure length is greater than 60s.
+** The exposure length is hardcoded and will need to be changed later.
+**
 ** Revision 1.17  2008/08/20 11:04:17  cjm
 ** Added ping method, and a new getSessionManagerInstance that only has the tea as a parameter.
 **
