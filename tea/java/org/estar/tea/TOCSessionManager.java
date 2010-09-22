@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.19 2010-09-22 09:33:09 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.20 2010-09-22 09:41:40 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.19 $
+ * @version $Revision: 1.20 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.19 2010-09-22 09:33:09 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.20 2010-09-22 09:41:40 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -982,15 +982,18 @@ public class TOCSessionManager implements Runnable, Logging
 	/** 
 	 * Do we need to autoguide? Try to turn on autoguider if exposure length less than 60s.
 	 * @return true if we want to try and turn the autoguider on, false otherwise.
+	 * @exception NGATPropertyException Thrown if property retrieval fails.
+	 * @exception IllegalArgumentException Thrown if an error occurs.
+	 * @exception NullPointerException Thrown if the schedule in the document is null.
 	 */
-	private boolean autoguiderNeeded(RTMLDocument document) throws IllegalArgumentException
+	private boolean autoguiderNeeded(RTMLDocument document) throws IllegalArgumentException, NGATPropertyException
 	{
 		RTMLObservation observation = null;
 		RTMLSchedule schedule = null;
 		int minExposureLength,exposureLength;
 
 		// get config
-		minExposureLength = properties.getPropertyInteger("toop.autoguider.exposure_length.min");
+		minExposureLength = properties.getInt("toop.autoguider.exposure_length.min");
 		// get observation
 		if(document.getObservationListCount() != 1)
 		{
@@ -1661,6 +1664,10 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.19  2010/09/22 09:33:09  cjm
+** Now looks at toop.autoguider.exposure_length.min to get minimum exposure length
+** to try autoguiding.
+**
 ** Revision 1.18  2010/09/21 16:35:12  cjm
 ** Added code to turn the autoguider on and off around an exposure, If the exposure length is greater than 60s.
 ** The exposure length is hardcoded and will need to be changed later.
