@@ -44,7 +44,7 @@ public class TelescopeEmbeddedAgent implements Logging {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.49 2010-10-13 13:26:23 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.50 2010-10-13 14:40:37 cjm Exp $";
 
 	public static final String CLASS = "TelescopeEA";
 
@@ -365,6 +365,9 @@ public class TelescopeEmbeddedAgent implements Logging {
 		l.setLogLevel(ALL);
 		l.addHandler(console);
 		l = LogManager.getLogger("org.estar.tea.TOCSessionManager");
+		l.setLogLevel(ALL);
+		l.addHandler(console);
+		l = LogManager.getLogger("org.estar.tea.DeviceInstrumentUtilites");
 		l.setLogLevel(ALL);
 		l.addHandler(console);
 		l = LogManager.getLogger("org.estar.io.eSTARIO");
@@ -2042,7 +2045,10 @@ public class TelescopeEmbeddedAgent implements Logging {
 }
 
 /*
- * $Log: not supported by cvs2svn $ Revision 1.48 2009/06/01 12:40:53 eng
+ * $Log: not supported by cvs2svn $
+ * Revision 1.49  2010/10/13 13:26:23  eng
+ * Many changes.
+ * Revision 1.48 2009/06/01 12:40:53 eng
  * commented out more estarIO calls missed last time
  * 
  * Revision 1.47 2009/06/01 12:39:08 eng commented out all references to the
