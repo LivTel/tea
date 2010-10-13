@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.5 2009-05-18 13:55:16 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.6 2010-10-13 16:02:23 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -29,18 +29,23 @@ import org.estar.toop.*;
 
 import ngat.phase2.*;
 import ngat.util.*;
+import ngat.util.logging.*;
 
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
-public class DeviceInstrumentUtilites
+public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.5 2009-05-18 13:55:16 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.6 2010-10-13 16:02:23 cjm Exp $";
+	/**
+	 * Classname for logging.
+	 */
+	public static final String CLASS = "DeviceInstrumentUtilites";
 	/**
 	 * The type of instrument.
 	 */
@@ -77,6 +82,10 @@ public class DeviceInstrumentUtilites
 	 * A string representation of the instrument type.
 	 */
 	public final static String INSTRUMENT_TYPE_SPECTROGRAPH_STRING = "spectrograph";
+	/**
+	 * Class logger.
+	 */
+	protected static Logger logger = null;
 
 	/**
 	 * Create a suitable subclass of InstrumentConfig, from the RTML device information.
@@ -653,6 +662,8 @@ public class DeviceInstrumentUtilites
 	 * @return A string respresenting the instrument.
 	 * @exception IllegalArgumentException Thrown if the instrument is not receognised.
 	 * @exception NullPointerException Thrown if the device of type attribute was null.
+	 * @see #logger
+	 * @see #getLoggerInstance
 	 * @see #getInstrumentTypeName
 	 * @see TelescopeEmbeddedAgent#getPropertyString
 	 */
@@ -665,6 +676,9 @@ public class DeviceInstrumentUtilites
 		int index;
 		boolean done;
 
+		// get logger if instance not initialised.
+		if(logger == null)
+			getLoggerInstance();
 		if(device == null)
 		{
 			throw new NullPointerException("org.estar.tea.DeviceInstrumentUtilites:"+
@@ -672,10 +686,14 @@ public class DeviceInstrumentUtilites
 		}
 		// get type of device and it's associated string
 		deviceTypeName = getInstrumentTypeName(device);
+		logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:Searching for device of type:"+
+			   deviceTypeName);
 		// get name
 		name = device.getName();
 		if(name != null)
 		{
+			logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
+				   "Searching for device with name:"+name);
 			// retrieve instrument id from RTML type/name -> instrument id mapping in tea.properties
 			index = 0;
 			done = false;
@@ -683,10 +701,15 @@ public class DeviceInstrumentUtilites
 			{
 				String nameString = null;
 
+				logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
+					   "Checking "+deviceTypeName+" instrument index "+index);
 				// get name of index'th instrument of this type
 				nameString = tea.getPropertyString("instrument."+deviceTypeName+".name."+index);
 				if(nameString != null)
 				{
+					logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
+						   "Device Type "+deviceTypeName+" instrument index "+index+
+						   " has name "+nameString+".");
 					// is the instrument at this index the name we are looking for?
 					if(name.equals(nameString))
 					{
@@ -702,9 +725,10 @@ public class DeviceInstrumentUtilites
 										       " but no equivalent id found.");
 						}
 						done = true;
+						logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
+							   "Device Type "+deviceTypeName+" instrument index "+index+
+							 " name "+nameString+" is the instrument we are looking for.");
 					}
-					else // not this one, increment
-						index++;
 				}
 				else // run out of names to search
 				{
@@ -718,6 +742,8 @@ public class DeviceInstrumentUtilites
 		else // instrument ID is default based on type.
 		{
 			deviceTypeName = getInstrumentTypeName(device);
+			logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
+				   "Searching for default device of type:"+deviceTypeName);
 			instrumentId = tea.getPropertyString("instrument."+deviceTypeName+".id.default");
 			if(instrumentId == null)
 			{
@@ -725,6 +751,8 @@ public class DeviceInstrumentUtilites
 							       "getInstrumentId:Default instrument id for type "+
 							       deviceTypeName+" not found.");
 			}
+			logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
+				   "Default device of type:"+deviceTypeName+" is "+instrumentId);
 		}
 		return instrumentId;
 	}
@@ -807,9 +835,22 @@ public class DeviceInstrumentUtilites
 		return telemetryClassName.equals("ExposureInfo");
 	}
 
+	/**
+	 * Get the logger instance to log to. As this class is not instantiated (it contains static class
+	 * methods) we just return the logger registered against the class name:
+	 * "org.estar.tea.DeviceInstrumentUtilites".
+	 * @see #logger
+	 */
+	protected static void getLoggerInstance()
+	{
+		logger = LogManager.getLogger("org.estar.tea.DeviceInstrumentUtilites");
+	}
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2009/05/18 13:55:16  cjm
+** Added extra configClassName null pointer test in getInstrumentConfig.
+**
 ** Revision 1.4  2008/08/12 09:45:12  cjm
 ** Added methods to return what sort of telemetry triggers an update document for each instrument.
 ** Some instruments generate ReductionInfo, whilst some only generate ExposureInfo.
