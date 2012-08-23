@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.7 2012-08-21 13:04:22 eng Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.8 2012-08-23 14:04:39 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -34,14 +34,14 @@ import ngat.util.logging.*;
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.7 2012-08-21 13:04:22 eng Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.8 2012-08-23 14:04:39 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -66,13 +66,6 @@ public class DeviceInstrumentUtilites implements Logging
 	 * The type of instrument.
 	 */
 	public final static int INSTRUMENT_TYPE_SPECTROGRAPH = 4;
-
-    /**
-     * The type of instrument.
-     */
-    public final static int INSTRUMENT_TYPE_IO_O = 5;
-
-
 	/**
 	 * A string representation of the instrument type.
 	 */
@@ -89,13 +82,8 @@ public class DeviceInstrumentUtilites implements Logging
 	 * A string representation of the instrument type.
 	 */
 	public final static String INSTRUMENT_TYPE_SPECTROGRAPH_STRING = "spectrograph";
-    /**
-     * A string representation of the instrument type.
-     */
-    public final static String INSTRUMENT_TYPE_IO_O_STRING = "io_o";
 
-
-    /**
+	/**
 	 * Class logger.
 	 */
 	protected static Logger logger = null;
@@ -117,6 +105,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see #getInstrumentType
 	 * @see #getInstrumentId
 	 * @see #getInstrumentDetectorBinning
+	 * @see #getCCDSingleFilterType
 	 * @see #getCCDLowerFilterType
 	 * @see #getCCDUpperFilterType
 	 * @see #getCCDIndexFilterType
@@ -220,12 +209,12 @@ public class DeviceInstrumentUtilites implements Logging
 		else if(configClassName.equals("ngat.phase2.OConfig"))
 		    {
 			rtmlFilterType = device.getFilterType();
-			oFilterType = getOCamFilterType(tea,instrumentId,rtmlFilterType);
+			oFilterType = getCCDSingleFilterType(tea,instrumentId,rtmlFilterType);
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			// create config
 			config = createInstrumentConfig(configClassName,
-							"TEA-"+INSTRUMENT_TYPE_IRCAM_STRING+"-"+
+							"TEA-"+INSTRUMENT_TYPE_CCD_STRING+"-"+
 							oFilterType+"-"+bin+"x"+bin);
 			if (! (config instanceof OConfig))
 			    {
@@ -234,13 +223,12 @@ public class DeviceInstrumentUtilites implements Logging
 							     config.getClass().getName());
 			}
 			// fill in config fields
-			OConfig OConfig = (OConfig)config; 
-			OConfig.setFilterWheel(oFilterType);
-			ODetector ODetector = (ODetector)oConfig.getDetector(0);
+			OConfig oConfig = (OConfig)config; 
+			oConfig.setFilterWheel(oFilterType);
+			ODetector oDetector = (ODetector)oConfig.getDetector(0);
 			oDetector.clearAllWindows();
 			oDetector.setXBin(bin);
 			oDetector.setYBin(bin);
-
 		    }
                 else if(configClassName.equals("ngat.phase2.IRCamConfig"))
 		    {
@@ -362,10 +350,12 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see org.estar.toop.TOCSession#instrImager
 	 * @see org.estar.toop.TOCSession#instrMerope
 	 * @see org.estar.toop.TOCSession#instrRISE
+	 * @see org.estar.toop.TOCSession#instrIOO
 	 * @see org.estar.toop.TOCSession#instrIRcam
 	 * @see org.estar.toop.TOCSession#instrRingoStar
 	 * @see org.estar.toop.TOCSession#instrMeaburnSpec
 	 * @see #getInstrumentType
+	 * @see #getCCDSingleFilterType
 	 * @see #getCCDLowerFilterType
 	 * @see #getCCDUpperFilterType
 	 * @see #getCCDIndexFilterType
@@ -436,23 +426,16 @@ public class DeviceInstrumentUtilites implements Logging
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrIRcam(irFilterType,bin,false,false);
-
-			
-
 		}
 
 		else if(toopInstrName.equals("IO:O"))
 		    {
                         rtmlFilterType = device.getFilterType();
-                        oFilterType = getOFilterType(tea,instrumentId,rtmlFilterType);
+                        oFilterType = getCCDSingleFilterType(tea,instrumentId,rtmlFilterType);
                         // This needs to get more sophisticated if we allow non-square binning
                         bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
-                        //session.instrIRcam(irFilterType,bin,false,false);
-			// TODO this looks like sending an IO:O config to TOCS .. doesnt exist as yet
-			//session.instrO(oFilterType,bin,false,false);
+			session.instrIOO(oFilterType,bin,false,false);
 		    }
-
-
 		else if(toopInstrName.equals("RINGO")||toopInstrName.equals("RINGOSTAR")||
 			toopInstrName.equals("GROPE"))
 		{
@@ -482,6 +465,24 @@ public class DeviceInstrumentUtilites implements Logging
 		}
 	}
 
+	/**
+	 * Get the filter type of an single filter CCD instrument (e.g. IO:O), from the TEA's filter map.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the filter map from.
+	 * @param instrumentId The id of the instrument to get the gilter mapping from.
+	 * @param rtmlFilterType A string respresenting an single filter type, e.g. '?'.
+	 * @return A String containing the filter type of the filter in the wheel for this config
+	 *         e.g. '????'.
+	 * @exception Exception Thrown if the filter mapping is not found in the filter map.
+	 * @see TelescopeEmbeddedAgent
+	 * @see TelescopeEmbeddedAgent#getFilterMap
+	 */
+	public static String getCCDSingleFilterType(TelescopeEmbeddedAgent tea,String instrumentId,
+						    String rtmlFilterType)
+                throws Exception
+	{
+		return tea.getFilterMap().getProperty("filter."+instrumentId+"."+rtmlFilterType);
+	}
+    
 	/**
 	 * Get the lower filter type of a CCD instrument, from the TEA's filter map.
 	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the filter map from.
@@ -557,26 +558,6 @@ public class DeviceInstrumentUtilites implements Logging
 		return tea.getFilterMap().getProperty("filter."+instrumentId+"."+rtmlFilterType);
 	}
 
-    /**
-     * Get the filter type of an IO:O instrument, from the TEA's filter map.
-     * @param tea An instance of the TelescopeEmbeddedAgent, to get the filter map from.
-     * @param instrumentId The id of the instrument to get the gilter mapping from.
-     * @param rtmlFilterType A string respresenting an IO:O filter type, e.g. '?'.
-     * @return A String containing the OConfig filter type of the filter in the wheel for this config
-     *         e.g. '????'.
-     * @exception Exception Thrown if the filter mapping is not found in the filter map.
-     * @see TelescopeEmbeddedAgent
-     * @see TelescopeEmbeddedAgent#getFilterMap
-     * @see #INSTRUMENT_TYPE_O_STRING
-     */
-    public static String getOFilterType(TelescopeEmbeddedAgent tea,String instrumentId,String rtmlFilterType)
-                throws Exception
-    {
-	return tea.getFilterMap().getProperty("filter."+instrumentId+"."+rtmlFilterType);
-    }
-    
-
-
 	/**
 	 * Get a binning value for the specified Detector. Note this method currently assumes square binning
 	 * for all available instruments, and will have to change when a non-square binned instrument 
@@ -635,7 +616,6 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see #INSTRUMENT_TYPE_NONE
 	 * @see #INSTRUMENT_TYPE_CCD
 	 * @see #INSTRUMENT_TYPE_IRCAM
-	 * @see #INSTRUMENT_TYPE_O
 	 * @see #INSTRUMENT_TYPE_POLARIMETER
 	 * @see #INSTRUMENT_TYPE_SPECTROGRAPH
 	 * @see #INSTRUMENT_TYPE_CCD_STRING
@@ -661,11 +641,7 @@ public class DeviceInstrumentUtilites implements Logging
 		    return INSTRUMENT_TYPE_POLARIMETER_STRING;
 		case INSTRUMENT_TYPE_SPECTROGRAPH:
 		    return INSTRUMENT_TYPE_SPECTROGRAPH_STRING;
-		case INSTRUMENT_TYPE_IO_O:
-		    return INSTRUMENT_TYPE_IO_O_STRING;	
 		default:
-		    
-		    
 		    throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
 						       "getInstrumentName:Unknown Type "+instrumentType+
 						       " detected.");
@@ -680,7 +656,6 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @exception NullPointerException Thrown if the device of type attribute was null.
 	 * @see #INSTRUMENT_TYPE_CCD
 	 * @see #INSTRUMENT_TYPE_IRCAM
-	 * @see #INSTRUMENT_TYPE_IO_O
 	 * @see #INSTRUMENT_TYPE_POLARIMETER
 	 * @see #INSTRUMENT_TYPE_SPECTROGRAPH
 	 */
@@ -708,7 +683,6 @@ public class DeviceInstrumentUtilites implements Logging
 			if((spectralRegion == null) || spectralRegion.equals("optical"))
 			{
 				instrumentType = INSTRUMENT_TYPE_CCD;
-				// or maybe IO_O not clear how we get round this ?
 			}
 			else if(spectralRegion.equals("infrared"))
 			{
@@ -932,6 +906,9 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.7  2012/08/21 13:04:22  eng
+** added support for IO_O
+**
 ** Revision 1.6  2010/10/13 16:02:23  cjm
 ** Added logging to getInstrumentId.
 ** Fixed index double increment in getInstrumentId.
