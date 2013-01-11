@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.8 2012-08-23 14:04:39 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.9 2013-01-11 16:03:39 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -34,14 +34,14 @@ import ngat.util.logging.*;
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.8 2012-08-23 14:04:39 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.9 2013-01-11 16:03:39 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -325,6 +325,61 @@ public class DeviceInstrumentUtilites implements Logging
 			lowResSpecDetector.clearAllWindows();
 			lowResSpecDetector.setXBin(bin);
 			lowResSpecDetector.setYBin(bin);
+		}
+		else if(configClassName.equals("ngat.phase2.FrodoSpecConfig"))
+		{
+			RTMLGrating grating = null;
+			String gratingName = null;
+
+			// Get grating name, low or high
+			grating = device.getGrating();
+			if(grating == null)
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:No Grating specified for "+
+								   "instrument "+instrumentId+".");
+			}
+			gratingName = grating.getName();
+			if(gratingName == null)
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:No Grating name specified for "+
+								   "instrument "+instrumentId+".");
+			}
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			// create config
+			config = createInstrumentConfig(configClassName,"TEA-"+INSTRUMENT_TYPE_SPECTROGRAPH_STRING+
+							"-"+instrumentId+"-"+gratingName+"-"+bin+"x"+bin);
+			if (! (config instanceof FrodoSpecConfig))
+			{
+				throw new IllegalArgumentException(
+					     "getInstrumentConfig:Invalid config class for FrodoSpec spectrograph:"+
+					     config.getClass().getName());
+			}
+			FrodoSpecConfig frodospecConfig = (FrodoSpecConfig)config;
+			if(instrumentId.equals("frodospec-red"))
+				frodospecConfig.setArm(FrodoSpecConfig.RED_ARM);
+			else if(instrumentId.equals("frodospec-blue"))
+				frodospecConfig.setArm(FrodoSpecConfig.BLUE_ARM);
+			else
+			{
+				throw new IllegalArgumentException(
+					     "getInstrumentConfig:Invalid instrument ID for FrodoSpec spectrograph:"+
+					     instrumentId);
+			}
+			if(gratingName.equals("low"))
+				frodospecConfig.setResolution(FrodoSpecConfig.RESOLUTION_LOW);
+			else if(gratingName.equals("high"))
+				frodospecConfig.setResolution(FrodoSpecConfig.RESOLUTION_HIGH);
+			else
+			{
+				throw new IllegalArgumentException(
+					     "getInstrumentConfig:Invalid grating name for FrodoSpec spectrograph:"+
+					     gratingName);
+			}
+			FrodoSpecDetector frodospecDetector = (FrodoSpecDetector)frodospecConfig.getDetector(0);
+			frodospecDetector.clearAllWindows();
+			frodospecDetector.setXBin(bin);
+			frodospecDetector.setYBin(bin);
 		}
 		else
 		{
@@ -906,6 +961,10 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.8  2012/08/23 14:04:39  cjm
+** Removed INSTRUMENT_TYPE_IO_O and other minor tweaks
+** for IO:O support.
+**
 ** Revision 1.7  2012/08/21 13:04:22  eng
 ** added support for IO_O
 **
