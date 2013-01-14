@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.9 2013-01-11 16:03:39 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.10 2013-01-14 11:45:54 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -34,14 +34,14 @@ import ngat.util.logging.*;
 /**
  * Utility routines for %lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.9 2013-01-11 16:03:39 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.10 2013-01-14 11:45:54 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -105,6 +105,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see #getInstrumentType
 	 * @see #getInstrumentId
 	 * @see #getInstrumentDetectorBinning
+	 * @see #getInstrumentDetectorGain
 	 * @see #getCCDSingleFilterType
 	 * @see #getCCDLowerFilterType
 	 * @see #getCCDUpperFilterType
@@ -139,6 +140,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String irFilterType = null;
 		String oFilterType = null;
 		String configClassName = null;
+		double gain;
 		int bin,instrumentType;
 
 		// get type
@@ -277,6 +279,35 @@ public class DeviceInstrumentUtilites implements Logging
 			polarimeterDetector.setXBin(bin);
 			polarimeterDetector.setYBin(bin);
 		}
+		else if(configClassName.equals("ngat.phase2.Ringo3PolarimeterConfig"))
+		    {
+			rtmlFilterType = device.getFilterType();
+			// We could check rtmlFilterType against a fixed constant/null and error
+			// if it does not have the correct type.
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			gain = getInstrumentDetectorGain(tea,instrumentType,instrumentId,device.getDetector());
+			// create config
+			config = createInstrumentConfig(configClassName,"TEA-Ringo3-External-"+gain+"-"+bin+"x"+bin);
+			if (! (config instanceof Ringo3PolarimeterConfig))
+			{
+				throw new IllegalArgumentException(
+					     "getInstrumentConfig:Invalid config class for Ringo3 polarimeter:"+
+					     config.getClass().getName());
+			}
+			Ringo3PolarimeterConfig ringo3Config = (Ringo3PolarimeterConfig)config;
+			ringo3Config.setTriggerType(Ringo3PolarimeterConfig.TRIGGER_TYPE_EXTERNAL);
+			ringo3Config.setEmGain((int)(gain));
+			// loop over detectors 0-2
+			for(int i = 0; i < ringo3Config.getMaxDetectorCount(); i++)
+			{
+				Ringo3PolarimeterDetector ringo3Detector = (Ringo3PolarimeterDetector)
+					ringo3Config.getDetector(i);
+				ringo3Detector.clearAllWindows();
+				ringo3Detector.setXBin(bin);
+				ringo3Detector.setYBin(bin);
+			}
+		}
 		else if(configClassName.equals("ngat.phase2.RISEConfig"))
 		{
 			rtmlFilterType = device.getFilterType();
@@ -408,6 +439,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see org.estar.toop.TOCSession#instrIOO
 	 * @see org.estar.toop.TOCSession#instrIRcam
 	 * @see org.estar.toop.TOCSession#instrRingoStar
+	 * @see org.estar.toop.TOCSession#instrRingo3
 	 * @see org.estar.toop.TOCSession#instrMeaburnSpec
 	 * @see #getInstrumentType
 	 * @see #getCCDSingleFilterType
@@ -433,6 +465,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType1 = null;
 		String filterType2 = null;
 		String toopInstrName = null;
+		double gain;
 		int bin,instrumentType;
 
 		// get instrument type
@@ -482,7 +515,6 @@ public class DeviceInstrumentUtilites implements Logging
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrIRcam(irFilterType,bin,false,false);
 		}
-
 		else if(toopInstrName.equals("IO:O"))
 		    {
                         rtmlFilterType = device.getFilterType();
@@ -501,6 +533,14 @@ public class DeviceInstrumentUtilites implements Logging
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrRingoStar(bin,bin,false,false);
 		}
+		else if(toopInstrName.equals("RINGO3"))
+		{
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			gain = getInstrumentDetectorGain(tea,instrumentType,instrumentId,device.getDetector());
+			// diddly extract internal/external from RTML?
+			session.instrRingo3("external",(int)gain,bin,bin,false,false);
+		}
 		else if(toopInstrName.equals("NUVSPEC"))
 		{
 			RTMLGrating grating = null;
@@ -513,6 +553,7 @@ public class DeviceInstrumentUtilites implements Logging
 			//bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrMeaburnSpec(wavelengthString,false,false);
 		}
+		// diddly FrodoSpec
 		else
 		{
 			throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:sendInstr:"+
@@ -661,6 +702,51 @@ public class DeviceInstrumentUtilites implements Logging
 			bin = tea.getPropertyInteger("instrument."+instrumentId+".bin.default");
 		}
 		return bin;
+	}
+
+	/**
+	 * Get a gain value for the specified Detector. 
+	 * If no gain is specified in the RTML, the TEA property "instrument."+instrumentId+".gain.default" is
+	 * used to get the default gain.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the instrument properties from.
+	 * @param instrumentType Which sort of instrument we are getting the gain for.
+	 * @param instrumentId The id of the instrument to get the default gain from, if needed.
+	 * @param detector The RTML detector instance. This is allowed to be null if no
+	 *        &lt;Detector&gt; tag has been specified in the RTML.
+	 * @return An double, the gain to use for this instrument.
+	 * @exception NGATPropertyException Thrown by getPropertyDouble if there is a problem parsing the default
+	 *            gain.
+	 * @see TelescopeEmbeddedAgent#getPropertyDouble
+	 */
+	public static double getInstrumentDetectorGain(TelescopeEmbeddedAgent tea,int instrumentType,
+						    String instrumentId,RTMLDetector detector)
+		throws NGATPropertyException
+	{
+		double gain = 0.0;
+		boolean useDefaultGain;
+
+		useDefaultGain = true;
+		if(detector != null)
+		{
+			if(detector.getUseGain())
+			{
+				gain = detector.getGain();
+				useDefaultGain = false;
+			}
+		}
+		if(useDefaultGain)
+		{
+			// we allow device with no Detector, or a Detector with no gain set.
+			// So set a default gain retrieved from config
+			gain = tea.getPropertyDouble("instrument."+instrumentId+".gain.default");
+		}
+		if((gain < 1.0)||(gain > 100.0))
+		{
+			throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
+							   "getInstrumentDetectorGain:Gain "+gain+
+							   " out of range (0..100).");
+		}
+		return gain;
 	}
 
 	/**
@@ -961,6 +1047,9 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.9  2013/01/11 16:03:39  cjm
+** First attempt at adding frodospec support.
+**
 ** Revision 1.8  2012/08/23 14:04:39  cjm
 ** Removed INSTRUMENT_TYPE_IO_O and other minor tweaks
 ** for IO:O support.
