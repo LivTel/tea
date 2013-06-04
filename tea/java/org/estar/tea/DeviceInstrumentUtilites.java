@@ -1,24 +1,24 @@
 /*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
+     Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
 
-    This file is part of org.estar.tea.
+     This file is part of org.estar.tea.
 
-    org.estar.rtml is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+     org.estar.rtml is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
 
-    org.estar.rtml is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+     org.estar.rtml is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with org.estar.rtml; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+     You should have received a copy of the GNU General Public License
+     along with org.estar.rtml; if not, write to the Free Software
+     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.10 2013-01-14 11:45:54 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.11 2013-06-04 08:25:28 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -32,16 +32,16 @@ import ngat.util.*;
 import ngat.util.logging.*;
 
 /**
- * Utility routines for %lt;Device&gt; -> Instrument mapping.
+ * Utility routines for &lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.10 2013-01-14 11:45:54 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.11 2013-06-04 08:25:28 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -138,7 +138,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType1 = null;
 		String filterType2 = null;
 		String irFilterType = null;
-		String oFilterType = null;
+		String oFilterType[] = new String[OConfig.O_FILTER_INDEX_COUNT];
 		String configClassName = null;
 		double gain;
 		int bin,instrumentType;
@@ -169,8 +169,7 @@ public class DeviceInstrumentUtilites implements Logging
 			if (! (config instanceof CCDConfig))
 			{
 				throw new IllegalArgumentException(
-					   "getInstrumentConfig:Invalid config class for optical:"+
-					   config.getClass().getName());
+				  "getInstrumentConfig:Invalid config class for optical:"+config.getClass().getName());
 			}
 			// fill in config fields
 			CCDConfig ccdConfig = (CCDConfig)config;
@@ -195,8 +194,8 @@ public class DeviceInstrumentUtilites implements Logging
 			if (! (config instanceof GenericCCDConfig))
 			{
 				throw new IllegalArgumentException(
-					   "getInstrumentConfig:Invalid config class for generic CCD:"+
-					   config.getClass().getName());
+				  "getInstrumentConfig:Invalid config class for generic CCD:"+
+				  config.getClass().getName());
 			}
 			// fill in config fields
 			GenericCCDConfig ccdConfig = (GenericCCDConfig)config;
@@ -209,44 +208,56 @@ public class DeviceInstrumentUtilites implements Logging
 			ccdDetector.setYBin(bin);
 		}
 		else if(configClassName.equals("ngat.phase2.OConfig"))
-		    {
+		{
 			rtmlFilterType = device.getFilterType();
-			oFilterType = getCCDSingleFilterType(tea,instrumentId,rtmlFilterType);
+			for(int i = OConfig.O_FILTER_INDEX_FILTER_WHEEL;
+			    i <= OConfig.O_FILTER_INDEX_FILTER_SLIDE_UPPER; i++)
+			{
+				oFilterType[i] = getCCDIndexFilterType(tea,instrumentId,i,rtmlFilterType);
+			}
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			// create config
 			config = createInstrumentConfig(configClassName,
 							"TEA-"+INSTRUMENT_TYPE_CCD_STRING+"-"+
-							oFilterType+"-"+bin+"x"+bin);
+							oFilterType[OConfig.O_FILTER_INDEX_FILTER_WHEEL]+"-"+
+							oFilterType[OConfig.O_FILTER_INDEX_FILTER_SLIDE_LOWER]+"-"+
+							oFilterType[OConfig.O_FILTER_INDEX_FILTER_SLIDE_UPPER]+"-"+
+							bin+"x"+bin);
 			if (! (config instanceof OConfig))
-			    {
+			{
 				throw new 
-				    IllegalArgumentException("getInstrumentConfig:Invalid config class for o:"+
-							     config.getClass().getName());
+					IllegalArgumentException("getInstrumentConfig:Invalid config class for o:"+
+								 config.getClass().getName());
 			}
 			// fill in config fields
 			OConfig oConfig = (OConfig)config; 
-			oConfig.setFilterWheel(oFilterType);
+			for(int i = OConfig.O_FILTER_INDEX_FILTER_WHEEL;
+			    i <= OConfig.O_FILTER_INDEX_FILTER_SLIDE_UPPER; i++)
+			{
+				oConfig.setFilterName(i,oFilterType[i]);
+			}
 			ODetector oDetector = (ODetector)oConfig.getDetector(0);
 			oDetector.clearAllWindows();
 			oDetector.setXBin(bin);
 			oDetector.setYBin(bin);
-		    }
+		}
                 else if(configClassName.equals("ngat.phase2.IRCamConfig"))
-		    {
+		{
                         rtmlFilterType = device.getFilterType();
                         irFilterType = getIRCamFilterType(tea,instrumentId,rtmlFilterType);
                         // This needs to get more sophisticated if we allow non-square binning
                         bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
                         // create config
                         config = createInstrumentConfig(configClassName,
-							"TEA-"+INSTRUMENT_TYPE_IRCAM_STRING+"-"+irFilterType+"-"+bin+"x"+bin);
+							"TEA-"+INSTRUMENT_TYPE_IRCAM_STRING+"-"+irFilterType+"-"+
+							bin+"x"+bin);
                         if (! (config instanceof IRCamConfig))
-			    {
+			{
                                 throw new IllegalArgumentException(
-                                          "getInstrumentConfig:Invalid config class for infrared:"+
-                                          config.getClass().getName());
-			    }
+					  "getInstrumentConfig:Invalid config class for infrared:"+
+								   config.getClass().getName());
+			}
                         // fill in config fields
                         IRCamConfig irCamConfig = (IRCamConfig)config;
                         irCamConfig.setFilterWheel(irFilterType);
@@ -255,22 +266,22 @@ public class DeviceInstrumentUtilites implements Logging
                         irCamDetector.setXBin(bin);
                         irCamDetector.setYBin(bin);
 
-		    }
+		}
 		else if(configClassName.equals("ngat.phase2.PolarimeterConfig"))
-		    {
+		{
 			rtmlFilterType = device.getFilterType();
 			// We could check rtmlFilterType against a fixed constant/null and error
 			// if it does not have the correct type.
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			// create config
-			config = createInstrumentConfig(configClassName,
-					"TEA-"+INSTRUMENT_TYPE_POLARIMETER_STRING+"-Fixed-"+bin+"x"+bin);
+			config = createInstrumentConfig(configClassName,"TEA-"+INSTRUMENT_TYPE_POLARIMETER_STRING+
+							"-Fixed-"+bin+"x"+bin);
 			if (! (config instanceof PolarimeterConfig))
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid config class for polarimeter:"+
-					     config.getClass().getName());
+					  "getInstrumentConfig:Invalid config class for polarimeter:"+
+								   config.getClass().getName());
 			}
 			PolarimeterConfig polarimeterConfig = (PolarimeterConfig)config;
 			PolarimeterDetector polarimeterDetector = (PolarimeterDetector)polarimeterConfig.
@@ -280,7 +291,7 @@ public class DeviceInstrumentUtilites implements Logging
 			polarimeterDetector.setYBin(bin);
 		}
 		else if(configClassName.equals("ngat.phase2.Ringo3PolarimeterConfig"))
-		    {
+		{
 			rtmlFilterType = device.getFilterType();
 			// We could check rtmlFilterType against a fixed constant/null and error
 			// if it does not have the correct type.
@@ -292,8 +303,8 @@ public class DeviceInstrumentUtilites implements Logging
 			if (! (config instanceof Ringo3PolarimeterConfig))
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid config class for Ringo3 polarimeter:"+
-					     config.getClass().getName());
+					  "getInstrumentConfig:Invalid config class for Ringo3 polarimeter:"+
+								   config.getClass().getName());
 			}
 			Ringo3PolarimeterConfig ringo3Config = (Ringo3PolarimeterConfig)config;
 			ringo3Config.setTriggerType(Ringo3PolarimeterConfig.TRIGGER_TYPE_EXTERNAL);
@@ -317,12 +328,12 @@ public class DeviceInstrumentUtilites implements Logging
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			// create config
 			config = createInstrumentConfig(configClassName,
-					"TEA-"+INSTRUMENT_TYPE_CCD_STRING+"-Fixed-"+bin+"x"+bin);
+							"TEA-"+INSTRUMENT_TYPE_CCD_STRING+"-Fixed-"+bin+"x"+bin);
 			if (! (config instanceof RISEConfig))
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid config class for RISE:"+
-					     config.getClass().getName());
+							       "getInstrumentConfig:Invalid config class for RISE:"+
+								   config.getClass().getName());
 			}
 			RISEConfig riseConfig = (RISEConfig)config;
 			RISEDetector riseDetector = (RISEDetector)riseConfig.
@@ -342,13 +353,13 @@ public class DeviceInstrumentUtilites implements Logging
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			// create config
-			config = createInstrumentConfig(configClassName,
-					"TEA-"+INSTRUMENT_TYPE_SPECTROGRAPH_STRING+"-Fixed-"+bin+"x"+bin);
+			config = createInstrumentConfig(configClassName,"TEA-"+INSTRUMENT_TYPE_SPECTROGRAPH_STRING+
+							"-Fixed-"+bin+"x"+bin);
 			if (! (config instanceof LowResSpecConfig))
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid config class for low res spectrograph:"+
-					     config.getClass().getName());
+					  "getInstrumentConfig:Invalid config class for low res spectrograph:"+
+								   config.getClass().getName());
 			}
 			LowResSpecConfig lowResSpecConfig = (LowResSpecConfig)config;
 			lowResSpecConfig.setWavelength(wavelength);
@@ -372,7 +383,8 @@ public class DeviceInstrumentUtilites implements Logging
 			gratingName = grating.getName();
 			if(gratingName == null)
 			{
-				throw new IllegalArgumentException("getInstrumentConfig:No Grating name specified for "+
+				throw new IllegalArgumentException(
+					  "getInstrumentConfig:No Grating name specified for "+
 								   "instrument "+instrumentId+".");
 			}
 			// This needs to get more sophisticated if we allow non-square binning
@@ -383,8 +395,8 @@ public class DeviceInstrumentUtilites implements Logging
 			if (! (config instanceof FrodoSpecConfig))
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid config class for FrodoSpec spectrograph:"+
-					     config.getClass().getName());
+				     "getInstrumentConfig:Invalid config class for FrodoSpec spectrograph:"+
+								   config.getClass().getName());
 			}
 			FrodoSpecConfig frodospecConfig = (FrodoSpecConfig)config;
 			if(instrumentId.equals("frodospec-red"))
@@ -394,8 +406,8 @@ public class DeviceInstrumentUtilites implements Logging
 			else
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid instrument ID for FrodoSpec spectrograph:"+
-					     instrumentId);
+				      "getInstrumentConfig:Invalid instrument ID for FrodoSpec spectrograph:"+
+								   instrumentId);
 			}
 			if(gratingName.equals("low"))
 				frodospecConfig.setResolution(FrodoSpecConfig.RESOLUTION_LOW);
@@ -404,8 +416,8 @@ public class DeviceInstrumentUtilites implements Logging
 			else
 			{
 				throw new IllegalArgumentException(
-					     "getInstrumentConfig:Invalid grating name for FrodoSpec spectrograph:"+
-					     gratingName);
+				     "getInstrumentConfig:Invalid grating name for FrodoSpec spectrograph:"+
+								   gratingName);
 			}
 			FrodoSpecDetector frodospecDetector = (FrodoSpecDetector)frodospecConfig.getDetector(0);
 			frodospecDetector.clearAllWindows();
@@ -460,7 +472,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String lowerFilterType = null;
 		String upperFilterType = null;
 		String irFilterType = null;
-		String oFilterType = null;
+		String oFilterType[] = new String[OConfig.O_FILTER_INDEX_COUNT];
 		String filterType0 = null;
 		String filterType1 = null;
 		String filterType2 = null;
@@ -516,13 +528,17 @@ public class DeviceInstrumentUtilites implements Logging
 			session.instrIRcam(irFilterType,bin,false,false);
 		}
 		else if(toopInstrName.equals("IO:O"))
-		    {
+		{
                         rtmlFilterType = device.getFilterType();
-                        oFilterType = getCCDSingleFilterType(tea,instrumentId,rtmlFilterType);
+			for(int i = OConfig.O_FILTER_INDEX_FILTER_WHEEL;
+			    i <= OConfig.O_FILTER_INDEX_FILTER_SLIDE_UPPER; i++)
+			{
+				oFilterType[i] = getCCDIndexFilterType(tea,instrumentId,i,rtmlFilterType);
+			}
                         // This needs to get more sophisticated if we allow non-square binning
                         bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrIOO(oFilterType,bin,false,false);
-		    }
+		}
 		else if(toopInstrName.equals("RINGO")||toopInstrName.equals("RINGOSTAR")||
 			toopInstrName.equals("GROPE"))
 		{
@@ -719,7 +735,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see TelescopeEmbeddedAgent#getPropertyDouble
 	 */
 	public static double getInstrumentDetectorGain(TelescopeEmbeddedAgent tea,int instrumentType,
-						    String instrumentId,RTMLDetector detector)
+						       String instrumentId,RTMLDetector detector)
 		throws NGATPropertyException
 	{
 		double gain = 0.0;
@@ -771,21 +787,21 @@ public class DeviceInstrumentUtilites implements Logging
 		instrumentType = getInstrumentType(device);
 		switch(instrumentType)
 		{
-		case INSTRUMENT_TYPE_NONE:
-		    throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
-						       "getInstrumentTypeName:Type NONE detected.");
-		case INSTRUMENT_TYPE_CCD:
-		    return INSTRUMENT_TYPE_CCD_STRING;
-		case INSTRUMENT_TYPE_IRCAM:
-		    return INSTRUMENT_TYPE_IRCAM_STRING;
-		case INSTRUMENT_TYPE_POLARIMETER:
-		    return INSTRUMENT_TYPE_POLARIMETER_STRING;
-		case INSTRUMENT_TYPE_SPECTROGRAPH:
-		    return INSTRUMENT_TYPE_SPECTROGRAPH_STRING;
-		default:
-		    throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
-						       "getInstrumentName:Unknown Type "+instrumentType+
-						       " detected.");
+			case INSTRUMENT_TYPE_NONE:
+				throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
+								   "getInstrumentTypeName:Type NONE detected.");
+			case INSTRUMENT_TYPE_CCD:
+				return INSTRUMENT_TYPE_CCD_STRING;
+			case INSTRUMENT_TYPE_IRCAM:
+				return INSTRUMENT_TYPE_IRCAM_STRING;
+			case INSTRUMENT_TYPE_POLARIMETER:
+				return INSTRUMENT_TYPE_POLARIMETER_STRING;
+			case INSTRUMENT_TYPE_SPECTROGRAPH:
+				return INSTRUMENT_TYPE_SPECTROGRAPH_STRING;
+			default:
+				throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
+								   "getInstrumentName:Unknown Type "+instrumentType+
+								   " detected.");
 		}
 	}
 
@@ -926,13 +942,13 @@ public class DeviceInstrumentUtilites implements Logging
 						done = true;
 						logger.log(INFO, 1, CLASS,"DeviceInstrumentUtilites:getInstrumentId:"+
 							   "Device Type "+deviceTypeName+" instrument index "+index+
-							 " name "+nameString+" is the instrument we are looking for.");
+							   " name "+nameString+" is the instrument we are looking for.");
 					}
 				}
 				else // run out of names to search
 				{
 					throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
-						       "getInstrumentId:Failed to find instrument name for "+name+
+									   "getInstrumentId:Failed to find instrument name for "+name+
 									   " of type "+deviceTypeName);
 				}
 				index++;
@@ -1001,7 +1017,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see TelescopeEmbeddedAgent#getPropertyBoolean
 	 */
 	public static boolean instrumentUpdateRequiresReductionTelemetry(TelescopeEmbeddedAgent tea,
-					  RTMLDevice device) throws IllegalArgumentException, NullPointerException
+									 RTMLDevice device) throws IllegalArgumentException, NullPointerException
 	{
 		String instrumentId = null;
 		String telemetryClassName = null;
@@ -1024,7 +1040,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see TelescopeEmbeddedAgent#getPropertyBoolean
 	 */
 	public static boolean instrumentUpdateRequiresExposureTelemetry(TelescopeEmbeddedAgent tea,
-					  RTMLDevice device) throws IllegalArgumentException, NullPointerException
+									RTMLDevice device) throws IllegalArgumentException, NullPointerException
 	{
 		String instrumentId = null;
 		String telemetryClassName = null;
@@ -1047,6 +1063,9 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.10  2013/01/14 11:45:54  cjm
+** Added Ringo3 support.
+**
 ** Revision 1.9  2013/01/11 16:03:39  cjm
 ** First attempt at adding frodospec support.
 **
