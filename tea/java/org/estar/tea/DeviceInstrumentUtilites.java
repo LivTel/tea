@@ -18,7 +18,7 @@
      Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.11 2013-06-04 08:25:28 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.12 2013-07-18 09:50:23 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -34,14 +34,14 @@ import ngat.util.logging.*;
 /**
  * Utility routines for &lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.11 2013-06-04 08:25:28 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.12 2013-07-18 09:50:23 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -592,7 +592,16 @@ public class DeviceInstrumentUtilites implements Logging
 						    String rtmlFilterType)
                 throws Exception
 	{
-		return tea.getFilterMap().getProperty("filter."+instrumentId+"."+rtmlFilterType);
+		ConfigurationProperties filterMap = null;
+		String valueString = null;
+
+		filterMap = tea.getFilterMap();
+		valueString = filterMap.getProperty("filter."+instrumentId+"."+rtmlFilterType);
+		if(valueString == null)
+			throw new Exception("DeviceInstrumentUtilites:getCCDSingleFilterType:RTML filter type "+
+					    rtmlFilterType+" returned null value when using key:filter."+instrumentId+
+					    "."+rtmlFilterType);
+		return valueString;
 	}
     
 	/**
@@ -610,7 +619,16 @@ public class DeviceInstrumentUtilites implements Logging
 	public static String getCCDLowerFilterType(TelescopeEmbeddedAgent tea,String instrumentId,
 						   String rtmlFilterType) throws Exception
 	{
-		return tea.getFilterMap().getProperty("filter."+instrumentId+".lower."+rtmlFilterType);
+		ConfigurationProperties filterMap = null;
+		String valueString = null;
+
+		filterMap = tea.getFilterMap();
+		valueString = filterMap.getProperty("filter."+instrumentId+".lower."+rtmlFilterType);
+		if(valueString == null)
+			throw new Exception("DeviceInstrumentUtilites:egetCCDLowerFilterType:RTML filter type "+
+					    rtmlFilterType+" returned null value when using key:filter."+instrumentId+
+					    ".lower."+rtmlFilterType);
+		return valueString;
 	}
 
 	/**
@@ -629,7 +647,16 @@ public class DeviceInstrumentUtilites implements Logging
 						   String rtmlFilterType) 
 		throws Exception
 	{
-		return tea.getFilterMap().getProperty("filter."+instrumentId+".upper."+rtmlFilterType);
+		ConfigurationProperties filterMap = null;
+		String valueString = null;
+
+		filterMap = tea.getFilterMap();
+		valueString = filterMap.getProperty("filter."+instrumentId+".upper."+rtmlFilterType);
+		if(valueString == null)
+			throw new Exception("DeviceInstrumentUtilites:getCCDUpperFilterType:RTML filter type "+
+					    rtmlFilterType+" returned null value when using key:filter."+instrumentId+
+					    ".upper."+rtmlFilterType);
+		return valueString;
 	}
 
 	/**
@@ -649,7 +676,16 @@ public class DeviceInstrumentUtilites implements Logging
 	public static String getCCDIndexFilterType(TelescopeEmbeddedAgent tea,String instrumentId,int index,
 						   String rtmlFilterType) throws Exception
 	{
-		return tea.getFilterMap().getProperty("filter."+instrumentId+"."+index+"."+rtmlFilterType);
+		ConfigurationProperties filterMap = null;
+		String valueString = null;
+
+		filterMap = tea.getFilterMap();
+		valueString = filterMap.getProperty("filter."+instrumentId+"."+index+"."+rtmlFilterType);
+		if(valueString == null)
+			throw new Exception("DeviceInstrumentUtilites:getCCDIndexFilterType:RTML filter type "+
+					    rtmlFilterType+" returned null value when using key:filter."+
+					    instrumentId+"."+index+"."+rtmlFilterType);
+		return valueString;
 	}
 
 	/**
@@ -667,7 +703,16 @@ public class DeviceInstrumentUtilites implements Logging
 	public static String getIRCamFilterType(TelescopeEmbeddedAgent tea,String instrumentId,String rtmlFilterType) 
 		throws Exception
 	{
-		return tea.getFilterMap().getProperty("filter."+instrumentId+"."+rtmlFilterType);
+		ConfigurationProperties filterMap = null;
+		String valueString = null;
+
+		filterMap = tea.getFilterMap();
+		valueString = filterMap.getProperty("filter."+instrumentId+"."+rtmlFilterType);
+		if(valueString == null)
+			throw new Exception("DeviceInstrumentUtilites:getIRCamFilterType:RTML filter type "+
+					    rtmlFilterType+" returned null value when using key:filter."+instrumentId+
+					    "."+rtmlFilterType);
+		return valueString;
 	}
 
 	/**
@@ -1063,6 +1108,9 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.11  2013/06/04 08:25:28  cjm
+** Added support for IO:O filter slides.
+**
 ** Revision 1.10  2013/01/14 11:45:54  cjm
 ** Added Ringo3 support.
 **
