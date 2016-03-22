@@ -1,5 +1,5 @@
 // TOCSessionManager.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.20 2010-09-22 09:41:40 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/TOCSessionManager.java,v 1.21 2016-03-22 10:53:58 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -15,14 +15,14 @@ import org.estar.toop.*;
 /** 
  * Class to manage TOCSession interaction for RTML documents for a specified Tag/User/Project.
  * @author Steve Fraser, Chris Mottram
- * @version $Revision: 1.20 $
+ * @version $Revision: 1.21 $
  */
 public class TOCSessionManager implements Runnable, Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.20 2010-09-22 09:41:40 cjm Exp $";
+	public final static String RCSID = "$Id: TOCSessionManager.java,v 1.21 2016-03-22 10:53:58 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -612,6 +612,73 @@ public class TOCSessionManager implements Runnable, Logging
 			}
 			return d;
 		}
+		// check startDate and endDate are sensible?
+		// get target for position call
+		RTMLObservation observation = d.getObservation(0);
+		RTMLTarget target = observation.getTarget();
+		if (target == null) 
+		{
+			logger.log(INFO, 1, CLASS, "TOCSessionManager::scoreDocument:Target was null.");
+			try 
+			{
+				d.setReject();
+				d.addHistoryRejection("TEA:" + tea.getId(), null, RTMLHistoryEntry.REJECTION_REASON_SYNTAX, 
+						      this.getClass().getName() + ":addDocument:Target was null.");
+				d.setErrorString(this.getClass().getName() + ":addDocument:Target was null.");
+			} 
+			catch (RTMLException e)
+			{
+				// this can never occur - only occurs if setErrorString called
+				// with type != reject
+			}
+			return d;
+		}
+		// position
+		String stateString = null;
+		try 
+		{
+			stateString = session.position(target.getRA(), target.getDec());
+		} 
+		catch (Exception e) 
+		{
+			logger.log(INFO, 1, CLASS, "TOCSessionManager::addDocument:TOCS failure:" + e);
+			logger.dumpStack(1, e);
+			try 
+			{
+				d.setReject();
+				d.addHistoryRejection("TEA:" + tea.getId(), null, RTMLHistoryEntry.REJECTION_REASON_OTHER, 
+						      this.getClass().getName() + ":addDocument:TOCS failure:" + e);
+				d.setErrorString(this.getClass().getName() + ":addDocument:TOCS failure:" + e);
+			} 
+			catch (RTMLException re)
+			{
+				// this can never occur - only occurs if setErrorString called
+				// with type != reject
+			}
+			return d;
+		}
+		// ensure document is above horizon
+		if (stateString.equals(Position.POSITION_STATE_RISEN) == false)
+		{
+			logger.log(INFO, 1, CLASS, "TOCSessionManager::addDocument:Target RA " + target.getRA() + " Dec "
+				   + target.getDec() + " is SET.");
+			try
+			{
+				d.setReject();
+				d.addHistoryRejection("TEA:" + tea.getId(), null, RTMLHistoryEntry.REJECTION_REASON_OTHER, this
+						.getClass().getName()+":addDocument:Target RA "+target.getRA()
+						+" Dec "+target.getDec()+" is SET.");
+				d.setErrorString(this.getClass().getName()+":addDocument:Target RA "+target.getRA()+" Dec "
+						 +target.getDec()+" is SET.");
+			} 
+			catch (RTMLException e)
+			{
+				// this can never occur - only occurs if setErrorString called
+				// with type != reject
+			}
+			return d;
+		}
+
 		logger.log(INFO, 1, CLASS,"TOCSessionManager::addDocument: About to add to list.");
 		// add to list
 		synchronized(documentList)
@@ -671,11 +738,9 @@ public class TOCSessionManager implements Runnable, Logging
 					}
 					catch(InterruptedException e)
 					{
-						logger.log(INFO, 1, CLASS,
-							   "TOCSessionManager::run: Wait inerrupted:"+e);
+						logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Wait inerrupted:"+e);
 					}
-					logger.log(INFO, 1, CLASS,
-					      "TOCSessionManager::run: Waited for document: There are "+
+					logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Waited for document: There are "+
 						   documentList.size()+" documents in the list.");
 					if(documentList.size() == 0)// no new document added in timeout
 					{
@@ -698,15 +763,13 @@ public class TOCSessionManager implements Runnable, Logging
 			// if there is a document available we should process it
 			if(document != null)
 			{
-				logger.log(INFO, 1, CLASS,
-					   "TOCSessionManager::run: Processing document.");
+				logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Processing document.");
 				try
 				{
 					// process document
 					if(inSession == false)
 					{
-						logger.log(INFO, 1, CLASS,
-							   "TOCSessionManager::run: Starting session.");
+						logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Starting session.");
 						// start session
 						session.helo();
 						session.init();
@@ -729,8 +792,7 @@ public class TOCSessionManager implements Runnable, Logging
 						}
 						catch(Exception e)
 						{
-							logger.log(INFO, 1, CLASS,this.getClass().getName()+
-								   ":run:Autoguider on failed:"+e);
+							logger.log(INFO, 1, CLASS,this.getClass().getName()+":run:Autoguider on failed:"+e);
 							logger.dumpStack(1,e);
 						}
 					}
@@ -744,8 +806,7 @@ public class TOCSessionManager implements Runnable, Logging
 					postProcessThread.setRemoteFilenameList(filenameList);
 					t = new Thread(postProcessThread);
 					t.start();
-					logger.log(INFO, 1, CLASS,
-						   "TOCSessionManager::run: Started new post-process thread.");
+					logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Started new post-process thread.");
 					// if auroguider was turned on, now turn it off
 					if(autoguiderNeeded(document))
 					{
@@ -755,8 +816,7 @@ public class TOCSessionManager implements Runnable, Logging
 						}
 						catch(Exception e)
 						{
-							logger.log(INFO, 1, CLASS,this.getClass().getName()+
-								   ":run:Autoguider off failed:"+e);
+							logger.log(INFO, 1, CLASS,this.getClass().getName()+":run:Autoguider off failed:"+e);
 							logger.dumpStack(1,e);
 						}
 					}
@@ -783,7 +843,7 @@ public class TOCSessionManager implements Runnable, Logging
 							   ":run:An error occured whilst trying to "+
 							   "send a fail document back to the IA:"+ee);
 						logger.dumpStack(1,ee);
-						// allow document to be remoeved even if informing IA fails
+						// allow document to be removeed even if informing IA fails
 						// otherwise manager can get in a loop trying to do this.
 					}
 				}
@@ -805,14 +865,12 @@ public class TOCSessionManager implements Runnable, Logging
 				}
 			}// end if there is a document in the list
 		}// end while
-		logger.log(INFO, 1, CLASS,
-			   "TOCSessionManager::run: Exited main while loop.");
+		logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Exited main while loop.");
 		if(inSession)
 		{
 			try
 			{
-				logger.log(INFO, 1, CLASS,
-					   "TOCSessionManager::run: Qutting TOCA session.");
+				logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Qutting TOCA session.");
 				// think about session.stop(); here to stop axes tracking into a limit
 				// quit session.
 				session.quit();
@@ -1664,6 +1722,9 @@ public class TOCSessionManager implements Runnable, Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.20  2010/09/22 09:41:40  cjm
+** Fixed ptoperty retrieval.
+**
 ** Revision 1.19  2010/09/22 09:33:09  cjm
 ** Now looks at toop.autoguider.exposure_length.min to get minimum exposure length
 ** to try autoguiding.
