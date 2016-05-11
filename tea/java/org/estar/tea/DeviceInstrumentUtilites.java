@@ -18,7 +18,7 @@
      Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.13 2016-05-11 15:32:10 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.14 2016-05-11 16:25:40 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -34,14 +34,14 @@ import ngat.util.logging.*;
 /**
  * Utility routines for &lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.13 $
+ * @version $Revision: 1.14 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.13 2016-05-11 15:32:10 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.14 2016-05-11 16:25:40 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -118,6 +118,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see #INSTRUMENT_TYPE_CCD_STRING
 	 * @see #INSTRUMENT_TYPE_IRCAM_STRING
 	 * @see #INSTRUMENT_TYPE_POLARIMETER_STRING
+	 * @see #INSTRUMENT_TYPE_SPECTROGRAPH_STRING
 	 * @see ngat.phase2.CCDConfig
 	 * @see ngat.phase2.CCDDetector
 	 * @see ngat.phase2.IRCamConfig
@@ -141,7 +142,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String oFilterType[] = new String[OConfig.O_FILTER_INDEX_COUNT];
 		String configClassName = null;
 		double gain;
-		int bin,instrumentType;
+		int bin,xBin,yBin,instrumentType;
 
 		// get type
 		instrumentType = getInstrumentType(device);
@@ -423,6 +424,75 @@ public class DeviceInstrumentUtilites implements Logging
 			frodospecDetector.clearAllWindows();
 			frodospecDetector.setXBin(bin);
 			frodospecDetector.setYBin(bin);
+		}
+		else if(configClassName.equals("ngat.phase2.SpratConfig"))
+		{
+			RTMLGrating grating = null;
+			String gratingName = null;
+			int grismRotation;
+
+			// Get grating name, red or blue
+			grating = device.getGrating();
+			if(grating == null)
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:No Grating specified for "+
+								   "instrument "+instrumentId+".");
+			}
+			gratingName = grating.getName();
+			if(gratingName == null)
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:No Grating name specified for "+
+								   "instrument "+instrumentId+".");
+			}
+			if(gratingName.equals("red"))
+				grismRotation = 0;
+			else if(gratingName.equals("blue"))
+				grismRotation = 1;
+			else
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:Illegal Grating name "+gratingName+" specified for "+
+								   "instrument "+instrumentId+".");
+			}
+			// Sort out binning - potentially non-square
+			RTMLDetector detector = device.getDetector();
+			if(detector != null)
+			{
+				xBin = detector.getColumnBinning();
+				if(xBin < 1)
+				{
+					throw new IllegalArgumentException("getInstrumentConfig:Out of range binning "+xBin+
+									   " specified for instrument "+instrumentId+".");
+				}
+				yBin = detector.getRowBinning();
+				if(yBin < 1)
+				{
+					throw new IllegalArgumentException("getInstrumentConfig:Out of range binning "+yBin+
+									   " specified for instrument "+instrumentId+".");
+				}
+			}
+			else
+			{
+				xBin = 1;
+				yBin = 1;
+			}
+			// create config
+			config = createInstrumentConfig(configClassName,"TEA-"+INSTRUMENT_TYPE_SPECTROGRAPH_STRING+
+							"-"+instrumentId+"-"+gratingName+"-"+xBin+"x"+yBin);
+			if (! (config instanceof SpratConfig))
+			{
+				throw new IllegalArgumentException(
+				     "getInstrumentConfig:Invalid config class for Sprat spectrograph:"+config.getClass().getName());
+			}
+			SpratConfig spratConfig = (SpratConfig)config;
+			spratConfig.setCalibrateBefore(false);
+			spratConfig.setCalibrateAfter(false);
+			spratConfig.setSlitPosition(SpratConfig.POSITION_IN);
+			spratConfig.setGrismPosition(SpratConfig.POSITION_IN);
+			spratConfig.setGrismRotation(grismRotation);
+			SpratDetector spratDetector = (SpratDetector)spratConfig.getDetector(0);
+			spratDetector.clearAllWindows();
+			spratDetector.setXBin(xBin);
+			spratDetector.setYBin(yBin);
 		}
 		else
 		{
@@ -1108,6 +1178,9 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.13  2016/05/11 15:32:10  cjm
+** Changed getInstrumentDetectorBinning exception message.
+**
 ** Revision 1.12  2013/07/18 09:50:23  cjm
 ** Made changes to: getCCDSingleFilterType, getCCDLowerFilterType, getCCDUpperFilterType, getCCDIndexFilterType,
 ** getIRCamFilterType so if the retrieved property is null (i.e. cannot be found) an exception is thrown. This stops us
