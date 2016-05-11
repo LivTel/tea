@@ -18,7 +18,7 @@
      Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // DeviceInstrumentUtilites.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.12 2013-07-18 09:50:23 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DeviceInstrumentUtilites.java,v 1.13 2016-05-11 15:32:10 cjm Exp $
 package org.estar.tea;
 
 import java.lang.reflect.*;
@@ -34,14 +34,14 @@ import ngat.util.logging.*;
 /**
  * Utility routines for &lt;Device&gt; -> Instrument mapping.
  * @author Chris Mottram
- * @version $Revision: 1.12 $
+ * @version $Revision: 1.13 $
  */
 public class DeviceInstrumentUtilites implements Logging
 {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.12 2013-07-18 09:50:23 cjm Exp $";
+	public final static String RCSID = "$Id: DeviceInstrumentUtilites.java,v 1.13 2016-05-11 15:32:10 cjm Exp $";
 	/**
 	 * Classname for logging.
 	 */
@@ -752,7 +752,7 @@ public class DeviceInstrumentUtilites implements Logging
 			if((instrumentType == INSTRUMENT_TYPE_IRCAM)&&(bin != 1))
 			{
 				throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
-								   "getInstrumentDetectorBinning:SupIRCam (IRCAM) "+
+								   "getInstrumentDetectorBinning:IO:I (IRCAM) "+
 								   "Row/Column binning must be 1.");
 			}
 		}
@@ -1108,6 +1108,11 @@ public class DeviceInstrumentUtilites implements Logging
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.12  2013/07/18 09:50:23  cjm
+** Made changes to: getCCDSingleFilterType, getCCDLowerFilterType, getCCDUpperFilterType, getCCDIndexFilterType,
+** getIRCamFilterType so if the retrieved property is null (i.e. cannot be found) an exception is thrown. This stops us
+** getting configs with null filters in them.
+**
 ** Revision 1.11  2013/06/04 08:25:28  cjm
 ** Added support for IO:O filter slides.
 **
