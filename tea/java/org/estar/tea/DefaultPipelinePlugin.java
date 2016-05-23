@@ -1,5 +1,5 @@
 // DefaultPipelinePlugin.java
-// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.13 2008-03-31 14:14:56 cjm Exp $
+// $Header: /space/home/eng/cjm/cvs/tea/java/org/estar/tea/DefaultPipelinePlugin.java,v 1.14 2016-05-23 14:09:40 cjm Exp $
 package org.estar.tea;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.13 2008-03-31 14:14:56 cjm Exp $";
+	public final static String RCSID = "$Id: DefaultPipelinePlugin.java,v 1.14 2016-05-23 14:09:40 cjm Exp $";
 	/**
 	 * Logging class identifier.
 	 */
@@ -48,7 +48,7 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 	 */
 	protected String id = PROPERTY_KEY_PIPELINE_PLUGIN_ID;
 	/**
-	 * The instrument this pipeline is for i.e. "ratcam", "supircam", "ringostar", "meaburn".
+	 * The instrument this pipeline is for i.e. "ratcam", "io:o", "supircam", "io:i", "ringostar", "ringo3", "rise", "meaburn", "frodospec-red".
 	 */
 	protected String instrumentId = null;
 	/**
@@ -441,6 +441,9 @@ public class DefaultPipelinePlugin implements PipelineProcessingPlugin, Logging
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.13  2008/03/31 14:14:56  cjm
+// Pipeline Plugin's are now organised by name/Id rather than type of instrument.
+//
 // Revision 1.12  2007/05/01 10:06:42  cjm
 // More testing of return values in initialise, and more logging of what
 // data it is retrieving.
