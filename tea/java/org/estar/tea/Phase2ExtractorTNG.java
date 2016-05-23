@@ -1233,7 +1233,8 @@ public class Phase2ExtractorTNG implements Logging {
 			XImagerInstrumentConfig xim = new XImagerInstrumentConfig(config.getName());
 			xim.setFilterSpec(filterSpec);
 			xim.setDetectorConfig(xdet);
-			xim.setInstrumentName("SUPIRCAM");
+			//xim.setInstrumentName("SUPIRCAM");
+			xim.setInstrumentName("IO:I");
 			return xim;
 
 		} else if (config instanceof LowResSpecConfig) {
