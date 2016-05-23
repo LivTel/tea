@@ -21,9 +21,8 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	alogger = LogManager.getLogger("TRACE");
 	logger = alogger.generate()
 	    .system("TEA")
-	    .subSystem("Handling")
-	    .srcCompClass(this.getClass().getName())
-	    .srcCompID(this.toString());
+	    .subSystem("Receiver")
+	    .srcCompClass(this.getClass().getName());
     } 
 
     /** 
@@ -38,21 +37,23 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	
 	try {
 	   
+	    LogCollator collator = logger.create()
+                .info()
+                .level(1)
+                .extractCallInfo()
+                .msg("Sending doc to ScoreDocHandler");
+	    tea.xlogRTML(collator, doc);
+	    
 	    ScoreDocumentHandler sdh = new ScoreDocumentHandler(tea);	
+
 	    tea.logRTML(alogger,1,"ScoreDocHandler scoring doc: ",doc);
 	    reply = sdh.handleScore(doc);
 	    alogger.log(1, "ScoreDocHandler returned doc: "+reply);
 	    tea.logRTML(alogger,1,"ScoreDocHandler returned doc: ",reply);
-	 
-	    LogCollator collator = logger.create()	
-		.info()
-		.level(1)
-		.extractCallInfo()
-		.msg("ScoreDocHandler returned document")
-
+	    
+	    collator.msg("ScoreDocHandler returned document");
 	    tea.xlogRTML(collator, reply);
-
-      
+	         
 	} catch (Exception e) { 	  
 	    throw new RemoteException("Exception while handling score: "+e);
 	}
@@ -81,7 +82,7 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 		.info()
 		.level(1)
 		.extractCallInfo()
-		.msg("RequestDocHandler returned document")
+		.msg("RequestDocHandler returned document");
 		
 	    tea.xlogRTML(collator, reply);
 
