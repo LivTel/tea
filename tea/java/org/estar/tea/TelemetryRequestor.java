@@ -9,7 +9,6 @@ import java.text.*;
 
 import org.estar.astrometry.*;
 import org.estar.rtml.*;
-import org.estar.io.*;
 
 import ngat.util.*;
 import ngat.util.logging.*;
