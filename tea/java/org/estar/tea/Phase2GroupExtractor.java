@@ -60,7 +60,7 @@ public class Phase2GroupExtractor implements Logging {
                        "RTML Project was not specified, failing request.");
             throw new IllegalArgumentException("Your Project ID was null");
         }
-	proposalId = proposalId.replaceAll("\\W", "_");
+	//proposalId = proposalId.replaceAll("\\W", "_");
 
 
         // Retrieve the documents unique ID, either from the uid attribute or user agent's Id

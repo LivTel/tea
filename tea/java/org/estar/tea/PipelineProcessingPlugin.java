@@ -21,7 +21,8 @@ public interface PipelineProcessingPlugin
 	public void setId(String s);
 	/**
 	 * Method to set the instrument name of this plugin. 
-	 * @param s The instrument name, usually some thing like "ratcam", "supircam", "ringostar", "meaburn".
+	 * @param s The instrument name, usually some thing like "ratcam", "io:o", "supircam", "io:i", "ringostar", "ringo3", 
+	 *         "rise", "meaburn".
 	 */
 	public void setInstrumentId(String s);
 	/**
