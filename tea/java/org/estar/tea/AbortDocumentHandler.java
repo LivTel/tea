@@ -11,7 +11,6 @@ import javax.net.ssl.*;
 
 import org.estar.astrometry.*;
 import org.estar.rtml.*;
-import org.estar.io.*;
 
 import ngat.util.*;
 import ngat.util.logging.*;
@@ -33,11 +32,6 @@ public class AbortDocumentHandler implements Logging {
     /** Reference to the TEA.*/
     TelescopeEmbeddedAgent tea;
     
-    /** EstarIO for responses.*/
-    private eSTARIO io; 
-    
-    /** GLobusIO handle for responses.*/
-    private GlobusIOHandle handle;
 
     /** Class logger.*/
     private Logger logger;
