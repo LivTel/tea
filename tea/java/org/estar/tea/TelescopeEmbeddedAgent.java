@@ -27,6 +27,7 @@ import ngat.phase2.IProgram;
 import ngat.phase2.IAccount;
 import ngat.phase2.ISemester;
 import ngat.phase2.IProposal;
+import ngat.phase2.ISemesterPeriod;
 import ngat.phase2.ITag;
 import ngat.phase2.ITarget;
 import ngat.phase2.IUser;
@@ -44,7 +45,7 @@ public class TelescopeEmbeddedAgent implements Logging {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.50 2010-10-13 14:40:37 cjm Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.51 2016-05-23 15:02:07 eng Exp $";
 
 	public static final String CLASS = "TelescopeEA";
 
@@ -316,6 +317,9 @@ public class TelescopeEmbeddedAgent implements Logging {
 	/** True if we are using new phase2 models. */
 	protected boolean useEnhancedPhase2 = false;
 
+	/** True if we are expected to load ARQs. */
+	protected boolean loadArqs = true;
+
 	/** Predicts availability of telescope over various time frames. */
 	protected TelescopeAvailabilityPredictor tap;
 
@@ -466,13 +470,19 @@ public class TelescopeEmbeddedAgent implements Logging {
 		else
 			asmode = "RMI: " + narHost;
 
-		traceLog.log(INFO, 1, CLASS, id, "init", "Starting Telescope Embedded Agent: " + id + "\n Incoming port: "
-				+ dnPort + "\n  OSS:          " + ossHost + " : " + ossPort + "\n    Root:       " + dbRootName
-				+ "\n    Connect:    " + (ossConnectionSecure ? " SECURE" : " NON_SECURE") + "\n  Ctrl:         "
-				+ ctrlHost + " : " + ctrlPort + "\n  Async Mode:   " + asmode + "\n  GLS Support:  " + "localhost:"
-				+ glsPort + "\n Telescope:" + "\n  Lat:          " + Position.toDegrees(siteLatitude, 3)
-				+ "\n  Long:         " + Position.toDegrees(siteLongitude, 3) + "\n  Dome limit:   "
-				+ Position.toDegrees(domeLimit, 3));
+		traceLog.log(
+				INFO,
+				1,
+				CLASS,
+				id,
+				"init",
+				"Starting Telescope Embedded Agent: " + id + "\n Incoming port: " + dnPort + "\n  OSS:          "
+						+ ossHost + " : " + ossPort + "\n    Root:       " + dbRootName + "\n    Connect:    "
+						+ (ossConnectionSecure ? " SECURE" : " NON_SECURE") + "\n  Ctrl:         " + ctrlHost + " : "
+						+ ctrlPort + "\n  Async Mode:   " + asmode + "\n  GLS Support:  " + "localhost:" + glsPort
+						+ "\n Telescope:" + "\n  Lat:          " + Position.toDegrees(siteLatitude, 3)
+						+ "\n  Long:         " + Position.toDegrees(siteLongitude, 3) + "\n  Dome limit:   "
+						+ Position.toDegrees(domeLimit, 3));
 
 		traceLog.log(INFO, 1, CLASS, id, "init", "looking for any documents in persistence store");
 		try {
@@ -566,10 +576,11 @@ public class TelescopeEmbeddedAgent implements Logging {
 		traceLog.log(INFO, 1, CLASS, id, "init", "Started Telemetry Server on port: " + telemetryPort + ", We are: "
 				+ telemetryHost + " from " + ctrlHost);
 
-		telemetryRequestor.start();
-		traceLog.log(INFO, 1, CLASS, id, "init", "Started Telemetry Requestor with reconnect interval: "
-				+ (DEFAULT_TELEMETRY_RECONNECT_TIME / 1000) + " secs");
-
+		// SNF 6-aug-2014 disabled to reduce socket load of occ
+		//telemetryRequestor.start();
+		//traceLog.log(INFO, 1, CLASS, id, "init", "Started Telemetry Requestor with reconnect interval: "
+				//+ (DEFAULT_TELEMETRY_RECONNECT_TIME / 1000) + " secs");
+		traceLog.log(INFO, 1, CLASS, id, "init", "NOT Starting Telemetry Requestor to cut down on socket load at OCC");
 		while (true) {
 			try {
 				Thread.sleep(60000L);
@@ -1151,8 +1162,7 @@ public class TelescopeEmbeddedAgent implements Logging {
 
 		int arqCount = 0;
 
-		traceLog
-				.log(INFO, 1, CLASS, id, "loadDocuments", "TEA::Starting loadDocuments from " + documentDirectory + ".");
+		traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "TEA::Starting loadDocuments from " + documentDirectory + ".");
 		File base = new File(documentDirectory);
 		File[] flist = base.listFiles();
 
@@ -1164,41 +1174,52 @@ public class TelescopeEmbeddedAgent implements Logging {
 			String fname = file.getName();
 			traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Loading from file: " + file.getPath());
 
-			// if any docs fail to load we keep going
-			try {
+			// NOTE WE ARE NOT DOING THIS ANYMORE AS NO_ONE EVER GETS THE
+			// REPLIES
 
-				RTMLDocument doc = readDocument(file);
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Read document " + file.getPath());
+			if (loadArqs) {
 
-				// If we fail to extract an oid, log but keep going.
-				String gid = createKeyFromDoc(doc);
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Created GroupID: " + gid);
+				// if any docs fail to load we keep going
+				try {
 
-				String requestId = createRequestIdFromDoc(doc);
+					RTMLDocument doc = readDocument(file);
+					traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Read document " + file.getPath());
 
-				AgentRequestHandler arq = new AgentRequestHandler(this, doc);
+					// If we fail to extract an oid, log but keep going.
+					String gid = createKeyFromDoc(doc);
+					traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Created GroupID: " + gid);
 
-				arq.setName(requestId);
-				arq.setARQId(getId() + "/" + arq.getName());
-				arq.setDocumentFile(file);
-				arq.setGid(gid);
+					String requestId = createRequestIdFromDoc(doc);
 
-				// If we cant prepare the ARQ for UpdateHandling then it wont be
-				// started.
-				arq.prepareUpdateHandler();
-				arq.start();
+					AgentRequestHandler arq = new AgentRequestHandler(this, doc);
 
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Started ARQ UpdateHandler thread: " + arq);
+					arq.setName(requestId);
+					arq.setARQId(getId() + "/" + arq.getName());
+					arq.setDocumentFile(file);
+					arq.setGid(gid);
 
-				// Ok, now register it.
-				agentMap.put(gid, arq);
-				traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Registered running ARQ for: " + gid
-						+ " Using file: " + file.getPath());
-				arqCount++;
-			} catch (Exception e) {
-				traceLog.log(WARNING, 1, CLASS, id, "loadDocuments", "Error during loading for: " + file.getPath()
-						+ " : " + e);
-				traceLog.dumpStack(1, e);
+					// If we cant prepare the ARQ for UpdateHandling then it
+					// wont be
+					// started.
+					arq.prepareUpdateHandler();
+					arq.start();
+
+					traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Started ARQ UpdateHandler thread: " + arq);
+
+					// Ok, now register it.
+					agentMap.put(gid, arq);
+					traceLog.log(INFO, 1, CLASS, id, "loadDocuments", "Registered running ARQ for: " + gid
+							+ " Using file: " + file.getPath());
+					arqCount++;
+				} catch (Exception e) {
+					traceLog.log(WARNING, 1, CLASS, id, "loadDocuments", "Error during loading for: " + file.getPath()
+							+ " : " + e);
+					traceLog.dumpStack(1, e);
+				}
+
+			} else {
+				traceLog.log(WARNING, 1, CLASS, id, "loadDocuments", "We are not loading any documents");
+
 			}
 
 		}
@@ -1309,7 +1330,7 @@ public class TelescopeEmbeddedAgent implements Logging {
 					+ ":createKeyFromDoc:Project was null for document.");
 		}
 		String proposalId = project.getProject();
-		proposalId = proposalId.replaceAll("\\W", "_");
+		// proposalId = proposalId.replaceAll("\\W", "_");
 
 		// get document UId
 		String requestId = doc.getUId();
@@ -1756,6 +1777,10 @@ public class TelescopeEmbeddedAgent implements Logging {
 		String loggingDocumentDirectory = config.getProperty("logging.document.dir", DEFAULT_LOGGING_DOCUMENT_DIR);
 		long expiratorSleepMs = config.getLongValue("expirator.sleep", DEFAULT_EXPIRATOR_POLLING_TIME);
 
+		// check if we want to load the ARQs
+		if (config.getProperty("load.arqs", "true").equals("false"))
+			loadArqs = false;
+		
 		String arm = config.getProperty("async.response.mode", "SOCKET");
 
 		if ("RMI".equals(arm)) {
@@ -1768,113 +1793,127 @@ public class TelescopeEmbeddedAgent implements Logging {
 			throw new IllegalArgumentException("Unknown response handler mode; " + arm);
 
 		// Shall we be using the new phase2/oss ?
-		boolean uep = (config.getProperty("use.enhanced.phase2") != null);
-		setUseEnhancedPhase2(uep);
+		setUseEnhancedPhase2(true);
 
-		if (uep) {
-			String p2host = config.getProperty("p2.host", DEFAULT_P2_HOST);
-			String p2url = "rmi://" + p2host + "/Phase2Model";
-			setPhaseModelUrl(p2url);
+		String p2host = config.getProperty("p2.host", DEFAULT_P2_HOST);
+		String p2url = "rmi://" + p2host + "/Phase2Model";
+		setPhaseModelUrl(p2url);
 
-			String proplist = config.getProperty("proposal.list");
-			System.err.println("Proposal list = [" + proplist + "]");
-			List propNamesList = new Vector();
-			StringTokenizer st = new StringTokenizer(proplist, ",");
-			while (st.hasMoreTokens()) {
-				String propName = st.nextToken();
-				propNamesList.add(propName);
-				System.err.println("Confirmed proposal: " + propName);
-			}
+		String proplist = config.getProperty("proposal.list");
+		System.err.println("Proposal list = [" + proplist + "]");
+		List propNamesList = new Vector();
+		StringTokenizer st = new StringTokenizer(proplist, ",");
+		while (st.hasMoreTokens()) {
+			String propName = st.nextToken();
+			propNamesList.add(propName);
+			System.err.println("Confirmed proposal: " + propName);
+		}
 
-			try {
-				IPhase2Model phase2 = (IPhase2Model) Naming.lookup("rmi://" + p2host + "/Phase2Model");
-				IAccessModel access = (IAccessModel) Naming.lookup("rmi://" + p2host + "/AccessModel");
-				IAccountModel accounts = (IAccountModel) Naming.lookup("rmi://" + p2host + "/ProposalAccountModel");
+		try {
+			IPhase2Model phase2 = (IPhase2Model) Naming.lookup("rmi://" + p2host + "/Phase2Model");
+			IAccessModel access = (IAccessModel) Naming.lookup("rmi://" + p2host + "/AccessModel");
+			IAccountModel accounts = (IAccountModel) Naming.lookup("rmi://" + p2host + "/ProposalAccountModel");
 
-				// load all proposals
-				List ulist = access.listUsers();
-				Iterator iu = ulist.iterator();
+			// load all proposals
+			List ulist = access.listUsers();
+			Iterator iu = ulist.iterator();
 
-				long now = System.currentTimeMillis();
+			long now = System.currentTimeMillis();
 
-				while (iu.hasNext()) {
+			while (iu.hasNext()) {
 
-					IUser user = (IUser) iu.next();
-					long uid = user.getID();
-					String name = user.getName();
+				IUser user = (IUser) iu.next();
+				long uid = user.getID();
+				String name = user.getName();
 
-					System.err.println("User: " + user);
+				System.err.println("User: " + (user != null ? user.getName() : "null_user"));
 
-					List alist = access.listAccessPermissionsOfUser(uid);
-					Iterator ia = alist.iterator();
-					while (ia.hasNext()) {
+				List alist = access.listAccessPermissionsOfUser(uid);
+				Iterator ia = alist.iterator();
+				while (ia.hasNext()) {
 
-						IAccessPermission accp = (IAccessPermission) ia.next();
-						System.err.println("LocateAccess: " + accp);
+					IAccessPermission accp = (IAccessPermission) ia.next();
+					System.err.println("LocateAccess: " + accp.getID());
 
-						long pid = accp.getProposalID();
+					long pid = accp.getProposalID();
 
-						ITag tag = phase2.getTagOfProposal(pid);
-						System.err.println("Get TAG of Prop: returned: " + tag);
+					ITag tag = phase2.getTagOfProposal(pid);
+					System.err.println("Get TAG of Prop: returned: " + tag);
 
-						if (tag == null)
-							continue;
+					if (tag == null)
+						continue;
 
-						IProposal proposal = phase2.getProposal(pid);
-						System.err.println("LocateProposal: " + proposal);
+					IProposal proposal = phase2.getProposal(pid);
+					System.err.println("LocateProposal: " + proposal.getName());
 
-						if (propNamesList.contains(proposal.getName())) {
-							// this one is on the list
+					if (propNamesList.contains(proposal.getName())) {
+						// this one is on the list
 
-							ProposalInfo pinfo = new ProposalInfo(proposal);
-							IProgram program = phase2.getProgrammeOfProposal(proposal.getID());
-							pinfo.setProgram(program);
+						System.err.println("Checking proposal from list: " + proposal.getName());
 
-							// now get a list of targets and configs
+						ProposalInfo pinfo = new ProposalInfo(proposal);
+						IProgram program = phase2.getProgrammeOfProposal(proposal.getID());
+						pinfo.setProgram(program);
 
-							Map targets = new HashMap();
-							List targetList = phase2.listTargets(program.getID());
-							Iterator it = targetList.iterator();
-							while (it.hasNext()) {
-								ITarget target = (ITarget) it.next();
-								targets.put(target.getName(), target);
-							}
-							pinfo.setTargetMap(targets);
+						// now get a list of targets and configs
 
-							Map configs = new HashMap();
-							List configList = phase2.listInstrumentConfigs(program.getID());
-							Iterator ic = configList.iterator();
-							while (it.hasNext()) {
-								IInstrumentConfig iconfig = (IInstrumentConfig) it.next();
-								configs.put(iconfig.getName(), iconfig);
-							}
-							pinfo.setConfigMap(configs);
-
-							// now get the account balance..
-
-							try {
-								ISemester semester = accounts.getSemesterOfDate(System.currentTimeMillis());
-								long semId = semester.getID();
-								IAccount acc = accounts.findAccount("ALLOCATION", proposal.getID(), semId);
-								double balance = acc.getAllocated() - acc.getConsumed();
-								pinfo.setAccountBalance(balance);
-
-								System.err.println("Account balance: " + balance);
-							} catch (Exception ax) {
-								ax.printStackTrace();
-							}
-							// record the info
-							proposalMap.put(proposal.getName(), pinfo);
-
+						Map targets = new HashMap();
+						List targetList = phase2.listTargets(program.getID());
+						Iterator it = targetList.iterator();
+						while (it.hasNext()) {
+							ITarget target = (ITarget) it.next();
+							targets.put(target.getName(), target);
 						}
+						pinfo.setTargetMap(targets);
+
+						System.err.println("Proposal has: " + targets.size() + " targets");
+
+						Map configs = new HashMap();
+						List configList = phase2.listInstrumentConfigs(program.getID());
+						Iterator ic = configList.iterator();
+						while (it.hasNext()) {
+							IInstrumentConfig iconfig = (IInstrumentConfig) it.next();
+							configs.put(iconfig.getName(), iconfig);
+						}
+						pinfo.setConfigMap(configs);
+
+						System.err.println("Proposal has: " + configs.size() + " configs");
+
+						// now get the account balance..
+
+						try {
+
+							ISemesterPeriod semList = accounts.getSemesterPeriodOfDate(System.currentTimeMillis());
+							ISemester sem1 = semList.getFirstSemester();
+							ISemester sem2 = semList.getSecondSemester();
+							double balance = 0.0;
+							if (sem1 != null) {
+								long semId1 = sem1.getID();
+								IAccount acc1 = accounts.findAccount(proposal.getID(), semId1);
+								balance += acc1.getAllocated() - acc1.getConsumed();
+							}
+							if (sem2 != null) {
+								long semId2 = sem2.getID();
+								IAccount acc2 = accounts.findAccount(proposal.getID(), semId2);
+								balance += acc2.getAllocated() - acc2.getConsumed();
+							}
+
+							pinfo.setAccountBalance(balance);
+
+							System.err.println("Account balance: " + balance);
+						} catch (Exception ax) {
+							ax.printStackTrace();
+						}
+						// record the info
+						proposalMap.put(proposal.getName(), pinfo);
 
 					}
-				}
 
-			} catch (Exception e) {
-				throw new IllegalArgumentException(e);
+				}
 			}
 
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e);
 		}
 
 		String tpf = config.getProperty("tap.persistance.file", DEFAULT_TAP_PERSISTANCE_FILE_NAME);
@@ -1969,6 +2008,10 @@ public class TelescopeEmbeddedAgent implements Logging {
 		return connectionFactory;
 	}
 
+	public boolean getLoadArqs() {
+		return loadArqs;
+	}
+	
 	public Map getProposalMap() {
 		return proposalMap;
 	}
@@ -2045,11 +2088,11 @@ public class TelescopeEmbeddedAgent implements Logging {
 }
 
 /*
- * $Log: not supported by cvs2svn $
- * Revision 1.49  2010/10/13 13:26:23  eng
- * Many changes.
- * Revision 1.48 2009/06/01 12:40:53 eng
- * commented out more estarIO calls missed last time
+ * $Log: not supported by cvs2svn $ Revision 1.50 2010/10/13 14:40:37 cjm
+ * Added DeviceInstrumentUtilites logger.
+ * 
+ * Revision 1.49 2010/10/13 13:26:23 eng Many changes. Revision 1.48 2009/06/01
+ * 12:40:53 eng commented out more estarIO calls missed last time
  * 
  * Revision 1.47 2009/06/01 12:39:08 eng commented out all references to the
  * estarIO
