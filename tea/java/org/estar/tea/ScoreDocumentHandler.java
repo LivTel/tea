@@ -11,7 +11,6 @@ import javax.net.ssl.*;
 
 import org.estar.astrometry.*;
 import org.estar.rtml.*;
-import org.estar.io.*;
 
 import ngat.util.*;
 import ngat.util.logging.*;
