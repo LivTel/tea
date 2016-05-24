@@ -45,7 +45,7 @@ public class TelescopeEmbeddedAgent implements Logging {
 	/**
 	 * Revision control system version id.
 	 */
-	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.51 2016-05-23 15:02:07 eng Exp $";
+	public final static String RCSID = "$Id: TelescopeEmbeddedAgent.java,v 1.52 2016-05-24 10:23:15 nrc Exp $";
 
 	public static final String CLASS = "TelescopeEA";
 
@@ -2088,7 +2088,10 @@ public class TelescopeEmbeddedAgent implements Logging {
 }
 
 /*
- * $Log: not supported by cvs2svn $ Revision 1.50 2010/10/13 14:40:37 cjm
+ * $Log: not supported by cvs2svn $
+ * Revision 1.51  2016/05/23 15:02:07  eng
+ * Checking in latest version.
+ * Revision 1.50 2010/10/13 14:40:37 cjm
  * Added DeviceInstrumentUtilites logger.
  * 
  * Revision 1.49 2010/10/13 13:26:23 eng Many changes. Revision 1.48 2009/06/01
