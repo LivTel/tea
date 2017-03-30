@@ -36,9 +36,9 @@ public class AbortDocumentHandler implements Logging {
     /** Class logger.*/
     private Logger logger;
 
-    /** Create an AbortDocumentHandler using the supplied IO parameters.
-     * @param io      The eSTARIO.
-     * @param handle  Globus IO Handle for the connection.
+    /**
+     * Create an AbortDocumentHandler using the supplied IO parameters.
+     * @param tea The ambedded agent instance.
      */
     public AbortDocumentHandler(TelescopeEmbeddedAgent tea) {
 	//, eSTARIO io, GlobusIOHandle handle) {
