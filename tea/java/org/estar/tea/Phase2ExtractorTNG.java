@@ -851,8 +851,10 @@ public class Phase2ExtractorTNG implements Logging {
 					// set the target as the real instrument and acquirer to
 					// default acquirer
 					xaq.setAcquisitionInstrumentName(ACQ_INST_NAME);
-					// diddly this returns "FRODO_RED", but should be "FRODO"
-					xaq.setTargetInstrumentName(newConfig.getInstrumentName());
+					// newConfig.getInstrumentName() could be used here but returns something like
+					// "FRODO_RED". This gives an RCS error 660104 "Unknown target instrument".
+					// So hard-code "FRODO" here.
+					xaq.setTargetInstrumentName("FRODO");
 					xaq.setPrecision(IAcquisitionConfig.PRECISION_NORMAL);
 					XExecutiveComponent eXAcq = new XExecutiveComponent("AcqInst", xaq);
 					root.addElement(eXAcq);
