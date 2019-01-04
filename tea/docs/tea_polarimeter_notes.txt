@@ -1,0 +1,10 @@
+Try:
+
+java org.estar.rtml.test.TestCreate -request -iaid ias-`date +%s` -project "LTTest" -contact -contact_user "LTOps/LTTest" -device RingoStar polarimeter optical "" -binning 2 2 -observation -name "PG0231+051" -target_ident "SingleExposure" -ra "02:33:41" -dec "+05:18:40" -exposure 30 s 1 -start_date 2007-07-01T12:00:00 -end_date 2007-07-12T12:00:00 -seeing_constraint 0.8 1.3 -sky_constraint dark -moon_constraint 50 degs -priority 3
+
+You apparently need the following from ~dev/bin/estar/javalib:
+org_estar_rtml.jar
+org_estar_rtml_test.jar
+org_estar_astrometry.jar
+
+

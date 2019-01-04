@@ -1,0 +1,60 @@
+Some notes about experiments on scoring.
+
+There are currently 3 mechanisms available to test for scoring of TEA requests.
+
+1. Use the scoring rank for the group at specified time(s).
+
+Determine the scores for all groups available over the requested period and for the test group 
+over the same period (at a specified resolution) and with different assumptions on seeing at the time. 
+Rank the group's score against the  list of available groups' scores rank(test,t,BR), rank(test,t,AV) etc
+and deduce some measure of probability based on rank(test)
+versus {rank(g in Available)}. Weight according to probability of various seeing values (BR,AV,EX),
+taking the best of these estimates as the probability of success. 
+
+psel = pav*f(rank(test,t,av)) + pbr*f(rank(test,t,br)) + pex*f(rank(test,t,ex))
+
+where f(rank) is some bias fn like (1/1+exp(rank/alpha)).
+
+
+Advantages:	 Quite fast.
+Disadvantages:	 Does not take into account the fact that when we score at some future time some of the
+groups we treat as 'available' may already have been executed between now and that future time, this effect
+gets worse the farther into the future we are scoring. Bias fn might help to smooth this out. 
+Difficult to verify accuracy. 
+
+2. Perform a full forward simulation from (now) until end of requested observing period.
+
+Insert the test group tentatively into the ODB, load the execution histories of all groups in ODB,
+run a forward simulation over the requested period, randomly choosing seeing at the time, count how 
+often and when the test group gets picked, update execution histories while running. Re-run this
+a number of times to take account of random seeing (can also include stochastic execution times).
+At the end we have estimates for how many execs and when performed 
+
+i.e. P(test exec M times out of N requested)
+
+Advantages:	 Quite accurate.
+Disadvantages:	 Slow - about 2-3 minutes for 100 runs which is about minimal.
+
+3. Use integrated relative scoring (group score relative to threshold score over time).
+
+At start of night (and maybe at interval in background) run a number of forward simulations 
+using stochastic seeing and exec timing, record the profile of 
+(min and max threshold scores required for selection as fn of time), store these.
+When group to be scored, compute its score over the required period (quick operation) and compare
+to the stored threshold profile - prob is then integral over 
+
+G(t) = (s(test,t) - min(t)/(max(t) - min(t)).dt
+
+min(t) is the minimum threshold at t, max(t) is the maximum threshold at t. May want to weight this
+a bit say use intergal (1-exp(-G(t)/beta)).
+
+Advantages:	 Quite fast - fastest technique ?
+Disadvantages:	 Choice of beta could be critical - this is a term which decides how strongly we believe
+the thresholds. 
+Difficult to verify accuracy.
+
+Program.
+
+Need to perform some simulations to determine which of these work, also may need to extract some calibrartion 
+information e.g. does (1) rank-scoring result need a multiplcation factor to geenrate the correct probability
+or worse is this factor dependant on some DB characteristics.

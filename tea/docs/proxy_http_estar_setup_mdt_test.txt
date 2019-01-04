@@ -1,0 +1,42 @@
+See also ~dev/src/estar/tea/docs/http_setup.txt for an older version of these notes.
+These notes made setting up mdt-test as a new ltproxy.
+
+Setting up /home/estar/data / http://ltproxy/~estar for temporary TEA data
+--------------------------------------------------------------------------
+
+mkdir -p /home/estar
+chown eng:ltdev /home/estar
+mkdir -p /home/estar/data
+chown eng:ltdev /home/estar/data
+chmod g+w /home/estar/data
+mkdir /home/eng/scripts
+scp /home/dev/src/estar/tea/scripts/microlensing/estar_delete_old_frames eng@mdt-test:scripts
+Added to eng crontab:
+# delete old tea data
+* 10 * * * /home/eng/scripts/estar_delete_old_frames > /dev/null 2>&1
+mkdir -p /home/estar/public_html
+cd /home/estar/public_html
+ln -s ../data/
+emacs -nw /home/estar/public_html/.htaccess
+AuthType Basic
+AuthName "eSTAR Access"
+AuthUserFile /var/www/password/passwords
+Require user estar
+
+htpasswd /var/www/password/passwords estar
+/usr/sbin/useradd -c "eSTAR user" -d "/home/estar" -G ltdev -u 1020 -s /sbin/nologin estar
+emacs -nw /etc/httpd/conf/httpd.conf
+<IfModule mod_userdir.c>
+...
+UserDir disable
+
+change to
+UserDir enable estar
+uncomment:
+UserDir public_html
+
+uncomment:
+<Directory /home/*/public_html>
+section
+SymLinksIfOwnerMatch -> FollowSymLinks
+Restart httpd
