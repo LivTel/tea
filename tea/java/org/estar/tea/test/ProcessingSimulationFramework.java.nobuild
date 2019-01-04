@@ -1,0 +1,231 @@
+package org.estar.tea.test;
+
+import java.io.*;
+import java.awt.*;
+import java.util.*;
+import java.lang.reflect.*;
+
+import ngat.util.*;
+import ngat.net.*;
+import ngat.net.camp.*;
+import ngat.message.base.*;
+import ngat.message.OSS.*;
+import ngat.message.GUI_RCS.*;
+
+/** Framework to control the simulation of transaction processing by RCS/OSS.*/
+public class ProcessingSimulationFramework {
+    
+    public static final int    DEFAULT_ID_PORT       = 9100;
+
+    public static final int    DEFAULT_SFX_PORT      = 6655;
+    public static final String DEFAULT_SFX_BASE_DIR  = "";
+    public static final String DEFAULT_SFX_KEYPASS   = "";
+    public static final String DEFAULT_SFX_KEYFILE   = "";
+    public static final String DEFAULT_SFX_TRUSTFILE = "";
+
+    public static final int    DEFAULT_OSS_PORT      = 6500;
+
+    private ObservationUpdateClient client;
+
+    private RcsCtrlSimulator idServer;
+
+    //private RcsTocsSimulator tocsServer;
+
+    private SSLFileTransfer.Server fileServer;
+
+    private OssSimulator ossServer;
+
+    private ProcessingSimulationPlugin plugin;
+
+    private String name;
+
+    /** Create a ProcessingSimulationFramework with supplied name.*/
+    public ProcessingSimulationFramework(String name) {
+	this.name = name;
+    }
+
+    /** Configure.*/
+    protected void configure(ConfigurationProperties config) throws Exception {
+
+	// Plugin class.
+	String pluginClassName = config.getProperty("plugin-class");
+	if (pluginClassName != null) {
+	    
+	    try {
+		Class       clazz = Class.forName(pluginClassName);		
+		Constructor con   = clazz.getConstructor(new Class[] {});
+		
+		plugin = (ProcessingSimulationPlugin)con.newInstance(new Object[] {});
+	    } catch (Exception e) {
+		e.printStackTrace();
+		System.err.println("Unable to create ProcessingSimulationPlugin class: "+e);
+		throw e;
+	    }
+	} else {
+	    plugin = new DefaultProcessingSimulationPlugin();
+	}
+
+	// ID Server.
+	int idPort = config.getIntValue("id-port", DEFAULT_ID_PORT);
+	int idState = (config.getProperty("id-oper") != null ? RCSStatusSimulator.OPER_STATE : RCSStatusSimulator.ENG_STATE);
+
+	idServer = new RcsCtrlSimulator(name);
+	idServer.setPort(idPort);
+	idServer.setState(RCSStatusSimulator.OPER_STATE);
+	idServer.setAgent("SCA");
+
+	// Bind the plugin to the server.
+	CAMPRequestHandlerFactory crhf = idServer.createPluginHandlerFactory(plugin);
+	idServer.setRequestHandlerFactory(crhf);
+
+	// Try to start the server.
+	try {
+	    idServer.bind();	  
+	} catch (Exception e) {	    
+	    System.err.println("Unable to start ID server: "+e);       			 
+	    throw e;
+	}
+	idServer.startServer();
+	System.err.println("ID Server running on port "+idPort+"...");
+
+	// TOC server.
+
+	// SFX Server.
+	int    sfxPort    = config.getIntValue("sfx-port",      DEFAULT_SFX_PORT);
+	String sbaseDir   = config.getProperty("sfx-base",      DEFAULT_SFX_BASE_DIR);
+	File   baseDir = new File(sbaseDir);
+	if (! baseDir.isDirectory()) {
+	    System.err.println("Unable to start SFX server: Invalid baseDir "+sbaseDir);	    
+	    throw new IllegalArgumentException("SFX base directory is not a real directory");
+	}
+
+	String skeyFile   = config.getProperty("sfx-keyfile",   DEFAULT_SFX_KEYFILE);
+	File keyFile = new File(skeyFile);
+	if (! keyFile.isFile()) {
+	    System.err.println("Unable to start SFX server: Invalid KeyFile: "+skeyFile);	   
+	     throw new IllegalArgumentException("SFX keyfile is not a real file");
+	}
+	
+	String strustFile = config.getProperty("sfx-trustfile", DEFAULT_SFX_TRUSTFILE);
+	File trustFile = new File(strustFile);
+	if (! trustFile.isFile()) {
+	    System.err.println("Unable to start SFX server: Invalid TrustFile: "+strustFile);	 
+	    throw new IllegalArgumentException("SFX trustfile is not a real file");
+	}
+	
+	String keypass = config.getProperty("sfx-pass", DEFAULT_SFX_KEYPASS);
+	try {
+	    
+	    fileServer =  SSLFileTransfer.createServer(name);
+	    
+	    if (baseDir != null)
+		fileServer.setBaseDirectory(baseDir);
+	    
+	    if (keyFile != null && trustFile != null) {
+		fileServer.setKeyFile(keyFile);
+		fileServer.setTrustFile(trustFile);
+		fileServer.setKeyPass(keypass);
+	    }
+
+	    // Secure and RelayOK
+	    fileServer.bind(sfxPort, true, true);	
+	    
+	    fileServer.start();
+	} catch (Exception e) {
+	    System.err.println("Unable to start SFX server: "+e);
+	    throw e;
+	}
+	System.err.println("SFX Server running on port: "+sfxPort+"...");
+
+	// OSS Server.
+	int ossPort = config.getIntValue("oss-port", DEFAULT_OSS_PORT);
+
+	ossServer = new OssSimulator(name);
+	ossServer.setPort(ossPort);
+
+	// Bind the plugin to the server.
+	RequestHandlerFactory rhf = ossServer.createPluginHandlerFactory(plugin);
+	ossServer.setRequestHandlerFactory(rhf);
+
+	try {
+	    ossServer.bind();
+	} catch (Exception e) {
+	    System.err.println("Unable to start OSS server: "+e);
+	    throw e;
+	}
+	ossServer.startServer();
+	System.err.println("OSS Server running on port "+ossPort+"...");
+
+
+    }
+
+
+    /** Start the ProcessingSimulationFramework.*/
+    public static void main(String[] args) {
+	
+	CommandTokenizer ct = new CommandTokenizer("--");
+	ct.parse(args);
+	ConfigurationProperties config = ct.getMap();
+	
+	String name = config.getProperty("name", "GUI");
+	
+	ProcessingSimulationFramework fw = new ProcessingSimulationFramework(name);
+	
+	try {
+	    fw.configure(config);
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    System.err.println("Error configuring fw: "+e);
+	    return;
+	}
+
+    }
+
+
+    /** Default Plugin class. */
+    private class DefaultProcessingSimulationPlugin implements ProcessingSimulationPlugin {
+
+	/** Process an OSS command and return a reply.*/
+	public COMMAND_DONE processOssCommand(TRANSACTION cmd) {
+
+	    if (cmd instanceof ADD_SOURCE) {
+
+		ADD_SOURCE_DONE done = new ADD_SOURCE_DONE(cmd.getId());
+		done.setSuccessful(true);
+		return done;
+	    } else if
+		(cmd instanceof ADD_GROUP) {
+		
+		ADD_GROUP_DONE done = new ADD_GROUP_DONE(cmd.getId());
+		done.setSuccessful(true);
+		return done;
+	    } else {
+		
+		COMMAND_DONE done = new COMMAND_DONE(cmd.getId());
+		done.setSuccessful(false);
+		done.setErrorNum(333);
+		done.setErrorString("Command: "+cmd+", not implemented by: "+
+				    this.getClass().getName());
+		return done; 
+	    }
+	}
+
+	/** Process a GUI_TO_RCS command and return a reply.*/
+	public COMMAND_DONE processCtrlCommand(GUI_TO_RCS cmd) {
+	    COMMAND_DONE done = new COMMAND_DONE(cmd.getId());
+	    done.setSuccessful(false);
+	    done.setErrorNum(333);
+	    done.setErrorString("Command: "+cmd+", not implemented by: "+
+				this.getClass().getName());
+	    return done;
+	}
+	
+	/** Process a TOCS command and return a reply.*/
+	public String processTocsCommand(String cmd) {
+	    String done = new String("ERROR NOT_IMPLEMENTED By: "+this.getClass().getName());	 
+	    return done;
+	}
+	
+    }
+
+}

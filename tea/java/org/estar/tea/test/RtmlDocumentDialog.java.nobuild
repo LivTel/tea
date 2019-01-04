@@ -1,0 +1,308 @@
+package org.estar.tea.test;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+import javax.swing.*;
+import javax.swing.event.*;
+
+import ngat.util.*;
+
+import org.estar.astrometry.*;
+import org.estar.rtml.*;
+
+/** Popup dialog to specify a RTML Doc.*/
+public class RtmlDocumentDialog extends JDialog implements NodeAgentResponseHandler {
+   
+    public static final String[] types = new String[] {"normal", "toop"};
+
+    public static final String[] filters = new String[] {"R", "V", "B", "U", "G", "I", "Z"};
+
+    NodeAgentSimulationGUI gui;
+    
+    JTextField obsIdField;
+    JComboBox  typeField;
+    JTextField raField;
+    JTextField decField;
+    JTextField targetIdField;
+    JComboBox  filterField;
+    JTextField exposureField ;
+
+    String obsId;
+    String type;
+    double ra;
+    double dec;
+    String targetId;
+    String filter;
+    double exposure;
+
+    /** Create a NodeAgent RtmlDocumentDialog.*/
+    public RtmlDocumentDialog(NodeAgentSimulationGUI gui) {
+	super(gui, "RTML Document Specification", true);
+	this.gui = gui;
+
+	JPanel panel = createRtmlPanel();	   
+	getContentPane().add(panel);
+	
+	pack();
+	
+    }
+	
+    /** Create and return the panel.*/
+    protected JPanel createRtmlPanel() {
+	JPanel panel = new JPanel(true);
+	
+	GridBagLayout grid = new GridBagLayout();
+	GridBagConstraints gc = new GridBagConstraints();
+	
+	panel.setLayout(grid);
+	
+	// ObsID.
+	makeComp(panel,grid,gc, new JLabel("ObsID"), 0,0,1,1);
+	obsIdField = new JTextField(16);
+	makeComp(panel,grid,gc, obsIdField, 1,0,1,1);
+	
+	// Type.
+	makeComp(panel,grid,gc, new JLabel("Type"), 0,1,1,1);
+	typeField = new JComboBox(types);
+	makeComp(panel,grid,gc, typeField, 1,1,1,1);
+	
+	// Target.
+	makeComp(panel,grid,gc, new JLabel("TargetID"), 0,2,1,1);
+	targetIdField = new JTextField(16);
+	makeComp(panel,grid,gc, targetIdField, 1,2,1,1);
+	
+	makeComp(panel,grid,gc, new JLabel("RA"), 0,3,1,1);
+	raField = new JTextField(16);
+	makeComp(panel,grid,gc, raField, 1,3,1,1);
+	
+	makeComp(panel,grid,gc, new JLabel("Dec"), 0,4,1,1);
+	decField = new JTextField(16);
+	makeComp(panel,grid,gc, decField, 1,4,1,1);
+	
+	// Instrument.
+	makeComp(panel,grid,gc, new JLabel("Filter"), 0,5,1,1);
+	filterField = new JComboBox(filters);
+	makeComp(panel,grid,gc, filterField, 1,5,1,1);
+	
+	// Exposure.
+	makeComp(panel,grid,gc, new JLabel("Exposure (sec)"), 0,6,1,1);
+	exposureField = new JTextField(10);
+	makeComp(panel,grid,gc, exposureField, 1,6,1,1);
+	
+	JPanel ctrlPanel = new JPanel(true);
+	ctrlPanel.setLayout(new FlowLayout(FlowLayout.LEADING));
+	
+	ActionListener dl = new DialogListener();
+	
+	JButton sendScoreBtn = new JButton("Score");
+	sendScoreBtn.setBackground(Color.red);
+	sendScoreBtn.setForeground(Color.cyan);
+	sendScoreBtn.setActionCommand("send-score");
+	sendScoreBtn.addActionListener(dl);
+	
+	JButton sendReqBtn = new JButton("Observe");
+	sendReqBtn.setBackground(Color.blue);
+	sendReqBtn.setForeground(Color.yellow);
+	sendReqBtn.setActionCommand("send-obs");
+	sendReqBtn.addActionListener(dl);
+	
+	JButton cancelBtn = new JButton("Exit");
+	cancelBtn.setBackground(Color.cyan);
+	cancelBtn.setForeground(Color.orange);
+	cancelBtn.setActionCommand("cancel");
+	cancelBtn.addActionListener(dl);
+	
+	ctrlPanel.add(sendScoreBtn);
+	ctrlPanel.add(sendReqBtn);	    
+	ctrlPanel.add(cancelBtn);
+
+	makeComp(panel, grid, gc, ctrlPanel, 0,7,2,2);
+	
+	return panel;
+    }
+    
+    private RTMLDocument makeRtmlDocument(String type) {
+
+	try {
+	    RTMLDocument doc = new RTMLDocument();
+	    
+	    RTMLProject project = new RTMLProject();
+	    project.setProject(gui.getProposalId());
+	    doc.setProject(project);
+	    
+	    RTMLContact contact = new RTMLContact();
+	    contact.setName(gui.getNaName());
+	    contact.setUser(gui.getNaUserId());
+	    doc.setContact(contact);
+	    
+	    doc.setType(type);
+	    
+	    
+	    RTMLIntelligentAgent ia = new RTMLIntelligentAgent();
+	    ia.setHostname(gui.getNaHost());
+	    ia.setId(gui.getNaName());
+	    ia.setPort(gui.getNaPort());
+	    
+	    doc.setIntelligentAgent(ia);
+	    
+	    RTMLObservation obs = new RTMLObservation();
+	    
+	    RTMLTarget target = new RTMLTarget();
+	    target.setName(targetIdField.getText());
+
+	    RA ra = new RA();
+	    try {
+		ra.parseSpace(raField.getText());
+	    } catch (Exception e) {
+		return failed("Error parsing ra: "+e);
+	    }
+	    target.setRA(ra);
+	    Dec dec = new Dec();
+	    try {
+		dec.parseSpace(decField.getText());
+	    } catch (Exception e) {
+		return failed("Error parsing dec: "+e);
+	    }
+	    target.setDec(dec);
+	    
+	    target.setType((String)typeField.getSelectedItem());
+	    target.setEquinox("J2000");
+	    obs.setTarget(target);
+	    
+	    RTMLSchedule sched = new RTMLSchedule();
+	    sched.setExposureType("time");
+	    
+	    try {
+		double e = Double.parseDouble(exposureField.getText());	    
+		sched.setExposureLength(e);
+	    } catch (Exception e) {
+		return failed("Error parsing exposure length");
+	    }
+	    sched.setExposureUnits("sec");
+	    
+	    obs.setSchedule(sched);
+	    
+	    RTMLDevice device = new RTMLDevice();
+	    device.setName(gui.getNaDevName());
+	    device.setSpectralRegion(gui.getNaSpecRegion());
+	    device.setType(gui.getNaDevType());
+	    device.setFilterType((String)filterField.getSelectedItem());
+	    
+	    RTMLDetector detector = new RTMLDetector();
+	    device.setDetector(detector);
+	    
+	    obs.setDevice(device);
+	    
+	    doc.addObservation(obs);
+	    
+	    return doc;
+	
+	} catch (Exception e) {
+
+	    e.printStackTrace();
+
+	    return failed("Error: "+e);
+
+	}
+    }
+
+    /** Make a GridBag component.*/
+    private void makeComp(JPanel             panel,  
+			  GridBagLayout      grid, 
+			  GridBagConstraints c, 
+			  Component          comp, 
+			  int x, int y, int w, int h) {
+	c.gridx = x;
+	c.gridy = y;
+	c.gridwidth = w;
+	c.gridheight = h;
+	c.anchor = GridBagConstraints.WEST;
+	c.fill   = GridBagConstraints.HORIZONTAL;
+	grid.setConstraints(comp, c);
+	panel.add(comp);
+    }
+
+    public void sendRtmlRequest(RTMLDocument doc) throws Exception {
+
+	System.err.println("Sending score request...\n\n"+doc);
+	
+	NodeAgentClient nac = new NodeAgentClient(gui.getNaName());
+	nac.setTeaHost(gui.getTeaHost());
+	nac.setTeaPort(gui.getTeaPort());
+
+	nac.addNodeAgentResponseHandler(this);
+	nac.send(doc);
+
+    }
+
+    private RTMLDocument failed(String message) {
+
+	JOptionPane.showMessageDialog(this,
+				      message,
+				      "Document Construction",
+				      JOptionPane.ERROR_MESSAGE);
+	return null;
+	
+    }
+
+    /** Callback from client with response doc.*/
+    public void handleResponse(RTMLDocument doc) {
+
+	JOptionPane.showMessageDialog(this,
+				      "<html>Reply from TEA"+
+				      "<br>"+doc,
+				      "TEA Response",
+				      JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private class DialogListener implements ActionListener {
+	
+	public void actionPerformed(ActionEvent ae) {
+
+	    String cmd = ae.getActionCommand();
+
+	    if (cmd.equals("send-score")) {
+		
+		System.err.println("Try Sending score req...");
+		RTMLDocument document = makeRtmlDocument("score");
+		if (document == null)
+		    return;
+		try {
+		    sendRtmlRequest(document);
+		} catch (Exception e) {
+		    JOptionPane.showMessageDialog(RtmlDocumentDialog.this,
+						  "An error occurred sending request:"+e,
+						  "Send RTML Document",
+						  JOptionPane.ERROR_MESSAGE);
+		    e.printStackTrace();
+		}
+	    
+	    } else if
+		(cmd.equals("send-obs")) {
+		
+		System.err.println("Try Sending obs req...");
+		RTMLDocument document = makeRtmlDocument("request");
+		if (document == null)
+		    return;
+		try {
+		    sendRtmlRequest(document);		 
+		} catch (Exception e) {   
+		    JOptionPane.showMessageDialog(RtmlDocumentDialog.this,
+						  "An error occurred sending request:"+e,
+						  "Send RTML Document",
+						  JOptionPane.ERROR_MESSAGE);
+		    e.printStackTrace();
+		}
+		
+	    } else if
+		( cmd.equals("cancel")) {
+		System.err.println("Cancelled...");
+		dispose();
+	    }
+	    
+	}
+	
+    } // [DialogListener]
+
+} // [RTMLDocDialog]

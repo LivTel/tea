@@ -1,0 +1,128 @@
+package org.estar.tea.test;
+
+
+import java.text.*;
+import java.util.*;
+import java.io.*;
+import java.net.*;
+
+import org.estar.astrometry.*;
+import org.estar.rtml.*;
+import org.estar.io.*;
+
+import ngat.net.*;
+import ngat.net.camp.*;
+import ngat.util.*;
+import ngat.util.logging.*;
+import ngat.message.base.*;
+
+
+/** Simulator for NodeAgent acting as server.
+ * Receives responses from a TEA as RTML Docs.
+ * Registered NodeAgentResponseHandlers are passed the reply docs to
+ * handle in an appropriate way.
+ */ 
+public class NodeAgentServer implements eSTARIOConnectionListener, Logging {
+
+    /** Default client ID/name.*/
+    public static final String DEFAULT_ID = "NAS";
+
+    /** Default server port.*/
+    public static final int DEFAULT_PORT = 2233;
+
+    /** Name/ID for this server.*/
+    private String name;
+
+    /** Port to listen on.*/
+    private int port;
+
+    /** eSTAR IO server.*/
+    private eSTARIO io;
+
+    /** List of NodeAgentResponseHandlers registered to receive notification of TEA server response(s).*/
+    private java.util.List handlers;
+
+    /** Create a NodeAgentServer.*/
+    public NodeAgentServer(String name) {
+	this.name = name;
+	handlers = new Vector();
+	io = new eSTARIO();
+    }
+
+    /** Set the port to listen on.*/
+    public void setPort(int p) { this.port = p; }
+
+    /** Try to bind the eSTAR io server - uses a seperate Thread.*/
+    public void bind() throws Exception {
+
+	Runnable r = new Runnable() {
+		public void run() {
+		    io.serverStart(port, NodeAgentServer.this);
+		}
+	    };
+	(new Thread(r)).start();
+
+    }
+    
+    /** Add a NodeAgentResponseHandler.*/
+    public void addNodeAgentResponseHandler(NodeAgentResponseHandler handler) {
+	handlers.add(handler);
+    }
+
+    /** Remove a NodeAgentResponseHandler if present. Fails silently if not.*/
+    public void removeNodeAgentResponseHandler(NodeAgentResponseHandler handler) {
+	if (handlers.contains(handler))
+	    handlers.remove(handler);
+    }
+
+    /** Return an iterator over the set of handlers.*/
+    public Iterator listHandlers() { 
+	return handlers.iterator();
+    }
+
+    /** Callback to Handle a received response i/o connection.
+     * Creates a new NASConnectionHandler for the connection.
+     * @param connectionHandle The globus IO handle of the connection.
+     */
+    public void handleConnection(GlobusIOHandle connectionHandle) {
+	
+	NASConnectionHandler chandler = new NASConnectionHandler(this, connectionHandle);
+
+	// ### This sh/could be palmed off to a seperate Thread.
+	chandler.execute();
+
+
+    }
+
+    /** Create a NodeAgentServer to handle TEA responses.
+     *
+     * --name : An ID for logging purposes.
+     *
+     * --port : The server port.
+     *
+     */
+    public static void main(String args[]) {
+
+	CommandTokenizer ct = new CommandTokenizer("--");
+
+	ct.parse(args);
+	
+	ConfigurationProperties config = ct.getMap();
+
+	String name = config.getProperty("name", DEFAULT_ID);
+ 
+	int    port = config.getIntValue("port", DEFAULT_PORT);
+ 	
+	NodeAgentServer nas = new NodeAgentServer(name);
+	nas.setPort(port);
+	
+	try {
+	    nas.bind();
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    System.err.println("** FATAL - Failed to bind server to port: "+port+" -exiting");
+	}
+    }
+    
+}
+    

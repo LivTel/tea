@@ -1,0 +1,186 @@
+package org.estar.tea.test;
+
+import java.io.*;
+import java.awt.*;
+import java.util.*;
+import javax.swing.*;
+
+import ngat.util.*;
+import ngat.net.*;
+
+/** GUI to control the simulation of transaction processing by RCS/OSS.*/
+public class ProcessingSimulationGUI extends JFrame {
+    
+    public static final int    DEFAULT_ID_PORT       = 9120;
+
+    public static final int    DEFAULT_SFX_PORT      = 6655;
+    public static final String DEFAULT_SFX_BASE_DIR  = "";
+    public static final String DEFAULT_SFX_KEYPASS   = "";
+    public static final String DEFAULT_SFX_KEYFILE   = "";
+    public static final String DEFAULT_SFX_TRUSTFILE = "";
+
+    private ObservationUpdateClient client;
+
+    private RCSStatusSimulator idServer;
+
+    //private RCSTocsSimulator tocsServer;
+
+    private SSLFileTransfer.Server fileServer;
+
+    private JFrame frame;
+
+    /** List displaying documents currently being handled in some way.*/
+    private JList docList;
+
+    private String name;
+
+    /** Create a ProcessingSimulationGUI with supplied name.*/
+    public ProcessingSimulationGUI(String name) {
+	super("TEA Processing Simulation: "+name);
+	
+	this.name = name;
+
+    }
+
+    /** Configure.*/
+    protected void configure(ConfigurationProperties config) throws Exception {
+
+	// Setup the visual elements.
+	// ### TBD
+	
+	JPanel panel = createPanel();
+	getContentPane().add(panel);
+	pack();
+
+	// ID Server.
+	int idPort = config.getIntValue("id-port", DEFAULT_ID_PORT);
+	int idState = (config.getProperty("id-oper") != null ? RCSStatusSimulator.OPER_STATE : RCSStatusSimulator.ENG_STATE);
+
+	idServer = new RCSStatusSimulator(name);
+	idServer.setPort(idPort);
+	idServer.setState(RCSStatusSimulator.OPER_STATE);
+	idServer.setAgent("SCA");
+
+	try {
+	    idServer.bind();	  
+	} catch (Exception e) {
+	    JOptionPane.showMessageDialog(this,
+					  "Unable to start ID server: "+e,
+					  "ID Server startup",
+					  JOptionPane.ERROR_MESSAGE);
+	    throw e;
+	}
+	System.err.println("ID Server running on port "+idPort+"...");
+
+	// TOC server.
+
+	// SFX Server.
+	int    sfxPort    = config.getIntValue("sfx-port",      DEFAULT_SFX_PORT);
+	String sbaseDir   = config.getProperty("sfx-base",      DEFAULT_SFX_BASE_DIR);
+	File   baseDir = new File(sbaseDir);
+	if (! baseDir.isDirectory()) {
+	    JOptionPane.showMessageDialog(this,
+					  "Unable to start SFX server: Invalid baseDir "+sbaseDir,
+					  "SFX Server startup",
+					  JOptionPane.ERROR_MESSAGE);
+	    throw new IllegalArgumentException("SFX base directory is not a real directory");
+	}
+
+	String skeyFile   = config.getProperty("sfx-keyfile",   DEFAULT_SFX_KEYFILE);
+	File keyFile = new File(skeyFile);
+	if (! keyFile.isFile()) {
+	     JOptionPane.showMessageDialog(this,
+					   "Unable to start SFX server: Invalid KeyFile: "+skeyFile,
+					   "SFX Server startup",
+					   JOptionPane.ERROR_MESSAGE);
+	     throw new IllegalArgumentException("SFX keyfile is not a real file");
+	}
+	
+	String strustFile = config.getProperty("sfx-trustfile", DEFAULT_SFX_TRUSTFILE);
+	File trustFile = new File(strustFile);
+	if (! trustFile.isFile()) {
+	    JOptionPane.showMessageDialog(this,
+					   "Unable to start SFX server: Invalid TrustFile: "+strustFile,
+					  "SFX Server startup",
+					   JOptionPane.ERROR_MESSAGE);
+	    throw new IllegalArgumentException("SFX trustfile is not a real file");
+	}
+	
+	String keypass = config.getProperty("sfx-pass", DEFAULT_SFX_KEYPASS);
+	try {
+	    
+	    fileServer =  SSLFileTransfer.createServer(name);
+	    
+	    if (baseDir != null)
+		fileServer.setBaseDirectory(baseDir);
+	    
+	    if (keyFile != null && trustFile != null) {
+		fileServer.setKeyFile(keyFile);
+		fileServer.setTrustFile(trustFile);
+		fileServer.setKeyPass(keypass);
+	    }
+
+	    // Secure and RelayOK
+	    fileServer.bind(sfxPort, true, true);	
+	    
+	    fileServer.start();
+	} catch (Exception e) {
+	    JOptionPane.showMessageDialog(this,
+					  "Unable to start SFX server: "+e,
+					  "SFX Server startup",
+					  JOptionPane.ERROR_MESSAGE);
+	    throw e;
+
+	}
+	System.err.println("SFX Server running on port: "+sfxPort+"...");
+
+    }
+
+    /** Create and return the panel.*/
+    protected JPanel createPanel() {
+	JPanel panel = new JPanel(true);
+	panel.setLayout(new FlowLayout(FlowLayout.LEADING));
+
+	DefaultListModel model = new DefaultListModel();
+	docList = new JList(model);
+	docList.setVisibleRowCount(10);
+	
+	// Stick some stuff in for now.
+	model.addElement("OGLE-BLG-20050420-123");
+	model.addElement("OGLE-BLG-20050420-166");
+	model.addElement("OGLE-BLG-20050420-124");
+	model.addElement("OGLE-BLG-20050420-155");
+	model.addElement("OGLE-BLG-20050420-127");
+	model.addElement("OGLE-BLG-20050420-144");
+	
+	JScrollPane jsp = new JScrollPane(docList, 
+					  JScrollPane.HORIZONTAL_SCROLLBAR_NEVER,
+					  JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+	panel.add(jsp);
+
+	return panel;
+    }
+
+    /** Start the ProcessingSimulationGUI.*/
+    public static void main(String[] args) {
+	
+	CommandTokenizer ct = new CommandTokenizer("--");
+	ct.parse(args);
+	ConfigurationProperties config = ct.getMap();
+	
+	String name = config.getProperty("name", "GUI");
+	
+	ProcessingSimulationGUI gui = new ProcessingSimulationGUI(name);
+	
+	try {
+	    gui.configure(config);
+	} catch (Exception e) {
+	    System.err.println("Error configuring gui: "+e);
+	    return;
+	}
+
+	gui.setVisible(true);
+
+    }
+
+}

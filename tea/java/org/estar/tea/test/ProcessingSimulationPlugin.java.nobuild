@@ -1,0 +1,41 @@
+package org.estar.tea.test;
+
+import java.io.*;
+import java.awt.*;
+import java.util.*;
+import javax.swing.*;
+
+import ngat.util.*;
+import ngat.net.*;
+import ngat.message.base.*;
+import ngat.message.OSS.*;
+import ngat.message.GUI_RCS.*;
+
+/** Plugin to control the simulation of transaction processing by RCS/OSS.
+ *
+ *  Classes which wish to act as Frameworks should provide implementations of the
+ *  following methods:-
+ *
+ *  processOssCommand(ngat.message.OSS.TRANSACTION cmd) -> COMMAND_DONE
+ *    Should return a completion or error response for: {ADD_SOURCE, ADD_GROUP, REM_SOURCE, REM_GROUP}.
+ *  
+ *  processCtrlCommand(ngat.message.GUI_RCS.GUI_TO_RCS cmd) -> COMMAND_DONE
+ *    Should return a completion or error response for: {ID, }.
+ *
+ *  processTocsCommand(String cmd) -> String
+ *    Should return a completion or error response for: {WHEN, }.
+ *
+ *
+ */
+public interface ProcessingSimulationPlugin {
+    
+    /** Process an OSS command and return a reply.*/
+    public COMMAND_DONE processOssCommand(TRANSACTION cmd);
+    
+    /** Process a GUI_TO_RCS command and return a reply.*/
+    public COMMAND_DONE processCtrlCommand(GUI_TO_RCS cmd);
+    
+    /** Process a TOCS command and return a reply.*/
+    public String processTocsCommand(String cmd);
+    
+}

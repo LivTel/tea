@@ -1,0 +1,31 @@
+Start test server
+-----------------
+
+ftnproxy:
+setenv CLASSPATH ${CLASSPATH}:/occ/tea/javalib/org_estar_io.jar:/occ/tea/javalib/org_estar_io_test.jar
+(java org.estar.io.test.TestServer 1234 >& ~/tmp/test_server_output.txt) > ~/tmp/test_server_output.txt&
+
+ltproxy:
+setenv CLASSPATH ${CLASSPATH}:/home/eng/proxy/tea/javalib/org_estar_io.jar:/home/eng/proxy/tea/javalib/org_estar_io_test.jar
+(java org.estar.io.test.TestServer 1234 >& ~/tmp/test_server_output.txt) > ~/tmp/test_server_output.txt&
+
+
+Create test document
+--------------------
+
+ftnproxy:
+setenv CLASSPATH ${CLASSPATH}:/occ/tea/javalib/org_estar_rtml.jar:/occ/tea/javalib/org_estar_rtml_test.jar
+
+ltproxy:
+setenv CLASSPATH ${CLASSPATH}:/home/eng/proxy/tea/javalib/org_estar_rtml.jar:/home/eng/proxy/tea/javalib/org_estar_rtml_test.jar
+
+
+score
+-----
+java org.estar.rtml.test.TestCreate -score -iahost localhost -iaid localtest:1 -iaport 1234 -observation -name m5#1 -target_ident test-ident -ra 15:18:33.8 -dec +02:04:58.0 -exposure 30000 ms 1 -start_date 2005-05-06T12:00:00 -end_date 2005-05-09T12:00:00 -device ratcam camera optical R -binning 2 2 -project "agent_test" -contact -contact_name "Chris Mottram" -contact_user TMC/estar > localtest_1.rtml
+
+java org.estar.io.test.SendFile localhost 8080 ~/localtest_1.rtml > ~/localtest_1_score_reply.rtml
+
+java org.estar.rtml.test.TestCreate -request -iahost localhost -iaid localtest:1 -iaport 1234 -observation -name m5#1 -target_ident test-ident -ra 15:18:33.8 -dec +02:04:58.0 -exposure 30000 ms 1 -start_date 2005-05-06T12:00:00 -end_date 2005-05-09T12:00:00 -device ratcam camera optical R -binning 2 2 -project "agent_test" -contact -contact_name "Chris Mottram" -contact_user TMC/estar -document_score 0.79 -completion_time 2005-05-06T17:31:53 > localtest_1_request.rtml
+
+java org.estar.io.test.SendFile localhost 8080 ~/localtest_1_request.rtml > ~/localtest_1_request_reply.rtml

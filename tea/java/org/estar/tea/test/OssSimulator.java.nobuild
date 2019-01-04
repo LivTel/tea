@@ -1,0 +1,318 @@
+package org.estar.tea.test;
+
+import java.util.*;
+import java.io.*;
+import java.text.*;
+
+import ngat.net.*;
+import ngat.net.camp.*;
+import ngat.util.*;
+import ngat.util.logging.*;
+import ngat.message.base.*;
+import ngat.message.OSS.*;
+
+/** Simulates the RCS response to control and monitoring requests.
+ *
+ * This class can be used stand-alone in which case the various
+ * responses are coded in using config parameters.
+ *
+ * It can be used within an application context by setting the
+ * response parameters using: setAgent() and setState().
+ *
+ * It can be used within a ProcessingSimulationFramework in which case
+ * responses are set by the PSF plugin via its processXXXCmd() methods.
+ *
+ * The methods createInternalHandlerFactory() and
+ * createRedirectHandlerFactory(psf) are used to set up the response
+ * mechanism for the default internal and PSF options.
+ * 
+ * Any other custom response handler can be added using the 
+ * setRequestHandlerFactory(rhf) method.
+ *
+ *
+ */ 
+public class OssSimulator {
+
+    public static final long HANDLING_TIME = 10000L;
+
+    public static final int ENG_STATE = 0;
+
+    public static final int OPER_STATE = 1;
+
+    public static final int DEFAULT_PORT = 9110;
+
+    public static final int DEFAULT_STATE = ENG_STATE;
+
+    public static final String DEFAULT_AGENT = "SCA";
+
+
+    /** Name of the server.*/
+    private String name;
+
+    /** Port to start server on.*/
+    private int port;
+
+    /** The command server.*/
+    SocketServer server;
+    
+    /** ngat.net Generic Request handler factory.*/
+    RequestHandlerFactory factory;
+    
+    /** Create a RCSStatusSimulator with specified name.*/
+    public OssSimulator(String name) {
+	this.name = name;
+    }
+  
+    /** Set the server port.*/  
+    public void setPort(int p) { this.port = p; }
+    
+  
+    /** Try to bind the server to the currently set port.*/
+    public void bind() throws Exception {	
+	if (server != null)
+	    return;
+	server = new SocketServer(name);	
+	if (factory == null)
+	    throw new ClassNotFoundException("RequestHandlerFactory not set at server bind");
+	server.setRequestHandlerFactory(factory);
+	server.setProtocolImplFactory(JMSMA_ProtocolImplFactory.getInstance());
+	server.bind(port);
+
+    }
+
+    /** Set the handler factory.*/
+    public void setRequestHandlerFactory(RequestHandlerFactory f) {
+	this.factory = f;
+    }
+    
+    /** Start the server.*/
+    public void startServer() {
+	if (server != null)
+	    server.start();
+    }
+
+    /** Pause the server.*/
+    public void pauseServer() {
+	if (server != null)
+	    server.linger();
+    }
+    
+    /** awaken the paused server.*/
+    public void resumeServer() {
+	if (server != null)
+	    server.awaken();
+    }
+    
+    /** Stop the server.*/
+    public void stopServer() {
+	if (server != null)
+	    server.terminate();
+    }
+    
+    /** Start an OssSimulator with specified args:-
+     *
+     * --name  <name>  : A name for logging.
+     * --port  <port>  : Port to run the server on.
+     * 
+     *
+     */
+    public static void main(String args[]) {
+	
+	CommandTokenizer ct = new CommandTokenizer("--");
+
+	ct.parse(args);
+	
+	ConfigurationProperties config = ct.getMap();
+
+	String name  = config.getProperty("name", "ESTAR_PROC_SIM");
+	int    port  = config.getIntValue("port", DEFAULT_PORT);
+
+	OssSimulator sim = new OssSimulator(name);
+	sim.setPort(port);
+   
+	try { 
+	    sim.bind();
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    System.err.println("** FATAL - Exiting on failure to bind: "+sim.getClass().getName());
+	    return;
+	}
+
+	sim.setRequestHandlerFactory(sim.createInternalHandlerFactory());
+	
+	sim.startServer();
+	
+    } 
+    
+    /** Creates an instance of the internal CAMPRequestHandlerFactory.*/
+    public RequestHandlerFactory createInternalHandlerFactory() {
+	return new InternalHandlerFactory();
+    }
+
+       
+    /** Creates an instance of RequestHandlerFactory which defers to a ProcessingSimulationPlugin.
+     * @param plugin The ProcessingSimulationPlugin which handles the requests.
+     */
+    public RequestHandlerFactory createPluginHandlerFactory(ProcessingSimulationPlugin plugin) {
+	return new RedirectHandlerFactory(plugin);
+    }
+
+    /** Creates handlers for commands.*/
+    private class InternalHandlerFactory implements RequestHandlerFactory {
+	
+	InternalHandlerFactory() {}
+	
+	public RequestHandler createHandler(ProtocolImpl implementor, Object command) {
+	    
+	    // Deal with undefined and illegal args.
+	    if (implementor == null)
+		return null;
+	    
+	    if ( (command == null) ||
+		 ! (command instanceof TRANSACTION) )
+		return null;
+	    
+	    // Cast to correct subclass.
+	    TRANSACTION osscmd = (TRANSACTION)command;
+	    
+	    // Assume its an ID for now.
+	    return new InternalStatusImplementor(implementor, osscmd);
+	    
+	}
+	
+    }
+    
+    /** Handles a Status request from a GUI or other client.*/
+    private class InternalStatusImplementor implements RequestHandler {
+	
+	ProtocolImpl implementor;
+	COMMAND command;
+	
+	/** Create a StatusImplementor.*/
+	InternalStatusImplementor(ProtocolImpl implementor, COMMAND command) {
+	    this.implementor = implementor;
+	    this.command = command;
+	}
+
+	/** handle the request with simulated responses.*/
+	public void handleRequest() {
+	    JMSMA_ProtocolServerImpl serverImpl = (JMSMA_ProtocolServerImpl)implementor;
+
+	    ACK ack = new ACK(command.getId());
+	    ack.setTimeToComplete((int)getHandlingTime());
+	    serverImpl.sendAck(ack);
+
+	    if (command instanceof ADD_SOURCE) {
+	
+		ADD_SOURCE_DONE done = new ADD_SOURCE_DONE(command.getId());
+		done.setSuccessful(true);	
+		serverImpl.sendDone(done);
+		return;
+
+	    } else if 
+		(command instanceof ADD_SOURCE) {
+
+		ADD_GROUP_DONE done = new ADD_GROUP_DONE(command.getId());
+		done.setSuccessful(true);	
+		serverImpl.sendDone(done);
+		return;
+
+	    } else {
+
+		COMMAND_DONE done = new COMMAND_DONE(command.getId());
+		done.setErrorNum(3333);
+		done.setErrorString("* Warning - not implemented: "+
+				    (command != null ? command.getClass().getName() : "NULL"));
+		serverImpl.sendDone(done);
+	    }
+	}
+
+	public long getHandlingTime() {return HANDLING_TIME;}
+
+	public void dispose() {	
+	    implementor = null;
+	    command = null;
+	}
+
+	public void exceptionOccurred(Object source, Exception e) {
+	    e.printStackTrace();
+	}
+
+    }
+
+    /** Creates handlers for commands deferring to a ProcessingSimulationPlugin.*/
+    private class RedirectHandlerFactory implements RequestHandlerFactory {
+
+	ProcessingSimulationPlugin plugin;
+
+	RedirectHandlerFactory(ProcessingSimulationPlugin plugin) {
+	    this.plugin = plugin;
+	}
+
+	/** Return a handler for the command over the connection.*/
+	public RequestHandler createHandler(ProtocolImpl implementor, Object command) {
+	       
+	    // Deal with undefined and illegal args.
+	    if (implementor == null)
+		return null;
+	    
+	    if ( (command == null) ||
+		 ! (command instanceof TRANSACTION) )
+		return null;
+	    
+	    // Cast to correct subclass.
+	    TRANSACTION osscmd = (TRANSACTION)command;
+	    
+	    return new RedirectImplementor(plugin, implementor, osscmd);
+	}
+
+
+    }
+
+
+    /** Handles a Status request from a GUI or other client via the supplied plugin.*/
+    private class RedirectImplementor implements RequestHandler {
+
+	ProcessingSimulationPlugin plugin;
+	ProtocolImpl implementor;
+	COMMAND command;
+	
+	/** Create a RedirectImplementor.*/
+	RedirectImplementor(ProcessingSimulationPlugin plugin, ProtocolImpl implementor, COMMAND command) {
+	    this.plugin      = plugin;
+	    this.implementor = implementor;
+	    this.command     = command;
+	}
+
+	/** handle the request with simulated responses.*/
+	public void handleRequest() {
+	    JMSMA_ProtocolServerImpl serverImpl = (JMSMA_ProtocolServerImpl)implementor;
+
+	    ACK ack = new ACK(command.getId());
+	    ack.setTimeToComplete((int)getHandlingTime());
+	    serverImpl.sendAck(ack);
+
+	    COMMAND_DONE done = plugin.processOssCommand((TRANSACTION)command);    
+	    try {Thread.sleep(5000L);} catch (InterruptedException ix) {}
+	    serverImpl.sendDone(done);
+	    
+	}	
+
+
+
+	public long getHandlingTime() {return HANDLING_TIME;}
+
+	public void dispose() {	
+	    implementor = null;
+	    command = null;
+	}
+
+	public void exceptionOccurred(Object source, Exception e) {
+	    e.printStackTrace();
+	}
+
+    }
+
+
+
+}

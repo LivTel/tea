@@ -1,0 +1,207 @@
+package org.estar.tea.test;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+import javax.swing.*;
+import javax.swing.event.*;
+
+import ngat.util.*;
+
+import org.estar.astrometry.*;
+import org.estar.rtml.*;
+
+/** GUI to control the simulation of a NodeAgent.*/
+public class NodeAgentSimulationGUI extends JFrame {
+ 
+    public static final String DEFAULT_NA_NAME        = "NA";
+    public static final String DEFAULT_NA_USERID      = "na/na";
+    public static final String DEFAULT_NA_SPEC_REGION = "optical";
+    public static final String DEFAULT_NA_DEVICE_TYPE = "camera";
+    public static final String DEFAULT_NA_DEVICE_NAME = "RATCam";
+    public static final String DEFAULT_NA_HOST        = "localhost";  
+    public static final int    DEFAULT_NA_PORT        = 2003;
+    public static final String DEFAULT_PROPOSAL_ID    = "AnyProp";
+
+    public static final String DEFAULT_TEA_HOST       = "localhost";
+    public static final int    DEFAULT_TEA_PORT       = 2220;
+
+    private NodeAgentClient client;
+
+    private NodeAgentServer server;
+
+    private JFrame frame;
+
+    private String name;
+
+    private int port;
+
+
+    private String naName;
+    private String naUserId;
+    private String naSpecRegion;
+    private String naDevType;
+    private String naDevName;
+    private String naHost;
+   
+    private int    naPort;
+
+    private String teaHost;
+    private int    teaPort;
+
+    private String proposalId;
+
+    public String getNaName()       { return naName; }
+    public String getNaUserId()     { return naUserId ; }
+    public String getNaSpecRegion() { return naSpecRegion ; }
+    public String getNaDevType()    { return naDevType ; }
+    public String getNaDevName()    { return naDevName ; }
+    public String getNaHost()       { return naHost ; }
+    public int    getNaPort()       { return naPort ; }
+    public String getProposalId()   { return proposalId; }
+
+    public String getTeaHost()      { return  teaHost; }
+    public int    getTeaPort()      { return teaPort; }
+ 
+    /** Create a NodeAgentSimulationGUI with supplied name.*/
+    public NodeAgentSimulationGUI(String name) {
+	super("NodeAgent Simulation: "+name);
+	
+	this.name = name;
+
+    }
+
+    /** Configure.*/
+    protected void configure(ConfigurationProperties config) throws Exception {
+
+	// Setup the visual elements.
+	// ### TBD
+	
+	JPanel panel = createPanel();
+	getContentPane().add(panel);
+	pack();
+
+	naName       = name;	
+	port         = config.getIntValue("port",        DEFAULT_NA_PORT);
+	naUserId     = config.getProperty("na-uid",      DEFAULT_NA_USERID);
+	naSpecRegion = config.getProperty("na-spec",     DEFAULT_NA_SPEC_REGION);
+	naDevType    = config.getProperty("na-dev-type", DEFAULT_NA_DEVICE_TYPE);
+	naDevName    = config.getProperty("na-dev-name", DEFAULT_NA_DEVICE_NAME);
+	naHost       = config.getProperty("na-host",     DEFAULT_NA_HOST);
+	naPort       = port;
+	proposalId  = config.getProperty("prop-id",      DEFAULT_PROPOSAL_ID);
+
+	teaHost = config.getProperty("tea-host", DEFAULT_TEA_HOST);
+	teaPort = config.getIntValue("tea-port", DEFAULT_TEA_PORT);
+
+	server = new NodeAgentServer(name);
+	server.setPort(port);	
+
+	try {
+	    server.bind();	  
+	} catch (Exception e) {
+	    JOptionPane.showMessageDialog(this,
+					  "Unable to start server: "+e,
+					  "Server startup",
+					  JOptionPane.ERROR_MESSAGE);
+	    throw e;
+	}
+	System.err.println("NAS running..");
+    }   
+
+    /** Create and return the panel.*/
+    protected JPanel createPanel() {
+	JPanel panel = new JPanel(true);
+	    
+	GridBagLayout grid = new GridBagLayout();
+	GridBagConstraints gc = new GridBagConstraints();
+	
+	panel.setLayout(grid);
+	
+	JMenuBar bar = createMenuBar();
+	setJMenuBar(bar);
+	
+	JLabel label = new JLabel("TEA NodeAgent Simulation");
+	label.setFont(new Font("Serif", Font.BOLD, 18)); 
+	label.setForeground(Color.blue);
+	label.setBackground(Color.orange);
+	label.setOpaque(true);
+	
+	panel.add(label);
+
+	return panel;
+    }
+
+    /** Create the menu bar.*/
+    protected JMenuBar createMenuBar() {
+	JMenuBar bar = new JMenuBar();
+
+	ActionListener ml = new MenuListener();
+
+	JMenu menu = new JMenu("Rtml");
+	JMenuItem requestItem = new JMenuItem("New request");
+	requestItem.setActionCommand("request");
+	requestItem.addActionListener(ml);
+	menu.add(requestItem);
+	
+	bar.add(menu);
+
+	return bar;
+    }
+
+    /** Make a GridBag component.*/
+    private void makeComp(JPanel             panel,  
+			  GridBagLayout      grid, 
+			  GridBagConstraints c, 
+			  Component          comp, 
+			  int x, int y, int w, int h) {
+	c.gridx = x;
+	c.gridy = y;
+	c.gridwidth = w;
+	c.gridheight = h;
+	c.anchor = GridBagConstraints.WEST;
+	c.fill   = GridBagConstraints.HORIZONTAL;
+	grid.setConstraints(comp, c);
+	panel.add(comp);
+    }
+    
+   
+    /** Start the ProcessingSimulationGUI.*/
+    public static void main(String[] args) {
+	
+	CommandTokenizer ct = new CommandTokenizer("--");
+	ct.parse(args);
+	ConfigurationProperties config = ct.getMap();
+	
+	String name = config.getProperty("name", "GUI");
+	
+	NodeAgentSimulationGUI gui = new NodeAgentSimulationGUI(name);
+
+	try {
+	    gui.configure(config);
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    return;
+	}
+
+	gui.setVisible(true);
+
+    }
+
+   
+    private class MenuListener implements ActionListener {
+
+	public void actionPerformed(ActionEvent ae) {
+
+	    String cmd = ae.getActionCommand();
+	    System.err.println("Selected.."+cmd+" Creating dlg:");
+
+	    RtmlDocumentDialog rtmlDialog = new RtmlDocumentDialog(NodeAgentSimulationGUI.this);
+	    rtmlDialog.setVisible(true);
+	    
+	}
+
+    } //[MenuListener]
+		
+
+} // [NodeAgentSimulationGUI]

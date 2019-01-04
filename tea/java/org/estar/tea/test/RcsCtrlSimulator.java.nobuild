@@ -1,0 +1,351 @@
+package org.estar.tea.test;
+
+import java.util.*;
+import java.io.*;
+import java.text.*;
+
+import ngat.net.*;
+import ngat.net.camp.*;
+import ngat.util.*;
+import ngat.util.logging.*;
+import ngat.message.base.*;
+import ngat.message.GUI_RCS.*;
+
+/** Simulates the RCS response to control and monitoring requests.
+ *
+ * This class can be used stand-alone in which case the various
+ * responses are coded in using config parameters.
+ *
+ * It can be used within an application context by setting the
+ * response parameters using: setAgent() and setState().
+ *
+ * It can be used within a ProcessingSimulationFramework in which case
+ * responses are set by the PSF via its processXXXCmd() methods.
+ *
+ * The methods createInternalHandlerFactory() and
+ * createRedirectHandlerFactory(psf) are used to set up the response
+ * mechanism for the default internal and PSF options.
+ * 
+ * Any other custom response handler can be added using the 
+ * setRequestHandlerFactory(rhf) method.
+ *
+ *
+ */ 
+public class RcsCtrlSimulator {
+
+    public static final int ENG_STATE = 0;
+
+    public static final int OPER_STATE = 1;
+
+    public static final int DEFAULT_PORT = 9110;
+
+    public static final int DEFAULT_STATE = ENG_STATE;
+
+    public static final String DEFAULT_AGENT = "SCA";
+
+
+    /** Name of the server.*/
+    private String name;
+
+    /** Operational state to reply.*/
+    private int state;
+
+    /** Agent-in-charge to reply.*/
+    private String agent;
+
+    /** Port to start server on.*/
+    private int port;
+
+    /** The command server.*/
+    CAMPServer server;
+    
+    /** Request handker factory.*/
+    CAMPRequestHandlerFactory factory;
+    
+    /** Create a RCSStatusSimulator with specified name.*/
+    public RcsCtrlSimulator(String name) {
+	this.name = name;
+    }
+    
+    public void setPort(int p) { this.port = p; }
+    
+    public void setAgent(String a) { this.agent = a; }
+    
+    public void setState(int s) { this.state = s; }
+
+    /** Try to bind the server to the currently set port.*/
+    public void bind() throws Exception {	
+	if (server != null)
+	    return;
+	server = new CAMPServer(name);	
+	if (factory == null)
+	    throw new ClassNotFoundException("RequestHandlerFactory not set at server bind");
+	server.setRequestHandlerFactory(factory);
+	server.bind(port);
+
+    }
+
+    /** Set the handler factory.*/
+    public void setRequestHandlerFactory(CAMPRequestHandlerFactory f) {
+	this.factory = f;
+    }
+    
+    /** Start the server.*/
+    public void startServer() {
+	if (server != null)
+	    server.start();
+    }
+
+    /** Pause the server.*/
+    public void pauseServer() {
+	if (server != null)
+	    server.linger();
+    }
+    
+    /** awaken the paused server.*/
+    public void resumeServer() {
+	if (server != null)
+	    server.awaken();
+    }
+    
+    /** Stop the server.*/
+    public void stopServer() {
+	if (server != null)
+	    server.terminate();
+    }
+    
+    /** Start an RCSStatusSimulator with specified args:-
+     *
+     * --port  <port>  : Port to run the server on.
+     * 
+     * --state <state> : Simulate RCS is one of {OPER, ENG (Default)}.
+     *
+     * --agent <mca>   : The current agent-in-charge. 
+     *
+     *
+     */
+    public static void main(String args[]) {
+	
+	CommandTokenizer ct = new CommandTokenizer("--");
+
+	ct.parse(args);
+	
+	ConfigurationProperties config = ct.getMap();
+
+	String name  = config.getProperty("name", "ESTAR_SIM");
+	int    port  = config.getIntValue("port", DEFAULT_PORT);
+	String state = config.getProperty("state", "ENG");
+	int istate = ENG_STATE;
+	if (state.equals("ENG"))
+	    istate = ENG_STATE;
+	else if
+	    (state.equals("OPER"))
+	    istate = OPER_STATE;
+	
+	String agent = config.getProperty("agent", DEFAULT_AGENT);
+	
+	RcsCtrlSimulator sim = new RcsCtrlSimulator(name);
+	sim.setPort(port);
+	sim.setState(istate);
+	sim.setAgent(agent);
+	
+	try { 
+	    sim.bind();
+	} catch (Exception e) {
+	    e.printStackTrace();
+	    System.err.println("** FATAL - Exiting on failure to bind: "+sim.getClass().getName());
+	    return;
+	}
+
+	sim.setRequestHandlerFactory(sim.createInternalHandlerFactory());
+	
+	sim.startServer();
+	
+    } 
+    
+    /** Creates an instance of the internal CAMPRequestHandlerFactory.*/
+    public CAMPRequestHandlerFactory createInternalHandlerFactory() {
+	return new InternalHandlerFactory();
+    }
+
+       
+    /** Creates an instance of CAMPRequestHandlerFactory which defers to a ProcessingSimulationPlugin.
+     * @param plugin The ProcessingSimulationPlugin which handles the requests.
+     */
+    public CAMPRequestHandlerFactory createPluginHandlerFactory(ProcessingSimulationPlugin plugin) {
+	return new RedirectHandlerFactory(plugin);
+    }
+
+    /** Creates handlers for commands.*/
+    private class InternalHandlerFactory implements CAMPRequestHandlerFactory {
+	
+	InternalHandlerFactory() {}
+
+	/** Return a handler for the command over the connection.*/
+	public CAMPRequestHandler createHandler(IConnection connection, COMMAND command) {
+
+	    // Deal with undefined and illegal args.
+	    if (connection == null)
+		return null;
+	    
+	    if ( (command == null) ||
+		 ! (command instanceof GUI_TO_RCS) )
+		return null;
+	    
+	    // Cast to correct subclass.
+	    GUI_TO_RCS guicmd = (GUI_TO_RCS)command;
+	    
+	    // Assume its an ID for now.
+	    return new InternalStatusImplementor(connection, guicmd);
+	    
+	}
+	
+    }
+    
+    /** Handles a Status request from a GUI or other client.*/
+    private class InternalStatusImplementor implements CAMPRequestHandler {
+	
+	IConnection connection;
+	COMMAND command;
+	
+	/** Create a StatusImplementor.*/
+	InternalStatusImplementor(IConnection connection, COMMAND command) {
+	    this.connection = connection;
+	    this.command = command;
+	}
+
+	/** handle the request with simulated responses.*/
+	public void handleRequest() {
+	    
+	    if (! (command instanceof ID)) {
+		System.err.println("Not an ID: "+command.getClass().getName());
+
+		GUI_TO_RCS_DONE done = new GUI_TO_RCS_DONE(command.getId());
+		done.setSuccessful(false);
+		done.setErrorNum(3333);
+		done.setErrorString("** WARNING - org.estar.tea.test.RCSStatusSimulator: No impl for: "+
+				     command.getClass().getName());	   
+		sendDone(done);
+		return;
+	    }
+	    
+	    ID mid = (ID)command;
+
+	    ID_DONE done = new ID_DONE(command.getId());
+	    
+	    done.setControl(ID.RCS_PROCESS);
+	    
+	    done.setOperational((state == OPER_STATE));
+	    done.setEngineering((state == ENG_STATE));
+	    done.setAgentInControl(agent);
+	    
+	    done.setSuccessful(true);
+	    sendDone(done);
+
+	}
+
+	public long getHandlingTime() {return 0L;}
+
+	public void dispose() {
+	    if (connection != null) {
+                connection.close();
+	    }
+	    connection = null;
+	    command = null;
+	}
+	
+	/** Sends a done message back to client. Breaks conection if any IO errors.*/
+	protected void sendDone(COMMAND_DONE done) {
+	    try {
+		connection.send(done);
+		System.err.println("Sending: "+done);
+	    } catch (IOException iox) {
+		System.err.println("Error sending done: "+iox);
+		dispose();
+	    }
+	}
+
+	/** Sends an error message back to client.*/
+	protected void sendError(COMMAND_DONE done, int errNo, String errMsg) {
+	    done.setErrorNum(errNo);
+	    done.setErrorString(errMsg);
+	    sendDone(done);
+	}
+	
+    }
+
+    /** Creates handlers for commands deferring to a ProcessingSimulationPlugin.*/
+    private class RedirectHandlerFactory implements CAMPRequestHandlerFactory {
+
+	ProcessingSimulationPlugin plugin;
+
+	RedirectHandlerFactory(ProcessingSimulationPlugin plugin) {
+	    this.plugin = plugin;
+	}
+
+	/** Return a handler for the command over the connection.*/
+	public CAMPRequestHandler createHandler(IConnection connection, COMMAND command) {
+	       
+	    // Deal with undefined and illegal args.
+	    if (connection == null)
+		return null;
+	    
+	    if ( (command == null) ||
+		 ! (command instanceof GUI_TO_RCS) )
+		return null;
+	    
+	    // Cast to correct subclass.
+	    GUI_TO_RCS guicmd = (GUI_TO_RCS)command;
+	    
+	    return new RedirectImplementor(plugin, connection, guicmd);
+	}
+
+
+    }
+
+
+    /** Handles a Status request from a GUI or other client via the supplied plugin.*/
+    private class RedirectImplementor implements CAMPRequestHandler {
+
+	ProcessingSimulationPlugin plugin;
+	IConnection connection;
+	COMMAND command;
+	
+	/** Create a RedirectImplementor.*/
+	RedirectImplementor(ProcessingSimulationPlugin plugin, IConnection connection, COMMAND command) {
+	    this.plugin     = plugin;
+	    this.connection = connection;
+	    this.command    = command;
+	}
+
+	/** handle the request with simulated responses.*/
+	public void handleRequest() {
+	    COMMAND_DONE done = plugin.processCtrlCommand((GUI_TO_RCS)command);    
+	    sendDone(done);
+	}	
+
+	/** Sends a done message back to client. Breaks conection if any IO errors.*/
+	protected void sendDone(COMMAND_DONE done) {
+	    try {
+		connection.send(done);
+		System.err.println("Sending: "+done);
+	    } catch (IOException iox) {
+		System.err.println("Error sending done: "+iox);
+		dispose();
+	    }
+	}
+
+	public long getHandlingTime() {return 0L;}
+
+	public void dispose() {
+	    if (connection != null) {
+                connection.close();
+	    }
+	    connection = null;
+	    command = null;
+	}
+    }
+
+
+
+}

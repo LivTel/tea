@@ -1,0 +1,65 @@
+package org.estar.tea.test;
+
+import java.util.*;
+
+import org.estar.io.*;
+import org.estar.rtml.*;
+
+/** Class to handle RTML response documents passed from a TEA.*/
+public class NASConnectionHandler {
+
+    /** The listener for response messages.*/
+    NodeAgentServer server;
+
+    /** Handle to the IO to receive message from.*/
+    GlobusIOHandle connectionHandle;
+
+    /** eSTAR io.*/
+    eSTARIO io;
+
+    /** Create a NASConnectionHandler attached to the supplied GlobusIOHandle.
+     */
+    public NASConnectionHandler(NodeAgentServer server, GlobusIOHandle connectionHandle) {
+	this.server           = server;
+	this.connectionHandle = connectionHandle;
+	io = new eSTARIO();
+    }
+
+    /** Read and handle the message.*/
+    public void execute() {
+
+	try {
+    	    
+    	    String message = io.messageRead(connectionHandle);
+	    
+    	    System.err.println("CONN: Recieved RTML message: "+message);
+	    
+    	    // Extract document and determine type.
+    	    
+    	    RTMLParser parser   = new RTMLParser();
+    	    RTMLDocument document = parser.parse(message);
+
+	  			   
+    	    String type = document.getType();
+    	    
+    	    System.err.println("CONN: The doc appears to be a: "+type);    	    
+    	    
+	    // Pass to any registered response handlers.
+	    Iterator it = server.listHandlers();
+
+	    while (it.hasNext()) {
+		
+		NodeAgentResponseHandler nah = (NodeAgentResponseHandler)it.next();
+
+		nah.handleResponse(document);
+
+	    }
+
+	} catch (Exception e) {
+
+
+	}
+
+    }
+
+}
