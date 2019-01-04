@@ -1,0 +1,206 @@
+<?xml version="1.0"?>
+
+ <!-- ESTAR Telescope Embedded Agent (TEA) -->
+
+<project name="TEA" default="compile" basedir="../">
+
+  <description>
+    "ESTAR Telescope Embedded Agent"
+  </description>
+  
+  <property environment="env"/>  
+  <property name = "dev.home"      value = "${env.LT_HOME}"/>
+
+  <property name = "class.dir"     value = "${dev.home}/bin/estar/tea/java"/>
+  <property name = "dist.dir"      value = "${dev.home}/public_html/estar/tea/deploy"/>
+  <property name = "estar.javalib" value = "${dev.home}/bin/estar/javalib"/>
+  <property name = "estar.clib"    value = "${dev.home}/bin/estar/lib"/>
+  <property name = "javadoc.dir"   value = "${dev.home}/public_html/estar/javadocs/org/estar/tea"/>
+
+    <!-- Prepare build directories -->
+    
+    <target name = "prepare"
+      description = "Prepare build directories">
+      <mkdir dir = "${class.dir}"/>
+	<tstamp>
+	  <format property="BUILD" pattern="yyyyMMdd_HHmm" locale="en"/>
+	</tstamp>
+	<echo message = "Build date: ${BUILD}"/>
+    </target>
+    
+
+    <!-- Cleanup dross -->
+    
+    <target name = "clean"
+      description = "Clean out dross">
+      <delete verbose = "true" >       
+	<fileset dir="." includes="**/*~" defaultexcludes = "false"/>
+      </delete>
+    </target>
+
+    <!-- Compile all sources -->
+ 
+    <target name = "compile" depends = "prepare" 
+      description = "Compile sources">
+      <javac srcdir  = "." 
+	destdir = "${class.dir}" debug = "true" >  
+	
+	<classpath>
+	  <pathelement path="${classpath}"/>
+	    <fileset dir="${dev.home}/bin/javalib">
+	      <include name = "*.jar"/>      
+	    </fileset>
+	    <fileset dir="${dev.home}/bin/javalib_third_party">
+	      <include name = "**/*.jar"/> 
+	    </fileset>
+	    <fileset dir="${dev.home}/bin/estar/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+
+	</classpath>
+        
+        <exclude name = "**/DNServerTest.java"/>
+	<exclude name = "**/DocChecker.java"/>
+<!--        <exclude name = "**/test/*.java"/> -->
+
+      </javac>
+    </target>
+
+    <target name = "rmic" 
+         depends = "compile"
+     description = "Generate RMI stubs">
+     <rmic debug = "true"
+         base     = "${class.dir}"
+         includes = "org/estar/tea/DefaultEmbeddedAgentRequestHandler.class,
+                     org/estar/tea/DefaultTelescopeAvailabilityPredictor.class,
+     	             org/estar/tea/EnhancedEmbeddedAgentRequestHandler.class"
+         stubversion = "1.2">
+             <classpath>
+               <pathelement path="${classpath}"/>
+                  <fileset dir="${dev.home}/bin/javalib">
+                     <include name = "*.jar"/>
+                  </fileset>   
+             	<fileset dir="${dev.home}/bin/javalib_third_party">
+      	      <include name = "**/*.jar"/> 
+      	    </fileset>
+                  <fileset dir="${dev.home}/bin/estar/javalib">
+                      <include name = "*.jar"/>
+                   </fileset>
+
+            </classpath>
+       </rmic>
+    </target>
+    
+    <!-- Deploy to JAR -->
+    
+    <target name = "jar" 
+      depends = "rmic"
+      description = "Create class JAR">
+      <echo message = "Creating deployment jar - Build#: ${BUILD}"/>
+	
+	  <jar jarfile = "${dev.home}/bin/estar/javalib/tea.jar" basedir = "${class.dir}" />
+	    
+    </target>
+
+    <!-- Release for deployment -->
+
+    <target name  = "release"
+      description = "Release to target host"
+      depends     = "jar">
+
+      <echo message = "Generate deployment for ${ant.project.name}"/>
+
+      <input
+        message="Please enter deployment target:"
+        validargs= "ftnproxy,ltproxy,ftsproxy"
+        addproperty="scope"
+        defaultvalue="ltproxy"
+      />
+
+      <echo message = "Generating target release for ${scope}"/>
+
+        <delete verbose = "true" file = "${dev.home}/tmp/tea_${scope}.tar"/>
+
+	<mkdir dir = "${dist.dir}"/>
+	<mkdir dir = "${dist.dir}/javalib"/>
+        <mkdir dir = "${dist.dir}/scripts"/>
+        <mkdir dir = "${dist.dir}/config"/>
+        <mkdir dir = "${dist.dir}/elib"/>
+
+	<!--<copy file="/home/dev/src/estar/jfits/jfits-0.91.jar" todir="${dist.dir}/javalib"/>-->
+
+	<copy file="${estar.javalib}/org_estar_astrometry.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_cluster.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_fits.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_io.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_io_test.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_rtml.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_rtml_test.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_toop.jar" todir="${dist.dir}/javalib"/>
+	<copy file="${estar.javalib}/org_estar_toop_test.jar" todir="${dist.dir}/javalib"/>
+        <copy file="${estar.javalib}/tea.jar" todir="${dist.dir}/javalib"/>
+
+        <copy file="${estar.javalib}/activation.jar" todir="${dist.dir}/javalib"/>
+        <copy file="${estar.javalib}/smtp.jar" todir="${dist.dir}/javalib"/>
+        <copy file="${estar.javalib}/mailapi.jar" todir="${dist.dir}/javalib"/>
+
+        <!-- <copy todir="${dist.dir}/scripts">
+          <fileset dir="scripts"/>
+        </copy>  -->
+
+        <!-- <chmod dir="${dist.dir}/scripts" perm="ug+x" includes="**/*" verbose="true"/> -->
+
+        <copy file="config/${scope}.tea.properties" tofile="${dist.dir}/config/tea.properties"/>
+        <copy file="config/${scope}_filter-combo.properties" tofile="${dist.dir}/config/filter-combo.properties"/>
+
+        <copy todir="${dist.dir}/elib">
+          <fileset dir="${estar.clib}"/>
+        </copy>
+
+        <echo message="Tarring up, SCRIPTS are not included now"/>
+
+        <tar tarfile="${dev.home}/tmp/tea_${scope}.tar" basedir="${dist.dir}" />
+        
+        <echo message="Your TEA release for ${scope} is now available in: ${dev.home}/tmp/tea_${scope}.tar"/>
+
+        <delete dir = "${dist.dir}"/>
+
+    </target>
+
+    <!-- javadoc -->
+
+    <target name  = "javadoc"
+      description = "Create documentation"
+      depends     = "compile">
+
+      <echo message = "Generating documentation"/>
+
+      <javadoc    windowtitle = "Telescope Embedded Agent"
+		  destdir = "${javadoc.dir}" 
+		  private = "true"
+		  author  = "true"
+		  version = "true"
+		  use     = "true">
+
+	<fileset dir="java/org/estar/tea">
+             <include name = "*.java"/> 
+             <exclude name = "**/DNServerTest.java"/>
+	     <exclude name = "**/DocChecker.java"/>
+        </fileset>
+
+	<classpath>
+	  <pathelement path="${classpath}"/>
+	    <fileset dir="${dev.home}/bin/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+	    <fileset dir="${dev.home}/bin/estar/javalib">
+	      <include name = "*.jar"/> 
+	    </fileset>
+	</classpath>        
+
+      </javadoc>
+
+    </target>
+
+
+</project>

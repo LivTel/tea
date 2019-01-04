@@ -1,0 +1,10 @@
+// Try and get TOCSessionManager context.
+TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea);
+try
+{
+	sessionManager.ping();
+}
+catch(Exception e)
+{
+	// return error
+}
