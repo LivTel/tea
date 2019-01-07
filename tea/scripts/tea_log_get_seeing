@@ -1,0 +1,6 @@
+#!/bin/csh
+# Header$
+grep TELEMETRY_UPDATE $argv | grep ReductionInfo | sed "s/\(.*\) : TelemetryHandlerFactory.*seeing=\(.*\), photom.*/\1,\2/"
+#
+# $Log: not supported by cvs2svn $
+#

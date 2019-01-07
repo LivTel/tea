@@ -1,0 +1,6 @@
+#!/bin/csh
+# Header$
+grep 'ReductionInfo has oid' $argv
+#
+# $Log: not supported by cvs2svn $
+#

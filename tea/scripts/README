@@ -1,0 +1,10 @@
+astrometric_fit_pipeline
+------------------------
+
+Dodgy copy of CRG GRB pipeline, with cluster output added.
+
+estar_pipe_astrometric
+----------------------
+
+Dodgy copy of pipe_astrometric.csh, RJS's mega pipeline
+scp -P 2222 data@archive:/usr/local/bin/pipe_astrometric.csh estar_pipe_astrometric
