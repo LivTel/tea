@@ -63,13 +63,11 @@ import ngat.phase2.XSlew;
 import ngat.phase2.XSpectrographInstrumentConfig;
 import ngat.phase2.XWindow;
 
-/**
- * 
- */
 
 /**
+ * The next generation  Phase2 extractor. Methods in this class create a "new" Phase2 Group object model
+ * from an RTML document, and insert it into the Phase2 database via the OSS RMI handler.
  * @author eng
- * 
  */
 public class Phase2ExtractorTNG implements Logging {
 
@@ -92,37 +90,104 @@ public class Phase2ExtractorTNG implements Logging {
 	public static final String RATCAM_INSTRUMENT = "RATCam";
 
 	public static String CLASS = "Phase2GroupExtract";
-
+	/**
+	 * Telescope embedded agent reference.
+	 */
 	TelescopeEmbeddedAgent tea;
-
+	/**
+	 * PhaseII model RMI handler.
+	 */
 	IPhase2Model phase2;
-
+	/**
+	 * Logger.
+	 */
 	private Logger logger;
 
-	public Phase2ExtractorTNG(TelescopeEmbeddedAgent tea) {
+	/**
+	 * Constructor.
+	 * Take a copy of the tea instamce, and create a "TRACE" logger.
+	 * @see #tea
+	 * @see #logger
+	 */
+	public Phase2ExtractorTNG(TelescopeEmbeddedAgent tea) 
+	{
 		this.tea = tea;
 		logger = LogManager.getLogger("TRACE");
 
 	}
 
-	public RTMLDocument handleRequest(RTMLDocument document) throws Exception {
+	/**
+	 * Handle a RTML request document.
+	 * <ul>
+	 * <li>If the document is a TOOP (target of opportunity) document:-
+	 *     <ul>
+	 *     <li>We get the TOCSessionManager instance.
+	 *     <li>We add the document to the list of documents to be processed by this instance.
+	 *     <li>We return the document returned by the session manager instance.
+	 *     </ul>
+	 * <li>Otherwise the document shoule be inserted into the PhaseII database.
+	 * <li>We get the Phase2 model instance (tea.getPhase2Model).
+	 * <li>We extract the group and send it to the OSS to be inserted into the PhaseII database (extractGroup).
+	 * <li>We get a group path from the document (extractGroupPath).
+	 * <li>We construct a document filename based on the group path (createNewFileName).
+	 * <li>IF we are loading ARQs (Agent Request Handlers):
+	 *     <ul>
+	 *     <li>We create a new instance of AgentRequestHandler, and set it's parameters.
+	 *     <li>We register it as a handler with the TEA instance (registerHandler).
+	 *     <li>We setup and start an update handler thread (prepareUpdateHandler / start).
+	 *     </ul>
+	 * <li>We save the document into the new filename.
+	 * <li>We set the document to a request reply (i.e. success), and add a history entry.
+	 * <li>We return the document.
+	 * </ul>
+	 * @param document The RTML request document to process, an instance of RTMLDocument.
+	 * @return An instance of RTMLDocument containing the result of processing the document.
+	 * @see #extractGroup
+	 * @see #extractGroupPath
+	 * @see AgentRequestHandler
+	 * @see AgentRequestHandler#setGid
+	 * @see AgentRequestHandler#setName
+	 * @see AgentRequestHandler#setARQId
+	 * @see AgentRequestHandler#setDocumentFile
+	 * @see AgentRequestHandler#setBaseDocument
+	 * @see AgentRequestHandler#prepareUpdateHandler
+	 * @see AgentRequestHandler#start
+	 * @see TelescopeEmbeddedAgent#getPhase2Model
+	 * @see TelescopeEmbeddedAgent#getLoadArqs
+	 * @see TelescopeEmbeddedAgent#createNewFileName
+	 * @see TelescopeEmbeddedAgent#saveDocument
+	 * @see TelescopeEmbeddedAgent#registerHandler
+	 * @see TOCSessionManager
+	 * @see TOCSessionManager#getSessionManagerInstance
+	 * @see TOCSessionManager#addDocument
+	 * @see org.estar.rtml.RTMLDocument
+	 * @see org.estar.rtml.RTMLDocument#isTOOP
+	 * @see org.estar.rtml.RTMLDocument#setRequestReply
+	 * @see org.estar.rtml.RTMLDocument#addHistoryEntry
+	 * @see ngat.oss.model.IPhase2Model
+	 * @see ngat.oss.model.IPhase2Model
+	 */
+	public RTMLDocument handleRequest(RTMLDocument document) throws Exception 
+	{
 		String cid = document.getUId();
-		logger.log(INFO, 1, CLASS, cid, "handleRequest", "handleRequest for document UId: " + document.getUId());
+		logger.log(INFO, 1, CLASS, cid, "handleRequest", "handleRequest for document UId: " + 
+			   document.getUId());
 
-		if (document.isTOOP()) {
+		if (document.isTOOP()) 
+		{
 			// Try and get TOCSessionManager context.
 			logger.log(INFO, 1, CLASS, cid, "handleRequest", "Request is a TOOP: finding session manager.");
 			TOCSessionManager sessionManager = TOCSessionManager.getSessionManagerInstance(tea, document);
 			// add the document to the TOCSessionManager
 			// if it succeeds addDocument sets the type to "confirmation".
-			logger.log(INFO, 1, CLASS, cid, "handleRequest", "Request is a TOOP: Adding document to session manager.");
+			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
+				   "Request is a TOOP: Adding document to session manager.");
 			document = sessionManager.addDocument(document);
 			return document;
 		}
 
 		// NOt a TOOP so goes in ODB
 		phase2 = tea.getPhase2Model();
-
 		// extract the group info and send off to ODB.
 		extractGroup(document);
 		String groupPath = extractGroupPath(document);
@@ -130,7 +195,8 @@ public class Phase2ExtractorTNG implements Logging {
 		File file = new File(tea.createNewFileName(groupPath));
 
 		// if we failed then we dont get here anyway - now setup the ARQ OR NOT
-		if (tea.getLoadArqs()) {
+		if (tea.getLoadArqs()) 
+		{
 			logger.log(INFO, 1, CLASS, cid, "handleRequest", "Creating AgentRequestHandler.");
 			AgentRequestHandler arq = new AgentRequestHandler(tea, document);
 
@@ -144,25 +210,24 @@ public class Phase2ExtractorTNG implements Logging {
 			// Set the current request as our basedoc.
 			arq.setBaseDocument(document);
 
-			
 			// Register as handler for the current obs.
 			tea.registerHandler(groupPath, arq);
 			logger.log(INFO, 1, CLASS, cid, "handleRequest", "Registered running ARQ for: " + groupPath
 					+ " Using file: " + file.getPath());
 
 			// Initialize and start the ARQ as UpdateHandler. If the ARQ does
-			// not
-			// successfully
-			// prepare for UpdateHandling it will not be started and we get an
+			// not successfully prepare for UpdateHandling it will not be started and we get an
 			// exception.
-			try {
+			try 
+			{
 				arq.prepareUpdateHandler();
 				arq.start();
-			} catch (Exception e) {
+			} 
+			catch (Exception e) 
+			{
 				logger.dumpStack(1, e);
 			}
 		}
-		
 		// Save it to the file - we could do this ourself..
 		tea.saveDocument(document, file);
 		logger.log(INFO, 1, CLASS, cid, "handleRequest", "Saving base document to: " + file.getPath());
@@ -174,23 +239,222 @@ public class Phase2ExtractorTNG implements Logging {
 		return document;
 
 	}
+	/**
+	 * Handle a RTML abort document.
+	 * <ul>
+	 * <li>If the document is a TOOP (target of opportunity) document:-
+	 *     <ul>
+	 *     <li>Reply with an error document (reject), we can't abort a TOOP session at the moment.
+	 *     </ul>
+	 * <li>Otherwise, the document is a PhaseII document, and needs deleting from the database.
+	 * <li>We get the phase2 model from the telescope embedded agent instance (getPhase2Model).
+	 * <li>We retrieve the proposal ID name from the RTML document Project data.
+	 * <li>We get the Phase2 ProposalInfo from the telescope embedded agent's proposal map (getProposalMap).
+	 * <li>We get the Phase2 Proposal object from the Phase2 ProposalInfo object.
+	 * <li>We get the group name from the RTML document's Uid, with special non-character replacements.
+	 *     Basically we replicate the code in extractGroup to get the same group name.
+	 * <li>We get the Phase2 proposal ID from the Phase2 Proposal object.
+	 * <li>We call the phase2 model's findIdOfGroupInProposal to get the phase2 group Id from
+	 *     the phase2 proposal Id and the group anme.
+	 * <li>We call the phase2 model's deleteGroup method (with the specified phase2 group Id) to
+	 *     delete the group from the phase2 database.
+	 * <li>If we are using agent request handlers (getLoadArqs)
+	 *     <ul>
+	 *     <li>We call extractGroupPath to get the group path from the RTML document.
+	 *     <li>We retriebe the agent request handler instance for this document using the group path and 
+	 *         getUpdateHandler.
+	 *     <li>We call the agent request handler's abort method to tell it's thread to stop.
+	 *     <li>We call the agent request handler's expireDocument method to move the saved document file to
+	 *         the expired directory.
+	 *     </ul>
+	 * <li>We DO NOT save the document. This is because there is no map from RTML Document Uid to 
+	 *     File as far as I am aware. However, as far as I am aware the same occurs with a document
+	 *     that completes/incomplete etc if we are not running ARQs.
+	 * <li>We set the document to be an Abort Reply document, and add a history entry to that effect.
+	 * <li>We return the modified document.
+	 * </ul>
+	 * @see #extractGroupPath
+	 * @see TelescopeEmbeddedAgent#saveDocument
+	 * @see TelescopeEmbeddedAgent#getPhase2Model
+	 * @see TelescopeEmbeddedAgent#getProposalMap
+	 * @see TelescopeEmbeddedAgent#getLoadArqs
+	 * @see TelescopeEmbeddedAgent#getUpdateHandler
+	 * @see AgentRequestHandler
+	 * @see AgentRequestHandler#abort
+	 * @see AgentRequestHandler#expireDocument
+	 * @see ngat.oss.model.IPhase2Model#findIdOfGroupInProposal
+	 * @see ngat.oss.model.IPhase2Model#deleteGroup
+	 * @see org.estar.rtml.RTMLDocument
+	 * @see org.estar.rtml.RTMLDocument#getUId
+	 * @see org.estar.rtml.RTMLDocument#isTOOP
+	 * @see org.estar.rtml.RTMLDocument#setReject
+	 * @see org.estar.rtml.RTMLDocument#addHistoryRejection
+	 * @see org.estar.rtml.RTMLDocument#setErrorString
+	 * @see org.estar.rtml.RTMLDocument#setAbortReply
+	 * @see org.estar.rtml.RTMLDocument#addHistoryEntry
+	 * @see org.estar.rtml.RTMLDocument#getProject
+	 * @see org.estar.rtml.RTMLProject#getProject
+	 */
+	public RTMLDocument handleAbort(RTMLDocument document) throws Exception 
+	{
+		AgentRequestHandler arq = null;
+		String cid = null;
+		String groupName = null;
 
-	public String extractGroupPath(RTMLDocument document) throws Exception {
+		cid = document.getUId();
+		logger.log(INFO, 1, CLASS, cid, "handleAbort", "handleAbort for document UId: " + document.getUId());
+		// Is the document a TOOP document
+		if (document.isTOOP()) 
+		{
+			document.setReject();
+			document.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						     this.getClass().getName()+
+						     ":handleAbort:Cannot abort a TOOP document.");
+			document.setErrorString(this.getClass().getName()+
+						":handleAbort:Cannot abort a TOOP document.");
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", "Cannot abort a TOOP document..");
+			return document;
+		}
+		// The document must be a phaseII document
+		phase2 = tea.getPhase2Model();
+		// Find the proposal ID name from the RTML document's project data
+		RTMLProject project = document.getProject();
+		if( project == null)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort","RTML Project was null, failing abort.");
+			throw new IllegalArgumentException("handleAbort:RTML Project was null, failing abort.");
+		}
+		String proposalIdName = project.getProject();
+		if (proposalIdName == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", 
+				   "RTML Project was null, failing abort.");
+			throw new IllegalArgumentException("handleAbort:RTML Project was null, failing abort.");
+		}
+		// Find the proposal info  from the proposal Id name
+		Map proposalMap = tea.getProposalMap();
+		if (!proposalMap.containsKey(proposalIdName))
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort","Unable to match proposal name: ["+proposalIdName+
+					    "] with known proposals.");
+			throw new Exception("handleAbort:Unable to match proposal name: [" + proposalIdName + 
+					    "] with known proposals.");
+		}
+		// extract proposal info from proposal map using proposal id name
+		ProposalInfo pinfo = (ProposalInfo) proposalMap.get(proposalIdName);
+		logger.log(INFO, 1, CLASS, cid, "handleAbort", "Obtained pinfo for: " + proposalIdName);
+		if(pinfo == null)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort",
+				   "Unable to extract proposal info from proposal id name "+proposalIdName+".");
+			throw new Exception("handleAbort:Unable to extract proposal info from proposal id name "+
+					    proposalIdName+".");
+		}
+		IProposal proposal = pinfo.getProposal();
+		if(proposal == null)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort",
+				   "Unable to extract proposal from proposal id name "+proposalIdName+".");
+			throw new Exception("handleAbort:Unable to extract proposal from proposal id name "+
+					    proposalIdName+".");
+		}
+		// Find the name of the group
+		// See extractGroup, group.setName is set to the document Uid, with non-word characters replaced by
+		// '_'.
+		groupName = document.getUId();
+		if (groupName == null) 
+		{
+			logger.log(INFO,1,CLASS,cid,"handleAbort","RTML uid was not specified, failing abort request.");
+			throw new IllegalArgumentException("handleAbort:RTML uid was not specified, failing abort request.");
+		}
+		groupName = groupName.replaceAll("\\W", "_");
+		logger.log(INFO,1,CLASS,cid,"handleAbort","PhaseII group name is:"+groupName);
+		// Get phase 2 proposal Id
+ 		long phase2ProposalId = proposal.getID();
+		logger.log(INFO,1,CLASS,cid,"handleAbort","PhaseII proposal Id is:"+phase2ProposalId);
+		// find group id from proposal id and group name
+		logger.log(INFO,1,CLASS,cid,"handleAbort","Attempting to find group name: "+groupName+
+			   " in proposal Id:"+phase2ProposalId);
+		long phase2GroupId = phase2.findIdOfGroupInProposal(groupName,phase2ProposalId);
+		logger.log(INFO,1,CLASS,cid,"handleAbort","Group name: "+groupName+" in proposal Id:"+phase2ProposalId+
+			   " has group id:"+phase2GroupId);
+		// delete obeervation sequence of group id
+		// Do I need to do this, or this deleteGroup do this as well?
+		// Not according to Phase2 UI implementation
+		//logger.log(INFO,1,CLASS,cid,"handleAbort","Attempting to delete observation sequnce of group id:"+
+		//	   phase2GroupId);
+		//phase2.deleteObservationSequenceOfGroup(phase2GroupId);
+		logger.log(INFO,1,CLASS,cid,"handleAbort","Attempting to delete group id:"+phase2GroupId);
+		// delete group from phase2 database
+		phase2.deleteGroup(phase2GroupId);
+		logger.log(INFO,1,CLASS,cid,"handleAbort","Group id:"+phase2GroupId+" deleted.");
+		// signal ARQ to quit
+		if (tea.getLoadArqs()) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", 
+				   "Signalling AgentRequestHandler to stop/terminate.");
+			String groupPath = extractGroupPath(document);
+			arq = tea.getUpdateHandler(groupPath);
+			if(arq != null)
+			{
+				// tell the agent request handler to stop/return some sort of fail document
+				arq.abort();
+				arq.expireDocument();
+			}
+			else
+			{
+				logger.log(INFO,1,CLASS,cid,"handleAbort","Failed to find ARQ for document:"+
+					   groupPath);
+				// probably not an abort failure here
+			}
+	        }
+		// Note the document on file is not deleted or exprired if we are not using ARQs.
+		// This is because there is no map from RTML Document Uid to File as far as I am aware.
+		// Save it to the file - we could do this ourself..
+		//logger.log(INFO, 1, CLASS, cid, "handleAbort", "Saving document to: " + file.getPath());
+		//tea.saveDocument(document, file);
+		// reply document aborted
+		document.setAbortReply();
+		document.addHistoryEntry("TEA:" + tea.getId(), null, "Document aborted.");
+		return document;
+	}
 
+	/**
+	 * Method to extract a group path string from the specified document.
+	 * @param document The RTML document to extract the group path from.
+	 * @return A string representing the group path. This is of the form:
+	 *         "/ODB/" + userId + "/" + proposalId + "/" + requestId
+	 * @exception Thrown if an error occurs. i.e. If Contact, User, Project, or Uid data does not exist,
+	 *            or no mapping can be found in the TEA's proposal map.
+	 * @see #tea
+	 * @see TelescopeEmbeddedAgent#getProposalMap
+	 * @see org.estar.rtml.RTMLDocument
+	 * @see org.estar.rtml.RTMLDocument#getUId
+	 * @see org.estar.rtml.RTMLDocument#getContact
+	 * @see org.estar.rtml.RTMLDocument#getProject
+	 * @see org.estar.rtml.RTMLContact#getUser
+	 * @see org.estar.rtmlRTMLProject#getProject
+	 */
+	public String extractGroupPath(RTMLDocument document) throws Exception 
+	{
 		String cid = document.getUId();
 
 		// Tag/User ID combo is what we expect here.
 		RTMLContact contact = document.getContact();
 
-		if (contact == null) {
-			logger.log(INFO, 1, CLASS, cid, "handleRequest", "RTML Contact was not specified, failing request.");
+		if (contact == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
+				   "RTML Contact was not specified, failing request.");
 			throw new IllegalArgumentException("No contact was supplied");
 		}
 
 		String userId = contact.getUser();
 
-		if (userId == null) {
-			logger.log(INFO, 1, CLASS, cid, "handleRequest", "RTML Contact User was not specified, failing request.");
+		if (userId == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
+				   "RTML Contact User was not specified, failing request.");
 			throw new IllegalArgumentException("Your User ID was null");
 		}
 		// userId = userId.replaceAll("\\W", "_");
@@ -199,8 +463,10 @@ public class Phase2ExtractorTNG implements Logging {
 		RTMLProject project = document.getProject();
 		String proposalId = project.getProject();
 
-		if (proposalId == null) {
-			logger.log(INFO, 1, CLASS, cid, "handleRequest", "RTML Project was not specified, failing request.");
+		if (proposalId == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
+				   "RTML Project was not specified, failing request.");
 			throw new IllegalArgumentException("Your Project ID was null");
 		}
 
@@ -213,8 +479,10 @@ public class Phase2ExtractorTNG implements Logging {
 		// proposalId = proposalId.replaceAll("\\W", "_");
 
 		String requestId = document.getUId();
-		if (requestId == null) {
-			logger.log(INFO, 1, CLASS, cid, "handleRequest", "RTML request ID was not specified, failing request.");
+		if (requestId == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
+				   "RTML request ID was not specified, failing request.");
 			throw new IllegalArgumentException("Your Request ID was null");
 		}
 		requestId = requestId.replaceAll("\\W", "_");
@@ -227,10 +495,14 @@ public class Phase2ExtractorTNG implements Logging {
 
 	/** 
 	 * Extract a group from the doc. 
+	 * Note the group's name becomes it's Uid, with non-word characters replaced by a '_' (i.e.
+	 * String.replaceAll("\\W", "_").
+	 * @param document A document object model, representing the RTML document containing the group
+	 *         data to extract and insert into the Phase2 database.
+	 * @exception Exception Thrown if an error occurs.
 	 */
 	public void extractGroup(RTMLDocument document) throws Exception 
 	{
-
 		String cid = document.getUId();
 
 		// Tag/User ID combo is what we expect here.

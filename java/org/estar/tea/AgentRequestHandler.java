@@ -153,6 +153,10 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	private Logger alogger = null;
 
 	private LogGenerator logger = null;
+	/**
+	 * Boolean, true if the document has been aborted.
+	 */
+	private boolean aborted = false;
 
 	/**
 	 * Create an AgentRequestHandler. This constructor is used to create ARQs on
@@ -212,6 +216,16 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 
 	public String getGid() {
 		return gid;
+	}
+
+	/**
+	 * Method to call when an abort document has been sent for this ARQ's document.
+	 * This will cause the mainTask to terminate.
+	 * @see #aborted
+	 */
+	public void abort()
+	{
+		aborted = true;
 	}
 
 	/**
@@ -669,7 +683,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	 *         of:-
 	 *         <dl>
 	 *         <dt>OBSERVATION_STATE_EXPIRED_FAILED
-	 *         <dd>Expired and there were no frames generated.
+	 *         <dd>Expired and there were no frames generated, or aborted.
 	 *         <dt>OBSERVATION_STATE_DONE
 	 *         <dd>All image frames were returned.
 	 *         <dt>OBSERVATION_STATE_EXPIRED_INCOMPLETE
@@ -680,6 +694,7 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 	 *         <dt>OBSERVATION_STATE_ACTIVE
 	 *         <dd>The document is still active.
 	 *         </dl>
+	 * @see #aborted
 	 */
 	protected int testCompletion() {
 
@@ -797,7 +812,12 @@ public class AgentRequestHandler extends ControlThread implements Logging {
 			} else
 				return OBSERVATION_STATE_ACTIVE;
 		}
-
+		// Have we been aborted
+		if(aborted)
+		{
+			logger.create().info().level(3).extractCallInfo().msg("Document was aborted.").send();
+			return OBSERVATION_STATE_EXPIRED_FAILED;
+		}
 		// Unable to deduce..
 		return OBSERVATION_STATE_UNKNOWN;
 

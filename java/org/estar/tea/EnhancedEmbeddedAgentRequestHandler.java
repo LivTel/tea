@@ -6,32 +6,61 @@ import java.rmi.server.*;
 import ngat.util.logging.*;
 import org.estar.rtml.*;
 
-/** Placeholder for enhanced EAR functions using new OSS and new Phase2. */
+/** 
+ * This class implements the TEA RMI interface to the NodeAgent.
+ * Placeholder for enhanced EAR functions using new OSS and new Phase2. 
+ */
 public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject implements EmbeddedAgentRequestHandler,
-		EmbeddedAgentTestHarness {
-
+		EmbeddedAgentTestHarness 
+{
+	/**
+	 * Stored instance of the telescope embedded agent.
+	 */
 	private TelescopeEmbeddedAgent tea;
-
+	/**
+	 * TRACE logger.
+	 */
 	Logger alogger;
-
+	/**
+	 * Instance of LogGenerator used to generate log messages.
+	 */
 	LogGenerator logger;
 
-	/** Create an EnhancedEmbeddedAgentRequestHandler for the TEA. */
-	public EnhancedEmbeddedAgentRequestHandler(TelescopeEmbeddedAgent tea) throws RemoteException {
+	/** 
+	 * Create an EnhancedEmbeddedAgentRequestHandler for the TEA. 
+	 * <ul>
+	 * <li>The telescope embedded agent instance is tored for later use.
+	 * <li>The alogger instance is created as the "TRACE" logger.
+	 * <li>The LogGenerator logger is created with system TEA and subsystem Receiver.
+	 * </ul>
+	 * @param tea The telescope embedded agent, stored for later use.
+	 * @see #tea
+	 * @see #alogger
+	 * @see #logger
+	 */
+	public EnhancedEmbeddedAgentRequestHandler(TelescopeEmbeddedAgent tea) throws RemoteException 
+	{
 		this.tea = tea;
 		alogger = LogManager.getLogger("TRACE");
-		logger = alogger.generate().system("TEA").subSystem("Receiver").srcCompClass(this.getClass().getName());
+		logger = alogger.generate().system("TEA").subSystem("Receiver").
+			srcCompClass(this.getClass().getName());
 	}
 
 	/**
 	 * Handle a scoring request.
-	 * 
-	 * @param doc
-	 *            The RTML document.
-	 * @return The scored RTML document.
+	 * <ul>
+	 * <li>A new EnhancedDocumentHandler instance is created.
+	 * <li>The EnhancedDocumentHandler's handleScore method is invoked.
+	 * <li>The returned document is logged and returned.
+	 * </ul>
+	 * @param doc The RTML document to be scored.
+	 * @return The scored reply RTML document, or an error document if an error occured.
+	 * @see org.estar.tea.EnhancedDocumentHandler
+	 * @see org.estar.tea.EnhancedDocumentHandler#handleScore
 	 * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
 	 */
-	public RTMLDocument handleScore(RTMLDocument doc) throws RemoteException {
+	public RTMLDocument handleScore(RTMLDocument doc) throws RemoteException 
+	{
 
 		// make a scoring request to some sort of ScoringCalculator
 
@@ -43,7 +72,8 @@ public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject imp
 
 		RTMLDocument reply = null;
 
-		try {
+		try 
+		{
 
 			LogCollator collator = logger.create().info().level(1).extractCallInfo().msg(
 					"Sending doc to ScoreDocHandler");
@@ -59,7 +89,9 @@ public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject imp
 			collator.msg("ScoreDocHandler returned document");
 			// tea.xlogRTML(collator, reply);
 
-		} catch (Exception e) {
+		} 
+		catch (Exception e) 
+		{
 			e.printStackTrace();
 			throw new RemoteException("Exception while handling score: " + e);
 		}
@@ -68,17 +100,24 @@ public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject imp
 	}
 
 	/**
-	 * Handle a request request.
-	 * 
-	 * @param doc
-	 *            The RTML document.
+	 * Handle a request document (i.e. PhaseII submission or TOOP (target of opportunity) document).
+	 * <ul>
+	 * <li>A new EnhancedDocumentHandler instance is created.
+	 * <li>The EnhancedDocumentHandler's handleRequest method is invoked.
+	 * <li>The returned document is logged and returned.
+	 * </ul>
+	 * @param doc The RTML request document to be processed.
+	 * @return The reply RTML document, or an error document if an error occured.
+	 * @see org.estar.tea.EnhancedDocumentHandler
+	 * @see org.estar.tea.EnhancedDocumentHandler#handleRequest
 	 * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
 	 */
-	public RTMLDocument handleRequest(RTMLDocument doc) throws RemoteException {
-
+	public RTMLDocument handleRequest(RTMLDocument doc) throws RemoteException 
+	{
 		RTMLDocument reply = null;
 
-		try {
+		try 
+		{
 
 			EnhancedDocumentHandler rdh = new EnhancedDocumentHandler(tea);
 			tea.logRTML(alogger, 1, "RequestDocHandler handling request: ", doc);
@@ -91,7 +130,9 @@ public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject imp
 
 			// tea.xlogRTML(collator, reply);
 
-		} catch (Exception e) {
+		} 
+		catch (Exception e) 
+		{
 			e.printStackTrace();
 			throw new RemoteException("Exception while handling request: " + e);
 		}
@@ -100,16 +141,39 @@ public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject imp
 	}
 
 	/**
-	 * Handle an abort request.
-	 * 
-	 * @param doc
-	 *            The RTML document.
+	 * Handle an abort request (i.e. delete the PhaseII group associated with this RTML document).
+	 * <ul>
+	 * <li>A new EnhancedDocumentHandler instance is created.
+	 * <li>The EnhancedDocumentHandler's handleAbort method is invoked.
+	 * <li>The returned document is logged and returned.
+	 * </ul>
+	 * @param doc The RTML document to be deleted.
+	 * @return The reply RTML document, or an error document if an error occured.
+	 * @see org.estar.tea.EnhancedDocumentHandler
+	 * @see org.estar.tea.EnhancedDocumentHandler#handleAbort
 	 * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
 	 */
-	public RTMLDocument handleAbort(RTMLDocument doc) throws RemoteException {
+	public RTMLDocument handleAbort(RTMLDocument doc) throws RemoteException 
+	{
+		RTMLDocument reply = null;
 
-		return null;
+		try 
+		{
+			EnhancedDocumentHandler rdh = new EnhancedDocumentHandler(tea);
+			tea.logRTML(alogger, 1, "RequestDocHandler handling abort request: ", doc);
+			reply = rdh.handleAbort(doc);
+			alogger.log(1, "RequestDocHandler returned abort doc: " + reply);
+			tea.logRTML(alogger, 1, "RequestDocHandler returned abort doc: ", reply);
 
+			LogCollator collator = logger.create().info().level(1).extractCallInfo().msg(
+					"RequestDocHandler returned abort document.");
+		} 
+		catch (Exception e) 
+		{
+			e.printStackTrace();
+			throw new RemoteException("Exception while handling abort request: " + e);
+		}
+		return reply;
 	}
 
 	/** Request the system to test ongoing throughput. */
