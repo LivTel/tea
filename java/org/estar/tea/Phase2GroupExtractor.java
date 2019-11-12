@@ -102,8 +102,11 @@ public class Phase2GroupExtractor implements Logging {
 		(skyc.isDark())
 		lunar = Group.DARK;
 	    else {
-		logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract sky constraint info");
-		throw new IllegalArgumentException("Unable to extract sky brightness constraint");
+		logger.log(INFO,1,CLASS,cid,"handleRequest","Unable to extract sky constraint info, defailting to BRIGHT");
+      // The following line uncommented as causes issues with an RTML inquiry request which
+      // uses this extractor, which can't handle the more modern Mag/arcsec^2 unit of sky brightness
+      // and instead expects boolean DARK|BRIGHT
+		//throw new IllegalArgumentException("Unable to extract sky brightness constraint");
 	    }
 	}
 
@@ -195,13 +198,13 @@ public class Phase2GroupExtractor implements Logging {
 
 	Date completionDate = new Date(System.currentTimeMillis()+365*24*3600*1000L);
 
-	// Make the group	
+	// Make the group
 	Group group = null;
 
 	if (scon == null || count == 1) {
 	    // FlexGroup
 	    group = new Group(requestId);
-	    // set the startingdate which is the only way a flex-group can pass over 
+	    // set the startingdate which is the only way a flex-group can pass over
 	    // its start time to scoredoc handler.
 	    group.setStartingDate(startDate.getTime());
 
@@ -265,13 +268,13 @@ public class Phase2GroupExtractor implements Logging {
         for (int iobs = 0; iobs < nobs; iobs++) {
 
 	    RTMLObservation obs = document.getObservation(iobs);
-	    
+
 	    // Extract params
 	    RTMLTarget target = obs.getTarget();
 
 	    RA  ra  = target.getRA();
 	    Dec dec = target.getDec();
-	    
+
 	    String targetId = target.getName();
 	    if (targetId == null || targetId.equals(""))
 		targetId = "Target_"+iobs+"_"+requestId;
@@ -280,30 +283,30 @@ public class Phase2GroupExtractor implements Logging {
 
 	    // Bizarre element.
 	    String targetIdent = target.getIdent();
-	    
+
 	    RTMLSchedule sched = obs.getSchedule();
-	    
+
 	    String expy = sched.getExposureType();
 	    String expu = sched.getExposureUnits();
 	    double expt = 0.0;
 
 	    expt = sched.getExposureLengthMilliseconds();
-	    
+
 	    int expCount = sched.getExposureCount();
-	    
+
 	    // Extract filter info.
 	    RTMLDevice dev = obs.getDevice();
 	    String filter = null;
-	    
+
 	    // make up the IC - we dont have enough info to do this from filtermap...
 	    InstrumentConfig config = null;
 	    String configId = null;
-	    
+
 	    if (dev == null)
 		dev = document.getDevice();
-	    
+
 	    if (dev != null) {
-		
+
 		// START New DEVINST stuff
 		try {
 		    config = DeviceInstrumentUtilites.getInstrumentConfig(tea, dev);
@@ -315,7 +318,7 @@ public class Phase2GroupExtractor implements Logging {
 		    throw new IllegalArgumentException("Device configuration error: "+e);
 		}
 		// END New DEVINST stuff
-		
+
 	    } else {
 		logger.log(INFO,1,CLASS,cid,"handleRequest", "RTML Device not present");
 		throw new IllegalArgumentException("Device not set");
@@ -325,13 +328,13 @@ public class Phase2GroupExtractor implements Logging {
 		logger.log(INFO,1,CLASS,cid,"handleRequest","Exposure time is too short, failing request.");
 		throw new IllegalArgumentException("Your Exposure time is too short.");
 	    }
-	    
+
 	    if (expCount < 1) {
 		logger.log(INFO,1,CLASS,cid,"handleRequest",
 			   "Exposure Count is less than 1, failing request.");
 		throw new IllegalArgumentException("Your Exposure Count is less than 1.");
 	    }
-	    
+
 	    ExtraSolarSource source = new ExtraSolarSource(targetId);
 	    source.setRA(ra.toRadians());
 	    source.setDec(dec.toRadians());
@@ -339,35 +342,35 @@ public class Phase2GroupExtractor implements Logging {
 	    source.setEquinox(2000.0f);
 	    source.setEpoch(2000.0f);
 	    source.setEquinoxLetter('J');
-	    
+
 	    double raOffset  = target.getRAOffset();
 	    double decOffset = target.getDecOffset();
 
 	    Position atarg = new Position(ra.toRadians(), dec.toRadians());
-	    
+
 	    float expose = (float)expt;
 	    // Maybe split into chunks NO NOT YET.
 	    //if ((double)expose > (double)tea.getMaxObservingTime()) {
 	    //int nn = (int)Math.ceil((double)expose/(double)tea.getMaxObservingTime());
-	    
+
 	    //}
 	    int mult = expCount;
 
-	    String obsId = ""+iobs;	    
+	    String obsId = ""+iobs;
 	    Observation observation = new Observation(obsId);
-	    
+
 	    observation.setExposeTime(expose);
 	    observation.setNumRuns(mult);
 	    observation.setAutoGuiderUsageMode(TelescopeConfig.AGMODE_NEVER);
-	    
+
 	    Mosaic mosaic = new Mosaic();
 	    mosaic.setPattern(Mosaic.SINGLE);
 	    observation.setMosaic(mosaic);
-	    
+
 	    observation.setSource(source);
 	    observation.setSourceOffsetRA(raOffset);
             observation.setSourceOffsetDec(decOffset);
-	    
+
 	    observation.setInstrumentConfig(config);
 
 	    // Decide if we need to use the autoguider;
@@ -403,15 +406,15 @@ public class Phase2GroupExtractor implements Logging {
 
 	    // path will be set here
 	    group.addObservation(observation);
-	    
+
 	} // next observation
 
 	return group;
-	    
+
     } // [extractGroup]
 
 
-	/** 
+	/**
 	 * Check the various constraints and return a unified set.
 	 * @param document The RTMLDocument with potentially more than one set of schedule constraints.
 	 * @return The unified set of constraints.
@@ -421,7 +424,7 @@ public class Phase2GroupExtractor implements Logging {
 	 */
 	private RTMLSchedule getUnifiedConstraints(RTMLDocument document) throws IllegalArgumentException
 	{
-	
+
 		RTMLSeriesConstraint masterSeries,currentSeries;
 		RTMLMoonConstraint masterMoon,currentMoon;
 		RTMLSeeingConstraint masterSeeing, currentSeeing;
@@ -432,7 +435,7 @@ public class Phase2GroupExtractor implements Logging {
 		int masterPriority, currentPriority;
 
 		int nobs = document.getObservationListCount();
-	
+
 		if (nobs == 0)
 			return null;
 		// #0 will be our master...
@@ -459,7 +462,7 @@ public class Phase2GroupExtractor implements Logging {
 		}
 		for (int iobs = 1; iobs < nobs; iobs++)
 		{
-			RTMLObservation obs = document.getObservation(iobs);	    
+			RTMLObservation obs = document.getObservation(iobs);
 			RTMLSchedule sched = obs.getSchedule();
 			if(sched == null)
 			{
@@ -484,16 +487,16 @@ public class Phase2GroupExtractor implements Logging {
 
 			if (! equalsOrNull(currentStartDate,masterStartDate))
 		throw new IllegalArgumentException("Constraint mismatch: StartDate for "+iobs+" ss="+sched.getStartDate()+" ms="+master.getStartDate());
-	    
+
 			if (! equalsOrNull(currentEndDate,masterEndDate))
 				throw new IllegalArgumentException("Constraint mismatch: EndDate for "+iobs+
 								   " se="+sched.getEndDate()+" me="+master.getEndDate());
-			
+
 			if (! equalsOrNull(currentSeries,masterSeries))
 				throw new IllegalArgumentException("Constraint mismatch: SeriesConstraint for "+iobs+
 								   " ss="+sched.getSeriesConstraint()+
 								   " ms="+master.getSeriesConstraint());
-	    
+
 			if (! equalsOrNull(currentMoon,masterMoon))
 				throw new IllegalArgumentException("Constraint mismatch: MoonConstraint for "+iobs);
 
@@ -505,7 +508,7 @@ public class Phase2GroupExtractor implements Logging {
 
 			if (currentPriority != masterPriority)
 				throw new IllegalArgumentException("Constraint mismatch: Sched priority "+iobs);
-			
+
 		}
 		return master;
 	} // [getUnifiedConstraints]
