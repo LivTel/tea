@@ -52,7 +52,7 @@ switch ($1)
     case start:
 
         echo "Telescope Embedded Agent: (${model}) starting"
-
+	echo "Using classpth: ${CLASSPATH}"
         echo $$ > $PID
 
 	set ASTRO = "-Dastrometry.impl=ngat.astrometry.TestCalculator"
