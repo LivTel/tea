@@ -1870,9 +1870,10 @@ public class TelescopeEmbeddedAgent implements Logging {
 
 						Map configs = new HashMap();
 						List configList = phase2.listInstrumentConfigs(program.getID());
+						System.err.println("listInstrumentConfigs has returned " + configList.size() + " configs for program:"+program.getID());
 						Iterator ic = configList.iterator();
-						while (it.hasNext()) {
-							IInstrumentConfig iconfig = (IInstrumentConfig) it.next();
+						while (ic.hasNext()) {
+							IInstrumentConfig iconfig = (IInstrumentConfig) ic.next();
 							configs.put(iconfig.getName(), iconfig);
 						}
 						pinfo.setConfigMap(configs);
@@ -1883,19 +1884,28 @@ public class TelescopeEmbeddedAgent implements Logging {
 
 						try {
 
+							System.err.println("Retrieving semester balances...");
 							ISemesterPeriod semList = accounts.getSemesterPeriodOfDate(System.currentTimeMillis());
 							ISemester sem1 = semList.getFirstSemester();
 							ISemester sem2 = semList.getSecondSemester();
+							System.err.println("Semester 1:"+sem1);
+							System.err.println("Semester 2:"+sem2);
 							double balance = 0.0;
 							if (sem1 != null) {
 								long semId1 = sem1.getID();
+								System.err.println("Semester 1 ID:"+semId1);
 								IAccount acc1 = accounts.findAccount(proposal.getID(), semId1);
-								balance += acc1.getAllocated() - acc1.getConsumed();
+								System.err.println("Semester 1 account:"+acc1);
+								if(acc1 != null)
+									balance += acc1.getAllocated() - acc1.getConsumed();
 							}
 							if (sem2 != null) {
 								long semId2 = sem2.getID();
+								System.err.println("Semester2 ID:"+semId2);
 								IAccount acc2 = accounts.findAccount(proposal.getID(), semId2);
-								balance += acc2.getAllocated() - acc2.getConsumed();
+								System.err.println("Semester 2 account:"+acc2);
+								if(acc2 != null)
+									balance += acc2.getAllocated() - acc2.getConsumed();
 							}
 
 							pinfo.setAccountBalance(balance);
