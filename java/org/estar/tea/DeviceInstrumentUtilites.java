@@ -99,18 +99,19 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @exception InstantiationException Thrown if createInstrumentConfig fails.
 	 * @exception IllegalAccessException Thrown if createInstrumentConfig fails.
 	 * @exception InvocationTargetException Thrown if createInstrumentConfig fails.
-	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getIRCamFilterType fails.
+	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getSingleFilterType fails.
+	 * @exception NullPointerException Thrown if getInstrumentRotorSpeed fails.
 	 * @see TelescopeEmbeddedAgent
 	 * @see org.estar.rtml.RTMLDevice
 	 * @see #getInstrumentType
 	 * @see #getInstrumentId
 	 * @see #getInstrumentDetectorBinning
 	 * @see #getInstrumentDetectorGain
-	 * @see #getCCDSingleFilterType
+	 * @see #getInstrumentRotorSpeed
+	 * @see #getSingleFilterType
 	 * @see #getCCDLowerFilterType
 	 * @see #getCCDUpperFilterType
 	 * @see #getCCDIndexFilterType
-	 * @see #getIRCamFilterType
 	 * @see #createInstrumentConfig
 	 * @see #INSTRUMENT_TYPE_CCD
 	 * @see #INSTRUMENT_TYPE_IRCAM
@@ -125,10 +126,12 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see ngat.phase2.IRCamDetector
 	 * @see ngat.phase2.PolarimeterConfig
 	 * @see ngat.phase2.PolarimeterDetector
+	 * @see ngat.phase2.MOPTOPPolarimeterConfig
+	 * @see ngat.phase2.MOPTOPPolarimeterDetector
 	 */
 	public static InstrumentConfig getInstrumentConfig(TelescopeEmbeddedAgent tea,RTMLDevice device) throws
 		IllegalArgumentException, ClassNotFoundException, NoSuchMethodException, InstantiationException, 
-		IllegalAccessException, InvocationTargetException, Exception
+		IllegalAccessException, InvocationTargetException, NullPointerException, Exception
 	{
 		InstrumentConfig config = null;
 		String instrumentId = null;
@@ -139,7 +142,9 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType1 = null;
 		String filterType2 = null;
 		String irFilterType = null;
+		String moptopFilterType = null;
 		String oFilterType[] = new String[OConfig.O_FILTER_INDEX_COUNT];
+		String rotorSpeed = null;
 		String configClassName = null;
 		double gain;
 		int bin,xBin,yBin,instrumentType;
@@ -246,7 +251,7 @@ public class DeviceInstrumentUtilites implements Logging
                 else if(configClassName.equals("ngat.phase2.IRCamConfig"))
 		{
                         rtmlFilterType = device.getFilterType();
-                        irFilterType = getIRCamFilterType(tea,instrumentId,rtmlFilterType);
+                        irFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
                         // This needs to get more sophisticated if we allow non-square binning
                         bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
                         // create config
@@ -318,6 +323,43 @@ public class DeviceInstrumentUtilites implements Logging
 				ringo3Detector.clearAllWindows();
 				ringo3Detector.setXBin(bin);
 				ringo3Detector.setYBin(bin);
+			}
+		}
+		else if(configClassName.equals("ngat.phase2.MOPTOPPolarimeterConfig"))
+		{
+			rtmlFilterType = device.getFilterType();
+			moptopFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			rotorSpeed = getInstrumentRotorSpeed(tea,instrumentType,instrumentId,device);
+			// create config
+			config = createInstrumentConfig(configClassName,"TEA-Moptop-"+moptopFilterType+"-"+rotorSpeed+
+							"-"+bin+"x"+bin);
+			if (! (config instanceof MOPTOPPolarimeterConfig))
+			{
+				throw new IllegalArgumentException(
+					  "getInstrumentConfig:Invalid config class for Moptop polarimeter:"+
+								   config.getClass().getName());
+			}
+			MOPTOPPolarimeterConfig moptopConfig = (MOPTOPPolarimeterConfig)config;
+			if(rotorSpeed.equals("fast"))
+				moptopConfig.setRotorSpeed(MOPTOPPolarimeterConfig.ROTOR_SPEED_FAST);
+			else if(rotorSpeed.equals("slow"))
+				moptopConfig.setRotorSpeed(MOPTOPPolarimeterConfig.ROTOR_SPEED_SLOW);
+			else
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:Invalid rotor speed '"+rotorSpeed+
+								   "'for Moptop polarimeter.");
+			}
+			moptopConfig.setFilterName(moptopFilterType);
+			// loop over detectors 0-1
+			for(int i = 0; i < moptopConfig.getMaxDetectorCount(); i++)
+			{
+				MOPTOPPolarimeterDetector moptopDetector = (MOPTOPPolarimeterDetector)
+					moptopConfig.getDetector(i);
+				moptopDetector.clearAllWindows();
+				moptopDetector.setXBin(bin);
+				moptopDetector.setYBin(bin);
 			}
 		}
 		else if(configClassName.equals("ngat.phase2.RISEConfig"))
@@ -510,7 +552,8 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @exception IllegalArgumentException Thrown if an argument is wrong, 
 	 *            or if there is no toop instrument mapping.
 	 * @exception TOCException Thrown if instrRatcam/instrIRcam/instrRingoStar fails.
-	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getIRCamFilterType fails.
+	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getSingleFilterType fails.
+	 * @exception NullPointerException Thrown if getInstrumentRotorSpeed fails.
 	 * @see TelescopeEmbeddedAgent
 	 * @see org.estar.rtml.RTMLDevice
 	 * @see org.estar.toop.TOCSession
@@ -522,20 +565,21 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see org.estar.toop.TOCSession#instrIRcam
 	 * @see org.estar.toop.TOCSession#instrRingoStar
 	 * @see org.estar.toop.TOCSession#instrRingo3
+	 * @see org.estar.toop.TOCSession#instrMoptop
 	 * @see org.estar.toop.TOCSession#instrMeaburnSpec
 	 * @see #getInstrumentType
-	 * @see #getCCDSingleFilterType
+	 * @see #getSingleFilterType
 	 * @see #getCCDLowerFilterType
 	 * @see #getCCDUpperFilterType
 	 * @see #getCCDIndexFilterType
 	 * @see #getInstrumentDetectorBinning
-	 * @see #getIRCamFilterType
+	 * @see #getInstrumentRotorSpeed
 	 * @see #INSTRUMENT_TYPE_CCD
 	 * @see #INSTRUMENT_TYPE_IRCAM
 	 * @see #INSTRUMENT_TYPE_POLARIMETER
 	 */
 	public static void sendInstr(TelescopeEmbeddedAgent tea,TOCSession session,RTMLDevice device) throws
-		IllegalArgumentException,TOCException, Exception
+		IllegalArgumentException,TOCException, NullPointerException, Exception
 	{
 		String instrumentId = null;
 		String rtmlFilterType = null;
@@ -546,6 +590,8 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType0 = null;
 		String filterType1 = null;
 		String filterType2 = null;
+		String moptopFilterType = null;
+		String rotorSpeed = null;
 		String toopInstrName = null;
 		double gain;
 		int bin,instrumentType;
@@ -592,7 +638,7 @@ public class DeviceInstrumentUtilites implements Logging
 		else if(toopInstrName.equals("IRCAM"))
 		{
 			rtmlFilterType = device.getFilterType();
-			irFilterType = getIRCamFilterType(tea,instrumentId,rtmlFilterType);
+			irFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrIRcam(irFilterType,bin,false,false);
@@ -624,8 +670,17 @@ public class DeviceInstrumentUtilites implements Logging
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			gain = getInstrumentDetectorGain(tea,instrumentType,instrumentId,device.getDetector());
-			// diddly extract internal/external from RTML?
+			// extract internal/external from RTML?
 			session.instrRingo3("external",(int)gain,bin,bin,false,false);
+		}
+		else if(toopInstrName.equals("MOPTOP"))
+		{
+			rtmlFilterType = device.getFilterType();
+			moptopFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
+			rotorSpeed = getInstrumentRotorSpeed(tea,instrumentType,instrumentId,device);
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			session.instrMoptop(moptopFilterType,rotorSpeed,bin,bin,false,false);
 		}
 		else if(toopInstrName.equals("NUVSPEC"))
 		{
@@ -648,19 +703,18 @@ public class DeviceInstrumentUtilites implements Logging
 	}
 
 	/**
-	 * Get the filter type of an single filter CCD instrument (e.g. IO:O), from the TEA's filter map.
+	 * Get the filter type of an single filter instrument (e.g. Moptop), from the TEA's filter map.
 	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the filter map from.
 	 * @param instrumentId The id of the instrument to get the gilter mapping from.
-	 * @param rtmlFilterType A string respresenting an single filter type, e.g. '?'.
+	 * @param rtmlFilterType A string respresenting an single filter type, e.g. 'R'.
 	 * @return A String containing the filter type of the filter in the wheel for this config
-	 *         e.g. '????'.
+	 *         e.g. 'MOP-R'.
 	 * @exception Exception Thrown if the filter mapping is not found in the filter map.
 	 * @see TelescopeEmbeddedAgent
 	 * @see TelescopeEmbeddedAgent#getFilterMap
 	 */
-	public static String getCCDSingleFilterType(TelescopeEmbeddedAgent tea,String instrumentId,
-						    String rtmlFilterType)
-                throws Exception
+	public static String getSingleFilterType(TelescopeEmbeddedAgent tea,String instrumentId,
+						    String rtmlFilterType) throws Exception
 	{
 		ConfigurationProperties filterMap = null;
 		String valueString = null;
@@ -668,7 +722,7 @@ public class DeviceInstrumentUtilites implements Logging
 		filterMap = tea.getFilterMap();
 		valueString = filterMap.getProperty("filter."+instrumentId+"."+rtmlFilterType);
 		if(valueString == null)
-			throw new Exception("DeviceInstrumentUtilites:getCCDSingleFilterType:RTML filter type "+
+			throw new Exception("DeviceInstrumentUtilites:getSingleFilterType:RTML filter type "+
 					    rtmlFilterType+" returned null value when using key:filter."+instrumentId+
 					    "."+rtmlFilterType);
 		return valueString;
@@ -755,33 +809,6 @@ public class DeviceInstrumentUtilites implements Logging
 			throw new Exception("DeviceInstrumentUtilites:getCCDIndexFilterType:RTML filter type "+
 					    rtmlFilterType+" returned null value when using key:filter."+
 					    instrumentId+"."+index+"."+rtmlFilterType);
-		return valueString;
-	}
-
-	/**
-	 * Get the filter type of a IRCAM instrument, from the TEA's filter map.
-	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the filter map from.
-	 * @param instrumentId The id of the instrument to get the gilter mapping from.
-	 * @param rtmlFilterType A string respresenting an IRCAM filter type, e.g. 'J'.
-	 * @return A String containing the IRCamConfig filter type of the filter in the wheel for this config
-	 *         e.g. 'Barr-J'.
-	 * @exception Exception Thrown if the filter mapping is not found in the filter map.
-	 * @see TelescopeEmbeddedAgent
-	 * @see TelescopeEmbeddedAgent#getFilterMap
-	 * @see #INSTRUMENT_TYPE_IRCAM_STRING
-	 */
-	public static String getIRCamFilterType(TelescopeEmbeddedAgent tea,String instrumentId,String rtmlFilterType) 
-		throws Exception
-	{
-		ConfigurationProperties filterMap = null;
-		String valueString = null;
-
-		filterMap = tea.getFilterMap();
-		valueString = filterMap.getProperty("filter."+instrumentId+"."+rtmlFilterType);
-		if(valueString == null)
-			throw new Exception("DeviceInstrumentUtilites:getIRCamFilterType:RTML filter type "+
-					    rtmlFilterType+" returned null value when using key:filter."+instrumentId+
-					    "."+rtmlFilterType);
 		return valueString;
 	}
 
@@ -879,7 +906,52 @@ public class DeviceInstrumentUtilites implements Logging
 		}
 		return gain;
 	}
-
+	
+	/**
+	 * Get the rotor speed specified in the specified device.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the instrument properties from.
+	 * @param instrumentType Which sort of instrument we are getting the rotorSpeed for.
+	 * @param instrumentId The id of the instrument to get the default rotorSpeed from, if needed.
+	 * @param device The RTML device instance. 
+	 * @return An string representing the rotor speed to use for this instrument. This should be one of "slow"
+	 *         or "fast".
+	 * @see org.estar.rtml.RTMLDevice#getHalfWavePlate
+	 * @throws NullPointerException Thrown if the rotorSpeed in the half-wave plate data is null, or the default
+	 *         rotor speed for the instrument is null.
+	 */
+	public static String getInstrumentRotorSpeed(TelescopeEmbeddedAgent tea,int instrumentType,String instrumentId,
+						     RTMLDevice device) throws NullPointerException
+	{
+		RTMLHalfWavePlate halfWavePlate = null;
+		boolean useDefaultRotorSpeed;
+		String rotorSpeed = null;
+		
+		useDefaultRotorSpeed = true;
+		if(device.getHalfWavePlate() != null)
+		{
+			halfWavePlate = device.getHalfWavePlate();
+			rotorSpeed = halfWavePlate.rotorSpeedToString();
+			if(rotorSpeed == null)
+			{
+				throw new NullPointerException(this.getClass().getName()+
+					      ":getInstrumentRotorSpeed:Found half-wave plate but rotor speed was NULL.");
+			}
+			useDefaultRotorSpeed = false;
+		}
+		if(useDefaultRotorSpeed)
+		{
+			rotorSpeed = tea.getProperty("instrument."+instrumentId+".rotator_speed.default");
+			if(rotorSpeed == null)
+			{
+				throw new NullPointerException(this.getClass().getName()+
+					      ":getInstrumentRotorSpeed:Default rotor speed was null using key:instrument."+
+					      instrumentId+".rotator_speed.default");
+			}
+		}
+		return rotorSpeed;
+	}
+	
+	
 	/**
 	 * Get the name of the type of instrument the specifed device represents.
 	 * @param device The RTMLDevice to parse.
