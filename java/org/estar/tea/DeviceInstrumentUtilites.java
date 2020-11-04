@@ -933,18 +933,18 @@ public class DeviceInstrumentUtilites implements Logging
 			rotorSpeed = halfWavePlate.rotorSpeedToString();
 			if(rotorSpeed == null)
 			{
-				throw new NullPointerException(this.getClass().getName()+
+				throw new NullPointerException(DeviceInstrumentUtilites.class.getName()+
 					      ":getInstrumentRotorSpeed:Found half-wave plate but rotor speed was NULL.");
 			}
 			useDefaultRotorSpeed = false;
 		}
 		if(useDefaultRotorSpeed)
 		{
-			rotorSpeed = tea.getProperty("instrument."+instrumentId+".rotator_speed.default");
+			rotorSpeed = tea.getPropertyString("instrument."+instrumentId+".rotator_speed.default");
 			if(rotorSpeed == null)
 			{
-				throw new NullPointerException(this.getClass().getName()+
-					      ":getInstrumentRotorSpeed:Default rotor speed was null using key:instrument."+
+				throw new NullPointerException(DeviceInstrumentUtilites.class.getName()+
+					":getInstrumentRotorSpeed:Default rotor speed was null using key:instrument."+
 					      instrumentId+".rotator_speed.default");
 			}
 		}
