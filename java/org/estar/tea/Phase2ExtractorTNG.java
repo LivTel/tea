@@ -25,6 +25,7 @@ import ngat.phase2.InstrumentConfig;
 import ngat.phase2.LowResSpecConfig;
 import ngat.phase2.OConfig;
 import ngat.phase2.PolarimeterConfig;
+import ngat.phase2.MOPTOPPolarimeterConfig;
 import ngat.phase2.RISEConfig;
 import ngat.phase2.SpratConfig;
 import ngat.phase2.THORConfig;
@@ -52,7 +53,9 @@ import ngat.phase2.XIteratorRepeatCountCondition;
 import ngat.phase2.XLampDef;
 import ngat.phase2.XMinimumIntervalTimingConstraint;
 import ngat.phase2.XMonitorTimingConstraint;
+import ngat.phase2.XMoptopInstrumentConfig;
 import ngat.phase2.XMultipleExposure;
+import ngat.phase2.XPeriodExposure;
 import ngat.phase2.XPhotometricityConstraint;
 import ngat.phase2.XPolarimeterInstrumentConfig;
 import ngat.phase2.XPositionOffset;
@@ -508,14 +511,16 @@ public class Phase2ExtractorTNG implements Logging {
 		// Tag/User ID combo is what we expect here.
 		RTMLContact contact = document.getContact();
 
-		if (contact == null) {
+		if (contact == null)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML Contact was not specified, failing request.");
 			throw new IllegalArgumentException("No contact was supplied");
 		}
 
 		String userId = contact.getUser();
 
-		if (userId == null) {
+		if (userId == null)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML Contact User was not specified, failing request.");
 			throw new IllegalArgumentException("Your User ID was null");
 		}
@@ -525,7 +530,8 @@ public class Phase2ExtractorTNG implements Logging {
 		RTMLProject project = document.getProject();
 		String proposalId = project.getProject();
 
-		if (proposalId == null) {
+		if (proposalId == null)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML Project was not specified, failing request.");
 			throw new IllegalArgumentException("Your Project ID was null");
 		}
@@ -554,7 +560,8 @@ public class Phase2ExtractorTNG implements Logging {
 		// depending on RTML version
 
 		String requestId = document.getUId();
-		if (requestId == null) {
+		if (requestId == null)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML request ID was not specified, failing request.");
 			throw new IllegalArgumentException("Your Request ID was null");
 		}
@@ -568,19 +575,22 @@ public class Phase2ExtractorTNG implements Logging {
 
 		double seeing = RequestDocumentHandler.DEFAULT_SEEING_CONSTRAINT; // 2.0
 		RTMLSeeingConstraint sc = master.getSeeingConstraint();
-		if (sc != null) {
+		if (sc != null)
+		{
 			seeing = sc.getMaximum();
 		}
 
 		double maxair = 2.0;
 		RTMLAirmassConstraint airc = master.getAirmassConstraint();
-		if (airc != null) {
+		if (airc != null)
+		{
 			maxair = airc.getMaximum();
 		}
 
 		boolean photom = false;
 		RTMLExtinctionConstraint extinct = master.getExtinctionConstraint();
-		if (extinct != null) {
+		if (extinct != null)
+		{
 			photom = extinct.isPhotometric();
 		}
 
@@ -594,26 +604,32 @@ public class Phase2ExtractorTNG implements Logging {
 		Date startDate = null;
 		Date endDate = null;
 
-		if (scon == null) {
+		if (scon == null)
+		{
 			// No SC supplied => FlexGroup.
 			count = 1;
-		} else {
-
+		}
+		else
+		{
 			// SC supplied => MonitorGroup.
 			count = scon.getCount();
 			RTMLPeriodFormat pf = scon.getInterval();
 			RTMLPeriodFormat tf = scon.getTolerance();
 
 			// No Interval => Wobbly
-			if (pf == null) {
+			if (pf == null)
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						"RTML SeriesConstraint Interval not present, failing request.");
 				throw new IllegalArgumentException("No Interval was supplied");
-			} else {
+			}
+			else
+			{
 				period = pf.getMilliseconds();
 
 				// No Window => Default to 90% of interval.
-				if (tf == null) {
+				if (tf == null)
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 							"No tolerance supplied, Default window setting to 95% of Interval");
 					tf = new RTMLPeriodFormat();
@@ -622,19 +638,21 @@ public class Phase2ExtractorTNG implements Logging {
 				}
 			}
 			window = tf.getMilliseconds();
-			if (count < 1) {
+			if (count < 1)
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						"RTML SeriesConstraint Count was negative or zero, failing request.");
 				throw new IllegalArgumentException("RTML SeriesConstraint Count was negative or zero.");
 			}
-
-			if (period < 60000L) {
+			if (period < 60000L)
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						"RTML SeriesConstraint Interval is too short, failing request.");
 				throw new IllegalArgumentException("You have supplied a ludicrously short monitoring Interval:"+period+" ms.");
 			}
 
-			if ((window / period < 0.0) || (window / period > 1.0)) {
+			if ((window / period < 0.0) || (window / period > 1.0))
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML SeriesConstraint has an odd Window ("+window+" ms) or Period ("+period+" ms).");
 				throw new IllegalArgumentException("RTML SeriesConstraint has an odd Window ("+window+" ms) or Period ("+period+" ms).");
 			}
@@ -645,20 +663,23 @@ public class Phase2ExtractorTNG implements Logging {
 		endDate = master.getEndDate();
 
 		// FG and MG need an EndDate, No StartDate => Now.
-		if (startDate == null) {
+		if (startDate == null)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "Default start date setting to now");
 			startDate = new Date();
 			master.setStartDate(startDate);
 		}
 
 		// No End date => StartDate + 1 day (###this is MicroLens -specific).
-		if (endDate == null) {
+		if (endDate == null)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "Default end date setting to Start + 1 day");
 			endDate = new Date(startDate.getTime() + 24 * 3600 * 1000L);
 			master.setEndDate(endDate);
 		}
 		// Basic and incomplete sanity checks.
-		if (startDate.after(endDate)) {
+		if (startDate.after(endDate))
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML StartDate after EndDate, failing request.");
 			throw new IllegalArgumentException("Your StartDate and EndDate do not make sense.");
 		}
@@ -673,13 +694,16 @@ public class Phase2ExtractorTNG implements Logging {
 		group.setName(requestId);
 		group.setActive(true);
 
-		if (scon == null || count == 1) {
+		if (scon == null || count == 1)
+		{
 			// FlexGroup
 			XFlexibleTimingConstraint timing = new XFlexibleTimingConstraint();
 			timing.setActivationDate(startDate.getTime());
 			timing.setExpiryDate(endDate.getTime());
 			group.setTimingConstraint(timing);
-		} else {
+		}
+		else
+		{
 
 			// if (count == 0) {
 			// A MonitorGroup.
@@ -735,12 +759,14 @@ public class Phase2ExtractorTNG implements Logging {
 		XSeeingConstraint xsee = new XSeeingConstraint(seeing);
 		group.addObservingConstraint(xsee);
 
-		if (airc != null) {
+		if (airc != null)
+		{
 			XAirmassConstraint xair = new XAirmassConstraint(maxair);
 			group.addObservingConstraint(xair);
 		}
 
-		if (photom) {
+		if (photom)
+		{
 			int extinctionLevel = XPhotometricityConstraint.PHOTOMETRIC;
 			XPhotometricityConstraint xphot = new XPhotometricityConstraint(extinctionLevel, 1.0);
 			group.addObservingConstraint(xphot);
@@ -764,17 +790,20 @@ public class Phase2ExtractorTNG implements Logging {
 		String useAlignmentInstrument = null;
 		boolean hasFrodoObs = false;
 		boolean hasSpratObs = false;
-
-		for (int iobsa = 0; iobsa < nobs; iobsa++) {
+		boolean currentConfigIsMoptop = false;
+		
+		for (int iobsa = 0; iobsa < nobs; iobsa++)
+		{
 
 			RTMLObservation obs = document.getObservation(iobsa);
 			RTMLDevice rtmlDevice = obs.getDevice();
 			if (rtmlDevice == null)
 				rtmlDevice = document.getDevice();
 
-			if (rtmlDevice != null) {
-
-				try {
+			if (rtmlDevice != null)
+			{
+				try
+				{
 					InstrumentConfig config = DeviceInstrumentUtilites.getInstrumentConfig(tea, rtmlDevice);
 					XInstrumentConfig newConfig = translateToNewStyleConfig(config);
 
@@ -791,13 +820,14 @@ public class Phase2ExtractorTNG implements Logging {
 					// TODO note we should use first not LAST !
 					useAlignmentInstrument = instName;
 
-				} catch (Exception e) {
+				}
+				catch (Exception e)
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup", 
 						   "Error determining alignment instrument");
 				}
-			}
-
-		}
+			}// end if rtmlDevice
+		}// end for over nobs (first pass)
 
 		// It is difficult to determine how to switch targets, or switch instruments to/from Sprat
 		// Therefore only allow 1 Sprat multrun per RTML request
@@ -830,7 +860,6 @@ public class Phase2ExtractorTNG implements Logging {
 
 		for (int iobs = 0; iobs < nobs; iobs++) 
 		{
-
 			RTMLObservation obs = document.getObservation(iobs);
 
 			// Extract params
@@ -864,9 +893,12 @@ public class Phase2ExtractorTNG implements Logging {
 
 			// check to see if we should be autoguiding, we may be anyway..
 			long maxUnguidedExposureLength = DEFAULT_MAXIMUM_UNGUIDED_EXPOSURE;
-			try {
+			try
+			{
 				maxUnguidedExposureLength = tea.getPropertyLong("maximum.unguided.exposure.length");
-			} catch (Exception ee) {
+			}
+			catch (Exception ee)
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						"There was a problem locating the property: maximum.unguided.exposure.length");
 			}
@@ -935,10 +967,12 @@ public class Phase2ExtractorTNG implements Logging {
 			lastRaOffset = raOffset;
 			lastDecOffset = decOffset;
 
-			if (!sameTargetAsLast) {
+			if (!sameTargetAsLast)
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup","Switching target");
 
-				if (!knownTarget) {
+				if (!knownTarget)
+				{
 					// if we dont know about it then create it and add to our
 					// records.
 					long tid = phase2.addTarget(program.getID(), star);
@@ -956,7 +990,8 @@ public class Phase2ExtractorTNG implements Logging {
 
 			// Extract filter info.
 			RTMLDevice rtmlDevice = obs.getDevice();
-			String filter = null;
+			if (rtmlDevice == null)
+				rtmlDevice = document.getDevice();
 
 			// make up the IC - we dont have enough info to do this from
 			// filtermap...
@@ -964,22 +999,31 @@ public class Phase2ExtractorTNG implements Logging {
 			XInstrumentConfig newConfig = null;
 			String configId = null;
 
-			if (rtmlDevice == null)
-				rtmlDevice = document.getDevice();
 
 			if (rtmlDevice != null) 
 			{
-
-				try {
+				try
+				{
 					config = DeviceInstrumentUtilites.getInstrumentConfig(tea, rtmlDevice);
 					newConfig = translateToNewStyleConfig(config);
 					configId = config.getName();
-				} catch (Exception e) {
+					// Is the current config a MOPTOP one?
+					String instName = newConfig.getInstrumentName().toUpperCase();
+					if(instName.equals("MOPTOP"))
+						currentConfigIsMoptop = true;
+					else
+						currentConfigIsMoptop = false;
+					logger.log(INFO, 1, CLASS, cid, "extractGroup",
+						   "currentConfigIsMoptop =  "+currentConfigIsMoptop);
+				}
+				catch (Exception e)
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup", "Device configuration error: " + e);
 					throw new IllegalArgumentException("Device configuration error: " + e);
 				}
-
-			} else {
+			}
+			else
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML Device not present");
 				throw new IllegalArgumentException("Device not set");
 			}
@@ -1006,17 +1050,18 @@ public class Phase2ExtractorTNG implements Logging {
 			// is this a known config ? If not we will need to create it in
 			// program
 			boolean knownConfig = false;
-			if (programConfigs.containsKey(config.getName())) {
+			if (programConfigs.containsKey(config.getName()))
+			{
 				knownConfig = true;
 				newConfig = (XInstrumentConfig) programConfigs.get(config.getName());
 			}
 
-			if (!sameConfigAsLast) {
-
+			if (!sameConfigAsLast)
+			{
 				// switching config
 				logger.log(INFO, 1, CLASS, cid, "extractGroup","Switching config - and maybe instrument");
-
-				if (!knownConfig) {
+				if (!knownConfig)
+				{
 					// if we dont know about it then create it and add to our
 					// records.
 					long ccid = phase2.addInstrumentConfig(program.getID(), newConfig);
@@ -1025,7 +1070,6 @@ public class Phase2ExtractorTNG implements Logging {
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						   "Config successfully added to program: " + newConfig);
 				}
-
 			}
 			lastConfig = newConfig;
 
@@ -1033,13 +1077,16 @@ public class Phase2ExtractorTNG implements Logging {
 			// 3. handle exposure
 			// -----------------------
 
-			if (expt < 1000.0) {
+			if (expt < 1000.0)
+			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup",
 					   "Exposure time is too short, failing request.");
 				throw new IllegalArgumentException("Your Exposure time is too short.");
 			}
 
-			if (expCount < 1) 
+			// We need to do at least one exposure, unless this is a moptop observation
+			// which is a special case.
+			if ((expCount < 1) && (currentConfigIsMoptop == false))
 			{
 				logger.log(INFO, 1, CLASS, cid, "extractGroup",
 					   "Exposure Count is less than 1, failing request.");
@@ -1080,6 +1127,12 @@ public class Phase2ExtractorTNG implements Logging {
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						   "We have Sprat observations, so slewing with rotator aligned to mount angle 11.0"); 
 					xrot = new XRotatorConfig(IRotatorConfig.MOUNT, SPRAT_MOUNT_ANGLE_RADS, useAlignmentInstrument);
+				}
+				else if(currentConfigIsMoptop)
+				{
+					logger.log(INFO, 1, CLASS, cid, "extractGroup",
+						   "Current config is a Moptop one, so slewing with rotator aligned to mount angle 0.0"); 
+					xrot = new XRotatorConfig(IRotatorConfig.MOUNT, 0.0, useAlignmentInstrument);
 				}
 				else
 				{
@@ -1301,7 +1354,13 @@ public class Phase2ExtractorTNG implements Logging {
 					else
 						blueArm.addElement(exMult);
 
-				} 
+				}
+				else if(currentConfigIsMoptop)
+				{
+					XPeriodExposure xPeriodExposure = new XPeriodExposure(expose);
+					XExecutiveComponent exMult = new XExecutiveComponent("0", xPeriodExposure);
+					root.addElement(exMult);
+				}
 				else 
 				{
 					XMultipleExposure xMult = new XMultipleExposure(expose, mult);
@@ -1318,10 +1377,9 @@ public class Phase2ExtractorTNG implements Logging {
 					XExecutiveComponent exArc = new XExecutiveComponent("xe_arc", arc);
 					root.addElement(exArc); // Xe arc
 				}
-			} 
+			} // end if first observation
 			else 
 			{
-
 				// NOT the first obs but a subsequent one
 
 				// any instrument or telescope changes - autooff (if on)
@@ -1336,7 +1394,8 @@ public class Phase2ExtractorTNG implements Logging {
 					isGuiding = false; // We are not guiding now
 				}
 				// change of instrument
-				if (!sameInstrumentAsLast) {
+				if (!sameInstrumentAsLast)
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						   "NOT first obs:Change of instrument.");
 					XAcquisitionConfig xAcq = new XAcquisitionConfig(IAcquisitionConfig.INSTRUMENT_CHANGE);
@@ -1346,15 +1405,29 @@ public class Phase2ExtractorTNG implements Logging {
 				}
 
 				// change of target - allow a rotate change
-				if (!sameTargetAsLast) {
+				if (!sameTargetAsLast)
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup","NOT first obs:Change of target.");
 					// XTargetSelector xtc = new XTargetSelector(star);
 					// no parent target as its a one-off, not a clone
 					// XExecutiveComponent extc = new
 					// XExecutiveComponent("Target-" + targetId, xtc);
 					// root.addElement(extc);
-
-					XRotatorConfig xrot = new XRotatorConfig(IRotatorConfig.CARDINAL, 0.0, RATCAM_INSTRUMENT);
+					XRotatorConfig xrot = null;
+					if(currentConfigIsMoptop)
+					{
+						logger.log(INFO, 1, CLASS, cid, "extractGroup",
+							   "Current config is a Moptop one, so slewing with rotator aligned to mount angle 0.0"); 
+						xrot = new XRotatorConfig(IRotatorConfig.MOUNT, 0.0,
+									  useAlignmentInstrument);
+					}
+					else
+					{
+						logger.log(INFO, 1, CLASS, cid, "extractGroup",
+						   "Slewing with rotator aligned to:"+useAlignmentInstrument); 
+						xrot = new XRotatorConfig(IRotatorConfig.CARDINAL, 0.0,
+									  useAlignmentInstrument);
+					}
 					// XExecutiveComponent exrot = new
 					// XExecutiveComponent("Rotate-Cardinal", xrot);
 					// root.addElement(exrot);
@@ -1365,7 +1438,8 @@ public class Phase2ExtractorTNG implements Logging {
 					root.addElement(exslew);
 
 					// we have changed target, is there ANY offset at all
-					if (hasOffset) {
+					if (hasOffset)
+					{
 						logger.log(INFO, 1, CLASS, cid, "extractGroup","Offsetting");
 						XPositionOffset xpoff = new XPositionOffset(false, raOffset, decOffset);
 						XExecutiveComponent expoff = new XExecutiveComponent("Offset-(" + raOffsetArcs + ","
@@ -1382,7 +1456,8 @@ public class Phase2ExtractorTNG implements Logging {
 				}
 
 				// offset
-				if (sameTargetButOffset) {
+				if (sameTargetButOffset)
+				{
 					// offset
 					logger.log(INFO, 1, CLASS, cid, "extractGroup","NOT first obs:Offsetting");
 					XPositionOffset xpoff = new XPositionOffset(false, raOffset, decOffset);
@@ -1398,19 +1473,23 @@ public class Phase2ExtractorTNG implements Logging {
 
 				}
 
-				if (hasFrodoObs) {
+				if (hasFrodoObs)
+				{
 					// for frodo we dont care if its same or not its too
 					// blinking difficult
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						   "NOT first obs:Handling another frodo config: "+newConfig.getInstrumentName());
 
-					if (newConfig.getInstrumentName().equalsIgnoreCase("FRODO_RED")) {
+					if (newConfig.getInstrumentName().equalsIgnoreCase("FRODO_RED"))
+					{
 						usingredarm = true;
 						logger.log(INFO, 1, CLASS, cid, "extractGroup", "Config will go in BLUE arm");
 						XInstrumentConfigSelector xinst = new XInstrumentConfigSelector(newConfig);
 						XExecutiveComponent exinst = new XExecutiveComponent("Config-" + configId, xinst);
 						redArm.addElement(exinst);
-					} else if (newConfig.getInstrumentName().equalsIgnoreCase("FRODO_BLUE")) {
+					}
+					else if (newConfig.getInstrumentName().equalsIgnoreCase("FRODO_BLUE"))
+					{
 						usingbluearm = true;
 						logger.log(INFO, 1, CLASS, cid, "extractGroup", "Config will go in BLUE arm");
 						XInstrumentConfigSelector xinst = new XInstrumentConfigSelector(newConfig);
@@ -1418,10 +1497,13 @@ public class Phase2ExtractorTNG implements Logging {
 						blueArm.addElement(exinst);
 					}
 
-				} else {
+				}
+				else
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						   "Handling non-frodo config: " + newConfig.getInstrumentName());
-					if (!sameConfigAsLast) {
+					if (!sameConfigAsLast)
+					{
 						XInstrumentConfigSelector xinst = new XInstrumentConfigSelector(newConfig);
 						XExecutiveComponent exinst = new XExecutiveComponent("Config-" + configId, xinst);
 						root.addElement(exinst);
@@ -1429,7 +1511,8 @@ public class Phase2ExtractorTNG implements Logging {
 				}
 
 				// do we AG ON ?
-				if (shouldBeGuiding && (!isGuiding)) {
+				if (shouldBeGuiding && (!isGuiding))
+				{
 					logger.log(INFO, 1, CLASS, cid, "extractGroup",
 						   "NOT first obs:Adding another autoguider ON.");
 					IAutoguiderConfig xAutoOn = new XAutoguiderConfig(IAutoguiderConfig.ON_IF_AVAILABLE, "AutoOn");
@@ -1439,26 +1522,32 @@ public class Phase2ExtractorTNG implements Logging {
 				}
 
 				// setup exposure
-				if (hasFrodoObs) {
+				if (hasFrodoObs)
+				{
 					XMultipleExposure xMult = new XMultipleExposure(expose, mult);
 					XExecutiveComponent exMult = new XExecutiveComponent("0", xMult);
 					if (usingredarm)
 						redArm.addElement(exMult);
 					else
 						blueArm.addElement(exMult);
-
-				} else {
+				}
+				else if(currentConfigIsMoptop)
+				{
+					XPeriodExposure xPeriodExposure = new XPeriodExposure(expose);
+					XExecutiveComponent exMult = new XExecutiveComponent("0", xPeriodExposure);
+					root.addElement(exMult);
+				}
+				else
+				{
 					XMultipleExposure xMult = new XMultipleExposure(expose, mult);
 					XExecutiveComponent exMult = new XExecutiveComponent("0", xMult);
 					root.addElement(exMult);
 				}
-
 			} // not first obs
-
 		} // next observation
-
 		// finally off the guider if its on
-		if (isGuiding) {
+		if (isGuiding)
+		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup","Turning autoguider off at end of group.");
 			IAutoguiderConfig xAutoOff = new XAutoguiderConfig(IAutoguiderConfig.OFF, "AutoOff");
 			XExecutiveComponent eXAutoOff = new XExecutiveComponent("AutoOff", xAutoOff);
@@ -1486,17 +1575,21 @@ public class Phase2ExtractorTNG implements Logging {
 
 	} // [extractGroup]
 
-	private int getSkyBrightnessFromConstraints(RTMLSchedule master) {
+	private int getSkyBrightnessFromConstraints(RTMLSchedule master)
+	{
 
 		RTMLSkyConstraint skyc = master.getSkyConstraint();
-		if (skyc != null) {
+		if (skyc != null)
+		{
 
 			// TODO could be new SKY_B values
-			if (skyc.getUseValue()) {
+			if (skyc.getUseValue())
+			{
 				double maxSky = skyc.getValue();
 				return SkyBrightnessCalculator.getSkyBrightnessCategory(maxSky);
-			} else {
-
+			}
+			else
+			{
 				double mld = Math.toRadians(30.0);
 				RTMLMoonConstraint mc = master.getMoonConstraint();
 				if (mc != null)
@@ -1510,7 +1603,6 @@ public class Phase2ExtractorTNG implements Logging {
 					return XSkyBrightnessConstraint.MAG_1P5;
 				else
 					return XSkyBrightnessConstraint.MAG_4;
-
 			}
 
 		}
@@ -1530,8 +1622,8 @@ public class Phase2ExtractorTNG implements Logging {
 	 *                identical.
 	 * @see #equalsOrNull
 	 */
-	private RTMLSchedule getUnifiedConstraints(RTMLDocument document) throws IllegalArgumentException {
-
+	private RTMLSchedule getUnifiedConstraints(RTMLDocument document) throws IllegalArgumentException
+	{
 		RTMLSeriesConstraint masterSeries, currentSeries;
 		RTMLMoonConstraint masterMoon, currentMoon;
 		RTMLSeeingConstraint masterSeeing, currentSeeing;
@@ -1549,7 +1641,8 @@ public class Phase2ExtractorTNG implements Logging {
 			return null;
 		// #0 will be our master...
 		master = document.getObservation(0).getSchedule();
-		if (master == null) {
+		if (master == null)
+		{
 			masterStartDate = null;
 			masterEndDate = null;
 			masterSeries = null;
@@ -1559,7 +1652,9 @@ public class Phase2ExtractorTNG implements Logging {
 			masterAir = null;
 			masterExtinct = null;
 			masterPriority = -1;
-		} else {
+		}
+		else
+		{
 			masterStartDate = master.getStartDate();
 			masterEndDate = master.getEndDate();
 			masterSeries = master.getSeriesConstraint();
@@ -1570,10 +1665,12 @@ public class Phase2ExtractorTNG implements Logging {
 			masterExtinct = master.getExtinctionConstraint();
 			masterPriority = master.getPriority();
 		}
-		for (int iobs = 1; iobs < nobs; iobs++) {
+		for (int iobs = 1; iobs < nobs; iobs++)
+		{
 			RTMLObservation obs = document.getObservation(iobs);
 			RTMLSchedule sched = obs.getSchedule();
-			if (sched == null) {
+			if (sched == null)
+			{
 				currentSeries = null;
 				currentMoon = null;
 				currentSeeing = null;
@@ -1583,7 +1680,9 @@ public class Phase2ExtractorTNG implements Logging {
 				currentStartDate = null;
 				currentEndDate = null;
 				currentPriority = -1;
-			} else {
+			}
+			else
+			{
 				currentSeries = sched.getSeriesConstraint();
 				currentMoon = sched.getMoonConstraint();
 				currentSeeing = sched.getSeeingConstraint();
@@ -1642,7 +1741,8 @@ public class Phase2ExtractorTNG implements Logging {
 	 * @return true if both objects are equals according to this method's rules,
 	 *         false otherwise.
 	 */
-	protected boolean equalsOrNull(Object o1, Object o2) {
+	protected boolean equalsOrNull(Object o1, Object o2)
+	{
 		// if both are null they are the same
 		if ((o1 == null) && (o2 == null))
 			return true;
@@ -1653,7 +1753,14 @@ public class Phase2ExtractorTNG implements Logging {
 		return o1.equals(o2);
 	}
 
-	private XInstrumentConfig translateToNewStyleConfig(InstrumentConfig config) throws Exception {
+	/**
+	 * Convert an old style ngat.phase2.InstrumentConfig to a new ngat.phase2.XInstrumentConfig
+	 * @param InstrumentConfig The old style ngat.phase2.InstrumentConfig.
+	 * @return The new style XInstrumentConfig.
+	 * @exception Exception Thrown when a problem occurs.
+	 */
+	private XInstrumentConfig translateToNewStyleConfig(InstrumentConfig config) throws Exception
+	{
 
 		Detector detector = config.getDetector(0);
 		int xbin = detector.getXBin();
@@ -1667,16 +1774,19 @@ public class Phase2ExtractorTNG implements Logging {
 		xdet.setYBin(ybin);
 
 		// add windows???
-		for (int iw = 0; iw < windows.length; iw++) {
+		for (int iw = 0; iw < windows.length; iw++)
+		{
 			Window w = windows[iw];
-			if (w != null) {
+			if (w != null)
+			{
 				XWindow xw = new XWindow(w.getXs(), w.getYs(), w.getWidth(), w.getHeight());
 				xdet.addWindow(xw);
 				System.err.println("Add window: " + xw);
 			}
 		}
 
-		if (config instanceof CCDConfig) {
+		if (config instanceof CCDConfig)
+		{
 			CCDConfig ccdConfig = (CCDConfig) config;
 			String filters = ccdConfig.getLowerFilterWheel() + "/" + ccdConfig.getUpperFilterWheel();
 
@@ -1690,7 +1800,9 @@ public class Phase2ExtractorTNG implements Logging {
 			xim.setInstrumentName("RATCAM");
 			return xim;
 
-		} else if (config instanceof OConfig) {
+		}
+		else if (config instanceof OConfig)
+		{
 			OConfig oConfig = (OConfig) config;
 			StringBuffer filterStringBuffer = new StringBuffer();
 
@@ -1705,7 +1817,9 @@ public class Phase2ExtractorTNG implements Logging {
 			xim.setInstrumentName("IO:O");
 			return xim;
 
-		} else if (config instanceof IRCamConfig) {
+		}
+		else if (config instanceof IRCamConfig)
+		{
 			IRCamConfig irCamConfig = (IRCamConfig) config;
 			String filters = irCamConfig.getFilterWheel();
 			XFilterSpec filterSpec = new XFilterSpec();
@@ -1727,7 +1841,9 @@ public class Phase2ExtractorTNG implements Logging {
 			xspec.setInstrumentName("MEABURN");
 			return xspec;
 
-		} else if (config instanceof FrodoSpecConfig) {
+		}
+		else if (config instanceof FrodoSpecConfig)
+		{
 			// this isnt going to work yet anyway, we need some sort of
 			// branching effort in the RTML !
 			FrodoSpecConfig frodoSpecConfig = (FrodoSpecConfig) config;
@@ -1744,8 +1860,9 @@ public class Phase2ExtractorTNG implements Logging {
 				xdual.setInstrumentName("FRODO_BLUE");
 			return xdual;
 
-		} else if (config instanceof PolarimeterConfig) {
-
+		}
+		else if (config instanceof PolarimeterConfig)
+		{
 			PolarimeterConfig polarConfig = (PolarimeterConfig) config;
 
 			XPolarimeterInstrumentConfig xpolar = new XPolarimeterInstrumentConfig(config.getName());
@@ -1753,8 +1870,35 @@ public class Phase2ExtractorTNG implements Logging {
 			xpolar.setInstrumentName("RINGO2");
 			return xpolar;
 
-		} else if (config instanceof RISEConfig) {
+		}
+		else if (config instanceof MOPTOPPolarimeterConfig)
+		{
+			MOPTOPPolarimeterConfig moptopConfig = (MOPTOPPolarimeterConfig) config;
 
+			String filterName = moptopConfig.getFilterName();
+
+			XFilterSpec filterSpec = new XFilterSpec();
+			filterSpec.addFilter(new XFilterDef(filterName));
+
+			XMoptopInstrumentConfig	xMoptopConfig = new XMoptopInstrumentConfig(config.getName());
+			xMoptopConfig.setDetectorConfig(xdet);
+			xMoptopConfig.setInstrumentName("MOPTOP");
+			if(moptopConfig.getRotorSpeed() == MOPTOPPolarimeterConfig.ROTOR_SPEED_SLOW)
+				xMoptopConfig.setRotorSpeed(XMoptopInstrumentConfig.ROTOR_SPEED_SLOW);
+			else if(moptopConfig.getRotorSpeed() == MOPTOPPolarimeterConfig.ROTOR_SPEED_FAST)
+				xMoptopConfig.setRotorSpeed(XMoptopInstrumentConfig.ROTOR_SPEED_FAST);
+			else
+			{
+				throw new Exception(this.getClass().getName()+
+						    "translateToNewStyleConfig:MOPTOP config:"+
+						    moptopConfig.getName()+ " has illegal rotor speed "+
+						    moptopConfig.getRotorSpeed());
+			}
+			xMoptopConfig.setFilterSpec(filterSpec);
+			return xMoptopConfig;
+		}
+		else if (config instanceof RISEConfig)
+		{
 			RISEConfig riseConfig = (RISEConfig) config;
 
 			XImagerInstrumentConfig xim = new XImagerInstrumentConfig(config.getName());
@@ -1762,8 +1906,9 @@ public class Phase2ExtractorTNG implements Logging {
 			xim.setInstrumentName("RISE");
 			return xim;
 
-		} else if (config instanceof THORConfig) {
-
+		}
+		else if (config instanceof THORConfig)
+		{
 			THORConfig thorConfig = (THORConfig) config;
 			XFilterSpec filterSpec = new XFilterSpec();
 			XTipTiltImagerInstrumentConfig xim = new XTipTiltImagerInstrumentConfig(config.getName());
@@ -1773,14 +1918,16 @@ public class Phase2ExtractorTNG implements Logging {
 			xim.setInstrumentName("IO:THOR");
 			return xim;
 
-		} else if (config instanceof SpratConfig) {
-
+		}
+		else if (config instanceof SpratConfig)
+		{
 			SpratConfig spratConfig = (SpratConfig) config;
 
 			XImagingSpectrographInstrumentConfig xSlitImagingConfig = new XImagingSpectrographInstrumentConfig(
 					config.getName());
 
-			switch (spratConfig.getGrismPosition()) {
+			switch (spratConfig.getGrismPosition())
+			{
 			case SpratConfig.POSITION_IN:
 				xSlitImagingConfig
 						.setGrismPosition(XImagingSpectrographInstrumentConfig.GRISM_IN);
@@ -1791,7 +1938,8 @@ public class Phase2ExtractorTNG implements Logging {
 				break;
 			}
 
-			switch (spratConfig.getGrismRotation()) {
+			switch (spratConfig.getGrismRotation())
+			{
 			case 0:
 				xSlitImagingConfig
 						.setGrismRotation(XImagingSpectrographInstrumentConfig.GRISM_NOT_ROTATED); // i.e.
@@ -1804,7 +1952,8 @@ public class Phase2ExtractorTNG implements Logging {
 				break;
 			}
 
-			switch (spratConfig.getSlitPosition()) {
+			switch (spratConfig.getSlitPosition())
+			{
 			case SpratConfig.POSITION_IN:
 				xSlitImagingConfig
 						.setSlitPosition(XImagingSpectrographInstrumentConfig.SLIT_DEPLOYED);
@@ -1823,8 +1972,9 @@ public class Phase2ExtractorTNG implements Logging {
 			xSlitImagingConfig.setDetectorConfig(detectorConfig);
 
 			return xSlitImagingConfig;
-
-		} else {
+		}
+		else
+		{
 			throw new Exception("unknown instrument config:" + config.getClass().getName());
 		}
 
@@ -1836,8 +1986,8 @@ public class Phase2ExtractorTNG implements Logging {
 	 * @return An instance of XInstrumentConfig
 	 */
 	private XInstrumentConfig getSPRATSlitImageInstrumentConfig()
-			throws Exception {
-
+			throws Exception
+	{
 		XImagingSpectrographInstrumentConfig xSlitImagingConfig = new XImagingSpectrographInstrumentConfig(
 				"slit_image_config");
 		xSlitImagingConfig
@@ -1863,8 +2013,8 @@ public class Phase2ExtractorTNG implements Logging {
 	 * @return An instance of XInstrumentConfig
 	 */
 	private XInstrumentConfig getUserDefinedSpratCfg(String gratingName)
-			throws Exception {
-
+			throws Exception
+	{
 		XImagingSpectrographInstrumentConfig xSlitImagingConfig = new XImagingSpectrographInstrumentConfig(
 				"user_def_config");
 		xSlitImagingConfig
@@ -1872,13 +2022,17 @@ public class Phase2ExtractorTNG implements Logging {
 		xSlitImagingConfig
 				.setSlitPosition(XImagingSpectrographInstrumentConfig.SLIT_DEPLOYED);
 
-		if (gratingName == null) {
+		if (gratingName == null)
+		{
 			throw new IllegalArgumentException("Grating name is null");
 		}
 		int grismRotation;
-		if (gratingName.equalsIgnoreCase("red")) {
+		if (gratingName.equalsIgnoreCase("red"))
+		{
 			grismRotation = XImagingSpectrographInstrumentConfig.GRISM_NOT_ROTATED;
-		} else {
+		}
+		else
+		{
 			grismRotation = XImagingSpectrographInstrumentConfig.GRISM_ROTATED;
 		}
 
@@ -1893,6 +2047,4 @@ public class Phase2ExtractorTNG implements Logging {
 
 		return xSlitImagingConfig;
 	}
-
-
 }
