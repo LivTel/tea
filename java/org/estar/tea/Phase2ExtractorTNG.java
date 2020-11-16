@@ -864,7 +864,9 @@ public class Phase2ExtractorTNG implements Logging {
 
 			// Extract params
 			RTMLTarget target = obs.getTarget();
-
+			// If there is no per-observation target, get the default document target
+			if(target == null)
+				target = document.getTarget();
 			RA ra = target.getRA();
 			Dec dec = target.getDec();
 

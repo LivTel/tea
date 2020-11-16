@@ -427,6 +427,9 @@ public class TOCSessionManager implements Runnable, Logging
 		// check startDate and endDate are sensible?
 		// get target for position call
 		target = observation.getTarget();
+		// If there is no per-observation target, get the default document target
+		if(target == null)
+			target = d.getTarget();
 		if(target == null)
 		{
 			logger.log(INFO, 1, CLASS,
@@ -616,6 +619,9 @@ public class TOCSessionManager implements Runnable, Logging
 		// get target for position call
 		RTMLObservation observation = d.getObservation(0);
 		RTMLTarget target = observation.getTarget();
+		// If there is no per-observation target, get the default document target
+		if(target == null)
+			target = d.getTarget();
 		if (target == null) 
 		{
 			logger.log(INFO, 1, CLASS, "TOCSessionManager::scoreDocument:Target was null.");
@@ -1038,7 +1044,7 @@ public class TOCSessionManager implements Runnable, Logging
 	}
 
 	/** 
-	 * Do we need to autoguide? Try to turn on autoguider if exposure length less than 60s.
+	 * Do we need to autoguide? Try to turn on autoguider if exposure length greater than 60s.
 	 * @return true if we want to try and turn the autoguider on, false otherwise.
 	 * @exception NGATPropertyException Thrown if property retrieval fails.
 	 * @exception IllegalArgumentException Thrown if an error occurs.
@@ -1207,6 +1213,9 @@ public class TOCSessionManager implements Runnable, Logging
 		observation = document.getObservation(0);
 		// get target
 		target = observation.getTarget();
+		// If there is no per-observation target, get the default document target
+		if(target == null)
+			target = document.getTarget();
 		if(target == null)
 		{
 			throw new NullPointerException(this.getClass().getName()+
