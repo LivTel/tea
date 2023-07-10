@@ -1,3 +1,4 @@
+// TelescopeEmbeddedAgent.java
 package org.estar.tea;
 
 import java.io.*;
@@ -39,7 +40,8 @@ import ngat.message.OSS.*;
 /**
  * This class implements a Telescope Embedded Agent.
  */
-public class TelescopeEmbeddedAgent implements Logging {
+public class TelescopeEmbeddedAgent implements Logging
+{
 	// eSTARIOConnectionListener, Logging {
 
 	/**
@@ -340,8 +342,8 @@ public class TelescopeEmbeddedAgent implements Logging {
 	private IAccountModel accounts;
 
 	/** Create a TEA with the supplied ID. */
-	public TelescopeEmbeddedAgent(String id) {
-
+	public TelescopeEmbeddedAgent(String id)
+	{
 		sdf.setTimeZone(UTC);
 		iso8601.setTimeZone(UTC);
 
@@ -1799,133 +1801,19 @@ public class TelescopeEmbeddedAgent implements Logging {
 		String p2url = "rmi://" + p2host + "/Phase2Model";
 		setPhaseModelUrl(p2url);
 
-		String proplist = config.getProperty("proposal.list");
-		System.err.println("Proposal list = [" + proplist + "]");
-		List propNamesList = new Vector();
-		StringTokenizer st = new StringTokenizer(proplist, ",");
-		while (st.hasMoreTokens()) {
-			String propName = st.nextToken();
-			propNamesList.add(propName);
-			System.err.println("Confirmed proposal: " + propName);
+		// configure the proposal name list from proposal.list
+		String proplistString = config.getProperty("proposal.list");
+		traceLog.log(INFO, 1, CLASS, id, "configure","Proposal list = [" + proplistString + "]");
+		try
+		{
+			configureProposalMap(p2host,proplistString);
 		}
-
-		try {
-			IPhase2Model phase2 = (IPhase2Model) Naming.lookup("rmi://" + p2host + "/Phase2Model");
-			IAccessModel access = (IAccessModel) Naming.lookup("rmi://" + p2host + "/AccessModel");
-			IAccountModel accounts = (IAccountModel) Naming.lookup("rmi://" + p2host + "/ProposalAccountModel");
-
-			// load all proposals
-			List ulist = access.listUsers();
-			Iterator iu = ulist.iterator();
-
-			long now = System.currentTimeMillis();
-
-			while (iu.hasNext()) {
-
-				IUser user = (IUser) iu.next();
-				long uid = user.getID();
-				String name = user.getName();
-
-				System.err.println("User: " + (user != null ? user.getName() : "null_user"));
-
-				List alist = access.listAccessPermissionsOfUser(uid);
-				Iterator ia = alist.iterator();
-				while (ia.hasNext()) {
-
-					IAccessPermission accp = (IAccessPermission) ia.next();
-					System.err.println("LocateAccess: " + accp.getID());
-
-					long pid = accp.getProposalID();
-
-					ITag tag = phase2.getTagOfProposal(pid);
-					System.err.println("Get TAG of Prop: returned: " + tag);
-
-					if (tag == null)
-						continue;
-
-					IProposal proposal = phase2.getProposal(pid);
-					System.err.println("LocateProposal: " + proposal.getName());
-
-					if (propNamesList.contains(proposal.getName())) {
-						// this one is on the list
-
-						System.err.println("Checking proposal from list: " + proposal.getName());
-
-						ProposalInfo pinfo = new ProposalInfo(proposal);
-						IProgram program = phase2.getProgrammeOfProposal(proposal.getID());
-						pinfo.setProgram(program);
-
-						// now get a list of targets and configs
-
-						Map targets = new HashMap();
-						List targetList = phase2.listTargets(program.getID());
-						Iterator it = targetList.iterator();
-						while (it.hasNext()) {
-							ITarget target = (ITarget) it.next();
-							targets.put(target.getName(), target);
-						}
-						pinfo.setTargetMap(targets);
-
-						System.err.println("Proposal has: " + targets.size() + " targets");
-
-						Map configs = new HashMap();
-						List configList = phase2.listInstrumentConfigs(program.getID());
-						System.err.println("listInstrumentConfigs has returned " + configList.size() + " configs for program:"+program.getID());
-						Iterator ic = configList.iterator();
-						while (ic.hasNext()) {
-							IInstrumentConfig iconfig = (IInstrumentConfig) ic.next();
-							configs.put(iconfig.getName(), iconfig);
-						}
-						pinfo.setConfigMap(configs);
-
-						System.err.println("Proposal has: " + configs.size() + " configs");
-
-						// now get the account balance..
-
-						try {
-
-							System.err.println("Retrieving semester balances...");
-							ISemesterPeriod semList = accounts.getSemesterPeriodOfDate(System.currentTimeMillis());
-							ISemester sem1 = semList.getFirstSemester();
-							ISemester sem2 = semList.getSecondSemester();
-							System.err.println("Semester 1:"+sem1);
-							System.err.println("Semester 2:"+sem2);
-							double balance = 0.0;
-							if (sem1 != null) {
-								long semId1 = sem1.getID();
-								System.err.println("Semester 1 ID:"+semId1);
-								IAccount acc1 = accounts.findAccount(proposal.getID(), semId1);
-								System.err.println("Semester 1 account:"+acc1);
-								if(acc1 != null)
-									balance += acc1.getAllocated() - acc1.getConsumed();
-							}
-							if (sem2 != null) {
-								long semId2 = sem2.getID();
-								System.err.println("Semester2 ID:"+semId2);
-								IAccount acc2 = accounts.findAccount(proposal.getID(), semId2);
-								System.err.println("Semester 2 account:"+acc2);
-								if(acc2 != null)
-									balance += acc2.getAllocated() - acc2.getConsumed();
-							}
-
-							pinfo.setAccountBalance(balance);
-
-							System.err.println("Account balance: " + balance);
-						} catch (Exception ax) {
-							ax.printStackTrace();
-						}
-						// record the info
-						proposalMap.put(proposal.getName(), pinfo);
-
-					}
-
-				}
-			}
-
-		} catch (Exception e) {
-			throw new IllegalArgumentException(e);
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			throw new IllegalArgumentException(this.getClass().getName()+":configure:configureProposalMap failed:",e);
 		}
-
+		
 		String tpf = config.getProperty("tap.persistance.file", DEFAULT_TAP_PERSISTANCE_FILE_NAME);
 		File tpFile = new File(tpf);
 
@@ -1992,13 +1880,164 @@ public class TelescopeEmbeddedAgent implements Logging {
 
 	} // [Configure(ConfigProperties)]
 
+	/**
+	 * Create the proposalMap based on the list of RTML enabled proposals in the configuration file.
+	 * @param p2host The phase2 model host name, used to construct the phase2/access/accounts models RMI connections.
+	 * @param proplistString A string containing a comma separated list of RTML proposal names in the config file.
+	 * @see #proposalMap
+	 * @exception Exception Thrown if an error occurs.
+	 */
+	protected void configureProposalMap(String p2host, String proplistString) throws Exception
+	{
+		List propNamesList = null;
+		
+	        propNamesList = new Vector();
+		StringTokenizer st = new StringTokenizer(proplistString, ",");
+		while (st.hasMoreTokens())
+		{
+			String propName = st.nextToken();
+			propNamesList.add(propName);
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Confirmed proposal: " + propName);
+		}
+		// populate the proposalMap with a map of proposal names -> ProposalInfo instances (containing proposal information and target/config maps)
+		// based on the proposals listed in the propNamesList
+		IPhase2Model phase2 = (IPhase2Model) Naming.lookup("rmi://" + p2host + "/Phase2Model");
+		IAccessModel access = (IAccessModel) Naming.lookup("rmi://" + p2host + "/AccessModel");
+		IAccountModel accounts = (IAccountModel) Naming.lookup("rmi://" + p2host + "/ProposalAccountModel");
+
+		// load all proposals
+		List ulist = access.listUsers();
+		Iterator iu = ulist.iterator();
+
+		while (iu.hasNext())
+		{
+			IUser user = (IUser) iu.next();
+			long uid = user.getID();
+			String name = user.getName();
+			
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","User: " + (user != null ? user.getName() : "null_user"));
+
+			List alist = access.listAccessPermissionsOfUser(uid);
+			Iterator ia = alist.iterator();
+			while (ia.hasNext())
+			{
+				IAccessPermission accp = (IAccessPermission) ia.next();
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tLocateAccess: " + accp.getID());
+				
+				long pid = accp.getProposalID();
+				
+				ITag tag = phase2.getTagOfProposal(pid);
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tGet TAG of Prop: returned: " + tag);
+
+				if (tag == null)
+					continue;
+
+				IProposal proposal = phase2.getProposal(pid);
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tLocateProposal: " + proposal.getName());
+
+				if (propNamesList.contains(proposal.getName()))
+				{
+					// this one is on the list
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tUser: " +
+						     (user != null ? user.getName() : "null_user")+
+						     " has access to proposal: " + proposal.getName());
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tChecking proposal from list: " +
+						     proposal.getName());
+
+					ProposalInfo pinfo = new ProposalInfo(proposal);
+					IProgram program = phase2.getProgrammeOfProposal(proposal.getID());
+					pinfo.setProgram(program);
+
+					// now get a list of targets and configs
+					Map targets = new HashMap();
+					List targetList = phase2.listTargets(program.getID());
+					Iterator it = targetList.iterator();
+					while (it.hasNext())
+					{
+						ITarget target = (ITarget) it.next();
+						targets.put(target.getName(), target);
+					}
+					pinfo.setTargetMap(targets);
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tProposal has: " + targets.size() +
+						     " targets");
+
+					Map configs = new HashMap();
+					List configList = phase2.listInstrumentConfigs(program.getID());
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tlistInstrumentConfigs has returned "+
+						     configList.size() + " configs for program:"+program.getID());
+					Iterator ic = configList.iterator();
+					while (ic.hasNext())
+					{
+						IInstrumentConfig iconfig = (IInstrumentConfig) ic.next();
+						configs.put(iconfig.getName(), iconfig);
+					}
+					pinfo.setConfigMap(configs);
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tProposal has: " + configs.size() +
+						     " configs");
+					// now get the account balance..
+					try
+					{
+						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+							     "\t\tRetrieving semester balances...");
+						ISemesterPeriod semList = accounts.getSemesterPeriodOfDate(System.currentTimeMillis());
+						ISemester sem1 = semList.getFirstSemester();
+						ISemester sem2 = semList.getSecondSemester();
+						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tSemester 1:"+sem1);
+						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tSemester 2:"+sem2);
+						double balance = 0.0;
+						if (sem1 != null)
+						{
+							long semId1 = sem1.getID();
+							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+								     "\t\tSemester 1 ID:"+semId1);
+							IAccount acc1 = accounts.findAccount(proposal.getID(), semId1);
+							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+								     "\t\tSemester 1 account:"+acc1);
+							if(acc1 != null)
+								balance += acc1.getAllocated() - acc1.getConsumed();
+						}
+						if (sem2 != null)
+						{
+							long semId2 = sem2.getID();
+							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+								     "\t\tSemester2 ID:"+semId2);
+							IAccount acc2 = accounts.findAccount(proposal.getID(), semId2);
+							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+								     "\t\tSemester 2 account:"+acc2);
+							if(acc2 != null)
+								balance += acc2.getAllocated() - acc2.getConsumed();
+						}
+						pinfo.setAccountBalance(balance);
+						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tAccount balance: " + balance);
+					}
+					catch (Exception ax)
+					{
+						System.err.println(this.getClass().getName()+":configureProposalMap:Setting account balance failed:"+ax);
+						ax.printStackTrace();
+					}
+					// record the info
+					proposalMap.put(proposal.getName(), pinfo);
+				} // end if this proposal is an RTML-enabled proposal
+			}// iterate over user's access-permissions
+		}// interate over users
+		// Now log the completed proposalMap
+		Iterator pmi = proposalMap.keySet().iterator();
+		while (pmi.hasNext())
+		{
+			String key = (String)pmi.next();
+			ProposalInfo pi = (ProposalInfo) proposalMap.get(key);
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","proposalMap: "+key+" = "+pi);
+		 }
+		
+	}
+		     
 	/** Prints a message and usage instructions. */
-	private static void usage(String message) {
+	private static void usage(String message)
+	{
 		System.err.println("TEA initialization: " + message);
 		System.err.println("Usage: java -Djava.security.egd=<entropy-gathering-url> "
 				+ "\n -Dastrometry.impl=<astrometry-class> \\" + "\n [-DregisterHandler=true] "
 				+ "\n org.estar.tea.TelescopeEmbeddedAgent <id> <config-file> ");
-
 	}
 
 	/**
@@ -2014,7 +2053,8 @@ public class TelescopeEmbeddedAgent implements Logging {
 	 * <dd>RCS TOC Server: For TO control.
 	 * </dl>
 	 */
-	public ConnectionFactory getConnectionFactory() {
+	public ConnectionFactory getConnectionFactory()
+	{
 		return connectionFactory;
 	}
 
@@ -2022,7 +2062,8 @@ public class TelescopeEmbeddedAgent implements Logging {
 		return loadArqs;
 	}
 	
-	public Map getProposalMap() {
+	public Map getProposalMap()
+	{
 		return proposalMap;
 	}
 
@@ -2032,13 +2073,15 @@ public class TelescopeEmbeddedAgent implements Logging {
 	 * @throws Exception
 	 * @throws MalformedURLException
 	 */
-	public IPhase2Model getPhase2Model() throws Exception {
+	public IPhase2Model getPhase2Model() throws Exception
+	{
 
 		return (IPhase2Model) Naming.lookup(phase2ModelUrl);
 
 	}
 
-	private class TEAConnectionFactory implements ConnectionFactory {
+	private class TEAConnectionFactory implements ConnectionFactory
+	{
 
 		public IConnection createConnection(String connId) throws UnknownResourceException {
 
