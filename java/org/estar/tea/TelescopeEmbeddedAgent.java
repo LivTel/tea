@@ -1916,7 +1916,13 @@ public class TelescopeEmbeddedAgent implements Logging
 
 			// get the phase2 proposal
 			String proposalName = (String) propInterator.next();
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Trying to find Proposal: '"+proposalName+"'");
 			IProposal proposal = phase2.findProposal(proposalName);
+			if(proposal == null)
+			{
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","FAILED to find Proposal: "+proposalName);
+				continue;
+			}
 			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: " + proposal.getName());
 			
 			ProposalInfo proposalInfo = new ProposalInfo(proposal);
