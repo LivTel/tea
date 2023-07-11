@@ -1959,12 +1959,15 @@ public class TelescopeEmbeddedAgent implements Logging
 					}
 					pinfo.setTargetMap(targets);
 					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tProposal has: " + targets.size() +
-						     " targets");
+						     " targets for program:"+program.getName()+
+						     "("+program.getID()+")");
 
 					Map configs = new HashMap();
 					List configList = phase2.listInstrumentConfigs(program.getID());
-					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tlistInstrumentConfigs has returned "+
-						     configList.size() + " configs for program:"+program.getID());
+					traceLog.log(INFO, 1, CLASS, id,
+						     "configureProposalMap","\t\tlistInstrumentConfigs has returned "+
+						     configList.size() + " configs for program:"+program.getName()+
+						     "("+program.getID()+")");
 					Iterator ic = configList.iterator();
 					while (ic.hasNext())
 					{
