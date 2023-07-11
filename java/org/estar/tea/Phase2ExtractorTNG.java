@@ -545,9 +545,10 @@ public class Phase2ExtractorTNG implements Logging {
 		logger.log(INFO, 1, CLASS, cid, "extractGroup", "Obtained pinfo for: " + proposalId);
 
 		IProposal proposal = pinfo.getProposal();
-		IProgram program = pinfo.getProgram();
-		Map programTargets = pinfo.getTargetMap();
-		Map programConfigs = pinfo.getConfigMap();
+		ProgramInfo programInfo = pinfo.getProgramInfo();
+		IProgram program = programInfo.getProgram();
+		Map programTargets = programInfo.getTargetMap();
+		Map programConfigs = programInfo.getConfigMap();
 		double balance = pinfo.getAccountBalance();
 
 		if (balance < 0.0)

@@ -1889,8 +1889,10 @@ public class TelescopeEmbeddedAgent implements Logging
 	 */
 	protected void configureProposalMap(String p2host, String proplistString) throws Exception
 	{
+		Map programInfoMap = null;
 		List propNamesList = null;
-		
+
+		// parse the proplistString into a list of proposal names
 	        propNamesList = new Vector();
 		StringTokenizer st = new StringTokenizer(proplistString, ",");
 		while (st.hasMoreTokens())
@@ -1905,124 +1907,112 @@ public class TelescopeEmbeddedAgent implements Logging
 		IAccessModel access = (IAccessModel) Naming.lookup("rmi://" + p2host + "/AccessModel");
 		IAccountModel accounts = (IAccountModel) Naming.lookup("rmi://" + p2host + "/ProposalAccountModel");
 
-		// load all proposals
-		List ulist = access.listUsers();
-		Iterator iu = ulist.iterator();
-
-		while (iu.hasNext())
+		programInfoMap = new HashMap();
+		// interate over the needed proposals
+		Iterator  propInterator = propNamesList.iterator();
+		while(propInterator.hasNext())
 		{
-			IUser user = (IUser) iu.next();
-			long uid = user.getID();
-			String name = user.getName();
+			ProgramInfo programInfo = null;
+
+			// get the phase2 proposal
+			String proposalName = (String) propInterator.next();
+			IProposal proposal = phase2.findProposal(proposalName);
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: " + proposal.getName());
 			
-			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","User: " + (user != null ? user.getName() : "null_user"));
+			ProposalInfo proposalInfo = new ProposalInfo(proposal);
 
-			List alist = access.listAccessPermissionsOfUser(uid);
-			Iterator ia = alist.iterator();
-			while (ia.hasNext())
+			// find the program associated with this propsal
+			IProgram program = phase2.getProgrammeOfProposal(proposal.getID());
+			long programID = program.getID();
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: " + proposal.getName() +
+				     " belongs to program "+program.getName()+" ("+programID+")");
+
+			// Has the ProgramInfo for this proposal already been loaded?
+			programInfo = (ProgramInfo) programInfoMap.get(programID);
+			if(programInfo != null)
 			{
-				IAccessPermission accp = (IAccessPermission) ia.next();
-				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tLocateAccess: " + accp.getID());
-				
-				long pid = accp.getProposalID();
-				
-				ITag tag = phase2.getTagOfProposal(pid);
-				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tGet TAG of Prop: returned: " + tag);
-
-				if (tag == null)
-					continue;
-
-				IProposal proposal = phase2.getProposal(pid);
-				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tLocateProposal: " + proposal.getName());
-
-				if (propNamesList.contains(proposal.getName()))
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: " + proposal.getName() +
+					     " using previously loaded program info:"+programInfo);
+				proposalInfo.setProgramInfo(programInfo);
+			}
+			else
+			{
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: " + proposal.getName() +
+					     " creating new program info:"+program.getName()+" ("+programID+")");
+				// add a new programInfo into the programInfoMap (indexed by ID)
+				programInfo = new ProgramInfo(program);
+				programInfoMap.put(programID,programInfo);
+						   
+				// Add the program targets to the programInfo
+				List targetList = phase2.listTargets(program.getID());
+				traceLog.log(INFO, 1, CLASS, id,
+					     "configureProposalMap","\tlistTargets has returned "+
+					     targetList.size() + " targets for program:"+program.getName()+
+					     "("+program.getID()+")");
+				Iterator it = targetList.iterator();
+				while (it.hasNext())
 				{
-					// this one is on the list
-					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tUser: " +
-						     (user != null ? user.getName() : "null_user")+
-						     " has access to proposal: " + proposal.getName());
-					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tChecking proposal from list: " +
-						     proposal.getName());
-
-					ProposalInfo pinfo = new ProposalInfo(proposal);
-					IProgram program = phase2.getProgrammeOfProposal(proposal.getID());
-					pinfo.setProgram(program);
-
-					// now get a list of targets and configs
-					Map targets = new HashMap();
-					List targetList = phase2.listTargets(program.getID());
-					Iterator it = targetList.iterator();
-					while (it.hasNext())
-					{
-						ITarget target = (ITarget) it.next();
-						targets.put(target.getName(), target);
-					}
-					pinfo.setTargetMap(targets);
-					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tProposal has: " + targets.size() +
-						     " targets for program:"+program.getName()+
-						     "("+program.getID()+")");
-
-					Map configs = new HashMap();
-					List configList = phase2.listInstrumentConfigs(program.getID());
-					traceLog.log(INFO, 1, CLASS, id,
-						     "configureProposalMap","\t\tlistInstrumentConfigs has returned "+
-						     configList.size() + " configs for program:"+program.getName()+
-						     "("+program.getID()+")");
-					Iterator ic = configList.iterator();
-					while (ic.hasNext())
-					{
-						IInstrumentConfig iconfig = (IInstrumentConfig) ic.next();
-						configs.put(iconfig.getName(), iconfig);
-					}
-					pinfo.setConfigMap(configs);
-					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tProposal has: " + configs.size() +
-						     " configs");
-					// now get the account balance..
-					try
-					{
-						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
-							     "\t\tRetrieving semester balances...");
-						ISemesterPeriod semList = accounts.getSemesterPeriodOfDate(System.currentTimeMillis());
-						ISemester sem1 = semList.getFirstSemester();
-						ISemester sem2 = semList.getSecondSemester();
-						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tSemester 1:"+sem1);
-						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tSemester 2:"+sem2);
-						double balance = 0.0;
-						if (sem1 != null)
-						{
-							long semId1 = sem1.getID();
-							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
-								     "\t\tSemester 1 ID:"+semId1);
-							IAccount acc1 = accounts.findAccount(proposal.getID(), semId1);
-							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
-								     "\t\tSemester 1 account:"+acc1);
-							if(acc1 != null)
-								balance += acc1.getAllocated() - acc1.getConsumed();
-						}
-						if (sem2 != null)
-						{
-							long semId2 = sem2.getID();
-							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
-								     "\t\tSemester2 ID:"+semId2);
-							IAccount acc2 = accounts.findAccount(proposal.getID(), semId2);
-							traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
-								     "\t\tSemester 2 account:"+acc2);
-							if(acc2 != null)
-								balance += acc2.getAllocated() - acc2.getConsumed();
-						}
-						pinfo.setAccountBalance(balance);
-						traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tAccount balance: " + balance);
-					}
-					catch (Exception ax)
-					{
-						System.err.println(this.getClass().getName()+":configureProposalMap:Setting account balance failed:"+ax);
-						ax.printStackTrace();
-					}
-					// record the info
-					proposalMap.put(proposal.getName(), pinfo);
-				} // end if this proposal is an RTML-enabled proposal
-			}// iterate over user's access-permissions
-		}// interate over users
+					ITarget target = (ITarget) it.next();
+					programInfo.addTarget(target);
+				}
+				// Add the program configs to the programInfo
+				List configList = phase2.listInstrumentConfigs(program.getID());
+				traceLog.log(INFO, 1, CLASS, id,
+					     "configureProposalMap","\tlistInstrumentConfigs has returned "+
+					     configList.size() + " configs for program:"+program.getName()+
+					     "("+program.getID()+")");
+				Iterator ic = configList.iterator();
+				while (ic.hasNext())
+				{
+					IInstrumentConfig iconfig = (IInstrumentConfig) ic.next();
+					programInfo.addConfig(iconfig);
+				}
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tProposal: " + proposal.getName() +" has new program info:"+programInfo);
+			}// end else on programInfo
+			// now get the account balance..
+			try
+			{
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+					     "\tRetrieving semester balances...");
+				ISemesterPeriod semList = accounts.getSemesterPeriodOfDate(System.currentTimeMillis());
+				ISemester sem1 = semList.getFirstSemester();
+				ISemester sem2 = semList.getSecondSemester();
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tSemester 1:"+sem1);
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tSemester 2:"+sem2);
+				double balance = 0.0;
+				if (sem1 != null)
+				{
+					long semId1 = sem1.getID();
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+						     "\t\tSemester 1 ID:"+semId1);
+					IAccount acc1 = accounts.findAccount(proposal.getID(), semId1);
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+						     "\t\tSemester 1 account:"+acc1);
+					if(acc1 != null)
+						balance += acc1.getAllocated() - acc1.getConsumed();
+				}
+				if (sem2 != null)
+				{
+					long semId2 = sem2.getID();
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+						     "\t\tSemester2 ID:"+semId2);
+					IAccount acc2 = accounts.findAccount(proposal.getID(), semId2);
+					traceLog.log(INFO, 1, CLASS, id, "configureProposalMap",
+						     "\t\tSemester 2 account:"+acc2);
+					if(acc2 != null)
+						balance += acc2.getAllocated() - acc2.getConsumed();
+				}
+				proposalInfo.setAccountBalance(balance);
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\t\tAccount balance: " + balance);
+			}
+			catch (Exception ax)
+			{
+				System.err.println(this.getClass().getName()+":configureProposalMap:Setting account balance failed:"+ax);
+				ax.printStackTrace();
+			}
+			// record the info
+			proposalMap.put(proposal.getName(), proposalInfo);
+		}// end while over proposal name list
 		// Now log the completed proposalMap
 		Iterator pmi = proposalMap.keySet().iterator();
 		while (pmi.hasNext())

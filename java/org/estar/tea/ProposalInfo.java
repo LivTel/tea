@@ -1,4 +1,4 @@
-// ProposalInfor.java
+// ProposalInfo.java
 package org.estar.tea;
 
 import java.util.Map;
@@ -10,7 +10,7 @@ import ngat.phase2.IUser;
 
 /**
  * An instance of this class is created during the TEA boot, for each RTML enabled proposal. It is used to store phase2 data about the
- * proposal (IProposal/IProgram) and two maps of target name to phase2 ITarget instance, and config name to phase2 IInstrumentConfig instance.
+ * proposal (IProposal) and associated program data.
  */
 public class ProposalInfo
 {
@@ -19,17 +19,9 @@ public class ProposalInfo
 	 */
 	private IProposal proposal;
 	/**
-	 * The phase2 IProgram instance for this proposal.
+	 * A ProgramInfo instance containing target and config map's for the program associated with this proposal.
 	 */
-	private IProgram program;
-	/**
-	 * A Map of target name to phase2 ITarget instances.
-	 */
-	private Map targetMap;
-	/**
-	 * A Map of config name to phase2 IInstrumentConfig instances.
-	 */
-	private Map configMap;
+	private ProgramInfo programInfo;
 	/**
 	 * The amount of time left to be allocated for this proposal, based on the (potentially) two semester balances, where each balance
 	 * is allocated - consumed time.
@@ -67,63 +59,23 @@ public class ProposalInfo
 	}
 
 	/**
-	 * Get the phase2 IProgram program instance this proposal is attached to.
-	 * @return The phase2 IProgram instance.
-	 * @see #program
+	 * Get the ProgramInfo instance this proposal is attached to.
+	 * @return The ProgramInfo instance.
+	 * @see #programInfo
 	 */
-	public IProgram getProgram()
+	public ProgramInfo getProgramInfo()
 	{
-		return program;
+		return programInfo;
 	}
 
 	/**
-	 * Set the phase2 IProgram program instance this proposal is attached to.
-	 * @param program The phase2 IProgram to set.
-	 * @see #program
+	 * Set the ProgramInfo instance this proposal is attached to.
+	 * @param program The ProgramInfo to set.
+	 * @see #programInfo
 	 */
-	public void setProgram(IProgram program)
+	public void setProgramInfo(ProgramInfo programInfo)
 	{
-		this.program = program;
-	}
-
-	/**
-	 * Get the targetMap, a Map of target name to phase2 ITarget instances.
-	 * @return The targetMap.
-	 * @see #targetMap
-	 */
-	public Map getTargetMap()
-	{
-		return targetMap;
-	}
-
-	/**
-	 * Set the targetMap, a Map of target name to phase2 ITarget instances.
-	 * @param targetMap the targetMap to set
-	 * @see #targetMap
-	 */
-	public void setTargetMap(Map targetMap)
-	{
-		this.targetMap = targetMap;
-	}
-
-	/**
-	 * Get the configMap, A Map of config name to phase2 IInstrumentConfig instances.
-	 * @return The configMap
-	 * @see #configMap
-	 */
-	public Map getConfigMap()
-	{
-		return configMap;
-	}
-
-	/**
-	 * Set the configMap, A Map of config name to phase2 IInstrumentConfig instances.
-	 * @param configMap The configMap to set.
-	 * @see #configMap
-	 */
-	public void setConfigMap(Map configMap)
-	{
-		this.configMap = configMap;
+		this.programInfo = programInfo;
 	}
 
 	/**
@@ -150,18 +102,14 @@ public class ProposalInfo
 	 * Return a string representation of this opbject.
 	 * @return A string.
 	 * @see #proposal
-	 * @see #program
+	 * @see #programInfo
 	 * @see #accountBalance
-	 * @see #targetMap
-	 * @see #configMap
 	 */
 	public String toString()
 	{
 		return new String (this.getClass().getName()+
 				   ":proposal:"+proposal.getName()+
-				   ":program:"+program.getName()+
 				   ":account balance:"+accountBalance+
-				   ":target map has :"+targetMap.size()+" targets"+
-				   ":config map has :"+configMap.size()+" configs.");
+				   ":program:"+programInfo+".");
 	}
 }
