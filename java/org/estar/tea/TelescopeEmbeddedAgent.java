@@ -1945,9 +1945,8 @@ public class TelescopeEmbeddedAgent implements Logging
 			{
 				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: " + proposal.getName() +
 					     " creating new program info:"+program.getName()+" ("+programID+")");
-				// add a new programInfo into the programInfoMap (indexed by ID)
+				// Create a new programinfo
 				programInfo = new ProgramInfo(program);
-				programInfoMap.put(programID,programInfo);
 						   
 				// Add the program targets to the programInfo
 				List targetList = phase2.listTargets(program.getID());
@@ -1973,7 +1972,11 @@ public class TelescopeEmbeddedAgent implements Logging
 					IInstrumentConfig iconfig = (IInstrumentConfig) ic.next();
 					programInfo.addConfig(iconfig);
 				}
-				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tProposal: " + proposal.getName() +" has new program info:"+programInfo);
+				// add the new programInfo into the programInfoMap (indexed by ID)
+				programInfoMap.put(programID,programInfo);
+				// set the programInfo for this proposal to the newly created one.
+				proposalInfo.setProgramInfo(programInfo);
+				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tProposal: " + proposal.getName() +" has new program info:"+proposalInfo.getProgramInfo());
 			}// end else on programInfo
 			// now get the account balance..
 			try
