@@ -114,8 +114,7 @@ public class ProgramInfo
 	 */
 	public String toString()
 	{
-		return new String (this.getClass().getName()+
-				   ":program:"+program.getName()+
+		return new String ("program:"+program.getName()+
 				   ":target map has :"+targetMap.size()+" targets"+
 				   ":config map has :"+configMap.size()+" configs.");
 	}

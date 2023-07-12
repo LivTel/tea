@@ -107,9 +107,8 @@ public class ProposalInfo
 	 */
 	public String toString()
 	{
-		return new String (this.getClass().getName()+
-				   ":proposal:"+proposal.getName()+
+		return new String ("proposal:"+proposal.getName()+
 				   ":account balance:"+accountBalance+
-				   ":program:"+programInfo+".");
+				   ":"+programInfo);
 	}
 }
