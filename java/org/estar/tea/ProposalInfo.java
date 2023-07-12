@@ -88,16 +88,37 @@ public class ProposalInfo
 	}
 
 	/**
-	 * Add the specified user phase2 object to the userMap. The userMap is added as the user name
-	 * as a key to the IUser data instance.
+	 * Add the specified user phase2 object to the userMap. 
+	 * The userMap key is "<tag name>/<user name>", which should match the RTML Contact User. 
+	 * The IUser data instance is the map value.
+	 * @param tag The tag phase2 object.
 	 * @param user The user phase2 object.
 	 * @see #userMap
 	 */
-	public void addUser(IUser user)
+	public void addUser(ITag tag,IUser user)
 	{
-		this.userMap.put(user.getName(), user);
+		String key = new String(tag.getName()+"/"+user.getName());
+		this.userMap.put(key, user);
 	}
 
+	/**
+	 * Check whether the specified user has access to this proposal. This is done by seeing whether the 
+	 * "<tag name>/<user name>" string (as retrieved from an RTML document) is a key in the userMap. 
+	 * @param rtmlTagUsername The RTML Contact User as retrieved from an RTML document, this should be in the form:
+	 *                        "<tag name>/<user name>".
+	 * @return The method returns true if the user is allowed to access this proposal, 
+	 *         and false if it does not have access to this proposal.
+	 * @see #userMap
+	 */
+	public boolean userHasAccess(String rtmlTagUsername)
+	{
+		IUser user = (IUser) this.userMap.get(rtmlTagUsername);
+		if(user != null)
+			return true;
+		else
+			return false;
+	}
+	
 	/**
 	 * Method to list (as a String) the users that have access permissions for this proposal.
 	 * @param keyOnly A boolean, if true return a string with user names (keys) only i.e. '<user>,<user>...'
