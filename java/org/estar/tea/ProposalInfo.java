@@ -1,6 +1,8 @@
 // ProposalInfo.java
 package org.estar.tea;
 
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import ngat.phase2.IProgram;
@@ -23,6 +25,11 @@ public class ProposalInfo
 	 */
 	private ProgramInfo programInfo;
 	/**
+	 * A Map of user name to phase2 IUser instances.
+	 */
+	private Map userMap;
+
+	/**
 	 * The amount of time left to be allocated for this proposal, based on the (potentially) two semester balances, where each balance
 	 * is allocated - consumed time.
 	 */
@@ -32,10 +39,12 @@ public class ProposalInfo
 	 * Constructor.
 	 * @param proposal The phase2 IProposal instance that this ProposalInfo is being created for.
 	 * @see #proposal
+	 * @see #userMap
 	 */
 	public ProposalInfo(IProposal proposal)
 	{
 		this.proposal = proposal;
+		this.userMap = new HashMap();
 	}
 
 	/**
@@ -79,6 +88,52 @@ public class ProposalInfo
 	}
 
 	/**
+	 * Add the specified user phase2 object to the userMap. The userMap is added as the user name
+	 * as a key to the IUser data instance.
+	 * @param user The user phase2 object.
+	 * @see #userMap
+	 */
+	public void addUser(IUser user)
+	{
+		this.userMap.put(user.getName(), user);
+	}
+
+	/**
+	 * Method to list (as a String) the users that have access permissions for this proposal.
+	 * @param keyOnly A boolean, if true return a string with user names (keys) only i.e. '<user>,<user>...'
+	 *                If false, try and print the contents of the IUser i.e. '<username> = { IUser },\n ...'
+	 * @return A string containing a representation of a list of users that have access permissions 
+	 *         for this proposal.
+	 * @see #userMap
+	 */
+	public String listUsers(boolean keyOnly)
+	{
+		StringBuffer sb = null;
+
+		sb = new StringBuffer();
+		Iterator ui = userMap.entrySet().iterator();
+		while(ui.hasNext())
+		{
+			Map.Entry entry = (Map.Entry) ui.next();
+			String key = (String) entry.getKey();
+			IUser userValue = (IUser) entry.getValue();
+			if(keyOnly)
+			{
+				sb.append(key);
+				sb.append(",");
+			}
+			else
+			{
+				sb.append(key);
+				sb.append(" = {");
+				sb.append(userValue);
+				sb.append("},\n");
+			}
+		}
+		return sb.toString();
+	}
+	
+	/**
 	 * Set the account balance.
 	 * @param b A double, the account balance.
 	 * @see #accountBalance
@@ -104,11 +159,13 @@ public class ProposalInfo
 	 * @see #proposal
 	 * @see #programInfo
 	 * @see #accountBalance
+	 * @see #userMap
 	 */
 	public String toString()
 	{
 		return new String ("proposal:"+proposal.getName()+
 				   ":account balance:"+accountBalance+
+				   ":user map has :"+userMap.size()+" users"+
 				   ":"+programInfo);
 	}
 }

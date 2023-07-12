@@ -1978,6 +1978,24 @@ public class TelescopeEmbeddedAgent implements Logging
 				proposalInfo.setProgramInfo(programInfo);
 				traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","\tProposal: " + proposal.getName() +" has new program info:"+proposalInfo.getProgramInfo());
 			}// end else on programInfo
+			// get the list of users allowed access to this proposal
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Getting access permission list for Proposal: "+
+				     proposal.getName()+".");
+			List accessPermissionList = access.listAccessPermissionsOnProposal(proposal.getID());
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: "+
+				     proposal.getName()+" has "+accessPermissionList.size()+" access permissions.");
+			Iterator api = accessPermissionList.iterator();
+			while (api.hasNext())
+			{
+				IAccessPermission accessPermission = (IAccessPermission) api.next();
+				// this user is either a PI/Co-I or assistant for this proposal
+				long userID = accessPermission.getUserID();
+				IUser user = access.getUser(userID);
+				proposalInfo.addUser(user);
+			}
+			// log the users that have access to this proposal
+			traceLog.log(INFO, 1, CLASS, id, "configureProposalMap","Proposal: "+
+				     proposal.getName()+" has user map:"+proposalInfo.listUsers(false));			
 			// now get the account balance..
 			try
 			{
