@@ -305,6 +305,23 @@ public class Phase2ExtractorTNG implements Logging {
 		String groupName = null;
 
 		cid = document.getUId();
+
+		// Tag/User ID combo is what we expect here.
+		RTMLContact contact = document.getContact();
+		if (contact == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", 
+				   "RTML Contact was not specified, failing abort.");
+			throw new IllegalArgumentException("No contact was supplied");
+		}
+		String userId = contact.getUser();
+		if (userId == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", 
+				   "RTML Contact User was not specified, failing abort.");
+			throw new IllegalArgumentException("Your User ID was null");
+		}
+		
 		logger.log(INFO, 1, CLASS, cid, "handleAbort", "handleAbort for document UId: " + document.getUId());
 		// Is the document a TOOP document
 		if (document.isTOOP()) 
@@ -352,6 +369,19 @@ public class Phase2ExtractorTNG implements Logging {
 				   "Unable to extract proposal info from proposal id name "+proposalIdName+".");
 			throw new Exception("handleAbort:Unable to extract proposal info from proposal id name "+
 					    proposalIdName+".");
+		}
+		// check extracted user has access permission on this proposal
+		if(pinfo.userHasAccess(userId) == false)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", "User [" + userId +
+				   "] does NOT have access to Proposal [" + proposalIdName + "].");
+			//throw new Exception("handleAbort:User [" + userId +
+			//	   "] does NOT have access to Proposal [" + proposalIdName + "].");
+		}
+		else
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", "User [" + userId +
+				   "] does have access to Proposal [" + proposalIdName + "].");
 		}
 		IProposal proposal = pinfo.getProposal();
 		if(proposal == null)
@@ -444,23 +474,19 @@ public class Phase2ExtractorTNG implements Logging {
 
 		// Tag/User ID combo is what we expect here.
 		RTMLContact contact = document.getContact();
-
 		if (contact == null) 
 		{
 			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
 				   "RTML Contact was not specified, failing request.");
 			throw new IllegalArgumentException("No contact was supplied");
 		}
-
 		String userId = contact.getUser();
-
 		if (userId == null) 
 		{
 			logger.log(INFO, 1, CLASS, cid, "handleRequest", 
 				   "RTML Contact User was not specified, failing request.");
 			throw new IllegalArgumentException("Your User ID was null");
 		}
-		// userId = userId.replaceAll("\\W", "_");
 
 		// The Proposal ID.
 		RTMLProject project = document.getProject();
@@ -510,21 +536,17 @@ public class Phase2ExtractorTNG implements Logging {
 
 		// Tag/User ID combo is what we expect here.
 		RTMLContact contact = document.getContact();
-
 		if (contact == null)
 		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML Contact was not specified, failing request.");
 			throw new IllegalArgumentException("No contact was supplied");
 		}
-
 		String userId = contact.getUser();
-
 		if (userId == null)
 		{
 			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML Contact User was not specified, failing request.");
 			throw new IllegalArgumentException("Your User ID was null");
 		}
-		// userId = userId.replaceAll("\\W", "_");
 
 		// The Proposal ID.
 		RTMLProject project = document.getProject();
@@ -545,11 +567,22 @@ public class Phase2ExtractorTNG implements Logging {
 		logger.log(INFO, 1, CLASS, cid, "extractGroup", "Obtained pinfo for: " + proposalId);
 
 		IProposal proposal = pinfo.getProposal();
-		IProgram program = pinfo.getProgram();
-		Map programTargets = pinfo.getTargetMap();
-		Map programConfigs = pinfo.getConfigMap();
+		ProgramInfo programInfo = pinfo.getProgramInfo();
+		IProgram program = programInfo.getProgram();
+		Map programTargets = programInfo.getTargetMap();
+		Map programConfigs = programInfo.getConfigMap();
 		double balance = pinfo.getAccountBalance();
 
+		// check whether the user has permission to add groups to this proposal
+		if(pinfo.userHasAccess(userId) == false)
+		{
+			logger.log(INFO, 1, CLASS, cid, "extractGroup", "User [" + userId + "] does NOT have access to Proposal [" + proposalId + "].");
+			//throw new Exception("User [" + userId + "] does NOT have access to Proposal [" + proposalId + "].");	
+		}
+		else
+		{
+			logger.log(INFO, 1, CLASS, cid, "extractGroup", "User [" + userId + "] does have access to Proposal [" + proposalId + "].");
+		}
 		if (balance < 0.0)
 			throw new Exception("Proposal [" + proposalId + "] allocation account is overdrawn: Bal=" + balance + "h");
 
