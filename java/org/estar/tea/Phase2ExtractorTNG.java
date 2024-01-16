@@ -375,8 +375,8 @@ public class Phase2ExtractorTNG implements Logging {
 		{
 			logger.log(INFO, 1, CLASS, cid, "handleAbort", "User [" + userId +
 				   "] does NOT have access to Proposal [" + proposalIdName + "].");
-			//throw new Exception("handleAbort:User [" + userId +
-			//	   "] does NOT have access to Proposal [" + proposalIdName + "].");
+			throw new Exception("handleAbort:User [" + userId +
+				   "] does NOT have access to Proposal [" + proposalIdName + "].");
 		}
 		else
 		{
@@ -576,16 +576,21 @@ public class Phase2ExtractorTNG implements Logging {
 		// check whether the user has permission to add groups to this proposal
 		if(pinfo.userHasAccess(userId) == false)
 		{
-			logger.log(INFO, 1, CLASS, cid, "extractGroup", "User [" + userId + "] does NOT have access to Proposal [" + proposalId + "].");
-			//throw new Exception("User [" + userId + "] does NOT have access to Proposal [" + proposalId + "].");	
+			logger.log(INFO, 1, CLASS, cid, "extractGroup", "User [" + userId +
+				   "] does NOT have access to Proposal [" + proposalId + "].");
+			throw new Exception("User [" + userId + "] does NOT have access to Proposal [" +
+					    proposalId + "].");	
 		}
 		else
 		{
-			logger.log(INFO, 1, CLASS, cid, "extractGroup", "User [" + userId + "] does have access to Proposal [" + proposalId + "].");
+			logger.log(INFO, 1, CLASS, cid, "extractGroup", "User [" + userId +
+				   "] does have access to Proposal [" + proposalId + "].");
 		}
 		if (balance < 0.0)
-			throw new Exception("Proposal [" + proposalId + "] allocation account is overdrawn: Bal=" + balance + "h");
-
+		{
+			throw new Exception("Proposal [" + proposalId + "] allocation account is overdrawn: Bal=" +
+					    balance + "h");
+		}
 		// proposalId = proposalId.replaceAll("\\W", "_");
 
 		// Retrieve the documents unique ID, either from the uid attribute or
@@ -595,7 +600,8 @@ public class Phase2ExtractorTNG implements Logging {
 		String requestId = document.getUId();
 		if (requestId == null)
 		{
-			logger.log(INFO, 1, CLASS, cid, "extractGroup", "RTML request ID was not specified, failing request.");
+			logger.log(INFO, 1, CLASS, cid, "extractGroup",
+				   "RTML request ID was not specified, failing request.");
 			throw new IllegalArgumentException("Your Request ID was null");
 		}
 		requestId = requestId.replaceAll("\\W", "_");
