@@ -813,7 +813,7 @@ public class TOCSessionManager implements Runnable, Logging
 					t = new Thread(postProcessThread);
 					t.start();
 					logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Started new post-process thread.");
-					// if auroguider was turned on, now turn it off
+					// if autoguider was turned on, now turn it off
 					if(autoguiderNeeded(document))
 					{
 						try
@@ -1261,7 +1261,7 @@ public class TOCSessionManager implements Runnable, Logging
 		tupi = new TOCSessionManager.TagUserProposalInfo();
 		tupi.setTagUserProposal(document);
 		// get instrument type name
-		// diddly This does allow a siruation where a second document 
+		// diddly This does allow a situation where a second document 
 		// uses a different instrument to the first at the present time.
 		// Try to get device from observation
 		observation = document.getObservation(0);
