@@ -101,6 +101,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @exception InvocationTargetException Thrown if createInstrumentConfig fails.
 	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getSingleFilterType fails.
 	 * @exception NullPointerException Thrown if getInstrumentRotorSpeed fails.
+	 * @exception NGATPropertyException Thrown if getInstrumentCoaddExposureLength fails to parse a suitable integer.
 	 * @see TelescopeEmbeddedAgent
 	 * @see org.estar.rtml.RTMLDevice
 	 * @see #getInstrumentType
@@ -108,6 +109,8 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see #getInstrumentDetectorBinning
 	 * @see #getInstrumentDetectorGain
 	 * @see #getInstrumentRotorSpeed
+	 * @see #getInstrumentNudgematicOffsetSize
+	 * @see #getInstrumentCoaddExposureLength
 	 * @see #getSingleFilterType
 	 * @see #getCCDLowerFilterType
 	 * @see #getCCDUpperFilterType
@@ -128,10 +131,12 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see ngat.phase2.PolarimeterDetector
 	 * @see ngat.phase2.MOPTOPPolarimeterConfig
 	 * @see ngat.phase2.MOPTOPPolarimeterDetector
+	 * @see ngat.phase2.LiricConfig
+	 * @see ngat.phase2.LiricDetector
 	 */
 	public static InstrumentConfig getInstrumentConfig(TelescopeEmbeddedAgent tea,RTMLDevice device) throws
 		IllegalArgumentException, ClassNotFoundException, NoSuchMethodException, InstantiationException, 
-		IllegalAccessException, InvocationTargetException, NullPointerException, Exception
+		IllegalAccessException, InvocationTargetException, NullPointerException, Exception, NGATPropertyException
 	{
 		InstrumentConfig config = null;
 		String instrumentId = null;
@@ -143,11 +148,13 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType2 = null;
 		String irFilterType = null;
 		String moptopFilterType = null;
+		String liricFilterType = null;
 		String oFilterType[] = new String[OConfig.O_FILTER_INDEX_COUNT];
 		String rotorSpeed = null;
+		String nudgematicOffsetSize = null;
 		String configClassName = null;
 		double gain;
-		int bin,xBin,yBin,instrumentType;
+		int bin,xBin,yBin,instrumentType,coaddExposureLength;
 
 		// get type
 		instrumentType = getInstrumentType(device);
@@ -272,6 +279,42 @@ public class DeviceInstrumentUtilites implements Logging
                         irCamDetector.setXBin(bin);
                         irCamDetector.setYBin(bin);
 
+		}
+		else if(configClassName.equals("ngat.phase2.LiricConfig"))
+		{
+			rtmlFilterType = device.getFilterType();
+			liricFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			nudgematicOffsetSize = getInstrumentNudgematicOffsetSize(tea,instrumentType,instrumentId,device);
+		        coaddExposureLength = getInstrumentCoaddExposureLength(tea,instrumentType,instrumentId,device);
+			// create config
+			config = createInstrumentConfig(configClassName,"TEA-LIRIC-"+liricFilterType+"-"+nudgematicOffsetSize+
+							"-"+coaddExposureLength+"-"+bin+"x"+bin);
+			if (! (config instanceof LiricConfig))
+			{
+				throw new IllegalArgumentException(
+					  "getInstrumentConfig:Invalid config class for LIRIC IR camera:"+
+								   config.getClass().getName());
+			}
+			LiricConfig liricConfig = (LiricConfig)config;
+			if(nudgematicOffsetSize.equals("none"))
+				liricConfig.setNudgematicOffsetSize(LiricConfig.NUDGEMATIC_OFFSET_SIZE_NONE);
+			else if(nudgematicOffsetSize.equals("small"))
+				liricConfig.setNudgematicOffsetSize(LiricConfig.NUDGEMATIC_OFFSET_SIZE_SMALL);
+			else if(nudgematicOffsetSize.equals("large"))
+				liricConfig.setNudgematicOffsetSize(LiricConfig.NUDGEMATIC_OFFSET_SIZE_LARGE);
+			else
+			{
+				throw new IllegalArgumentException("getInstrumentConfig:Invalid nudgematic offset size '"+
+								   nudgematicOffsetSize+"'for LIRIC IR camera.");
+			}
+			liricConfig.setCoaddExposureLength(coaddExposureLength);
+			liricConfig.setFilterName(moptopFilterType);
+			LiricDetector liricDetector = (LiricDetector)liricConfig.getDetector(0);
+			liricDetector.clearAllWindows();
+			liricDetector.setXBin(bin);
+			liricDetector.setYBin(bin);
 		}
 		else if(configClassName.equals("ngat.phase2.PolarimeterConfig"))
 		{
@@ -553,7 +596,8 @@ public class DeviceInstrumentUtilites implements Logging
 	 *            or if there is no toop instrument mapping.
 	 * @exception TOCException Thrown if instrRatcam/instrIRcam/instrRingoStar fails.
 	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getSingleFilterType fails.
-	 * @exception NullPointerException Thrown if getInstrumentRotorSpeed fails.
+	 * @exception NullPointerException Thrown if getInstrumentRotorSpeed/getInstrumentNudgematicOffsetSize fails.
+	 * @exception NGATPropertyException Thrown if getInstrumentCoaddExposureLength fails.
 	 * @see TelescopeEmbeddedAgent
 	 * @see org.estar.rtml.RTMLDevice
 	 * @see org.estar.toop.TOCSession
@@ -566,6 +610,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see org.estar.toop.TOCSession#instrRingoStar
 	 * @see org.estar.toop.TOCSession#instrRingo3
 	 * @see org.estar.toop.TOCSession#instrMoptop
+	 * @see org.estar.toop.TOCSession#instrLiric
 	 * @see org.estar.toop.TOCSession#instrMeaburnSpec
 	 * @see #getInstrumentType
 	 * @see #getSingleFilterType
@@ -574,12 +619,14 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see #getCCDIndexFilterType
 	 * @see #getInstrumentDetectorBinning
 	 * @see #getInstrumentRotorSpeed
+	 * @see #getInstrumentNudgematicOffsetSize
+	 * @see #getInstrumentCoaddExposureLength
 	 * @see #INSTRUMENT_TYPE_CCD
 	 * @see #INSTRUMENT_TYPE_IRCAM
 	 * @see #INSTRUMENT_TYPE_POLARIMETER
 	 */
 	public static void sendInstr(TelescopeEmbeddedAgent tea,TOCSession session,RTMLDevice device) throws
-		IllegalArgumentException,TOCException, NullPointerException, Exception
+		IllegalArgumentException,TOCException, NullPointerException, NGATPropertyException, Exception
 	{
 		String instrumentId = null;
 		String rtmlFilterType = null;
@@ -591,10 +638,12 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType1 = null;
 		String filterType2 = null;
 		String moptopFilterType = null;
+		String liricFilterType = null;
 		String rotorSpeed = null;
+		String nudgematicOffsetSize = null;
 		String toopInstrName = null;
 		double gain;
-		int bin,instrumentType;
+		int bin,instrumentType,coaddExposureLength;
 
 		// get instrument type
 		instrumentType = getInstrumentType(device);
@@ -642,6 +691,15 @@ public class DeviceInstrumentUtilites implements Logging
 			// This needs to get more sophisticated if we allow non-square binning
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrIRcam(irFilterType,bin,false,false);
+		}
+		else if(toopInstrName.equals("LIRIC"))
+		{
+			rtmlFilterType = device.getFilterType();
+			liricFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
+			nudgematicOffsetSize = getInstrumentNudgematicOffsetSize(tea,instrumentType,instrumentId,device);
+			coaddExposureLength = getInstrumentCoaddExposureLength(tea,instrumentType,instrumentId,device);
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			session.instrLiric(liricFilterType,nudgematicOffsetSize,coaddExposureLength,bin,bin,false,false);
 		}
 		else if(toopInstrName.equals("IO:O"))
 		{
@@ -703,7 +761,7 @@ public class DeviceInstrumentUtilites implements Logging
 	}
 
 	/**
-	 * Get the filter type of an single filter instrument (e.g. Moptop), from the TEA's filter map.
+	 * Get the filter type of an single filter instrument (e.g. Moptop, Liric), from the TEA's filter map.
 	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the filter map from.
 	 * @param instrumentId The id of the instrument to get the gilter mapping from.
 	 * @param rtmlFilterType A string respresenting an single filter type, e.g. 'R'.
@@ -951,7 +1009,77 @@ public class DeviceInstrumentUtilites implements Logging
 		return rotorSpeed;
 	}
 	
-	
+	/**
+	 * Get the nudgematic offset size specified in the specified device.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the instrument properties from.
+	 * @param instrumentType Which sort of instrument we are getting the Nudgematic Offset Size for.
+	 * @param instrumentId The id of the instrument to get the default Nudgematic Offset Size from, if needed.
+	 * @param device The RTML device instance. 
+	 * @return An string representing the nudgematic offset size to use for this instrument. This should be one of "none","small"
+	 *         or "large".
+	 * @throws NullPointerException Thrown if the default Nudgematic Offset Size for the instrument is null.
+	 */
+	public static String getInstrumentNudgematicOffsetSize(TelescopeEmbeddedAgent tea,int instrumentType,String instrumentId,
+							       RTMLDevice device) throws NullPointerException
+	{
+		boolean useDefaultNudgematicOffsetSize;
+		String nudgematicOffsetSize = null;
+		
+		useDefaultNudgematicOffsetSize = true;
+		//if(device.getNudgematicOffsetSize() != null)
+		//{
+		//	nudgematicOffsetSize = device.getNudgematicOffsetSize();
+		//	if(nudgematicOffsetSize == null)
+		//	{
+		//	       	throw new NullPointerException(DeviceInstrumentUtilites.class.getName()+
+		//			      ":getInstrumentNudgematicOffsetSize:Found nudgematic offset size but nudgematic offset size was NULL.");
+		//	}
+		//	useDefaultNudgematicOffsetSize = false;
+		//}
+		if(useDefaultNudgematicOffsetSize)
+		{
+			nudgematicOffsetSize = tea.getPropertyString("instrument."+instrumentId+".nudgematic_offset_size.default");
+			if(nudgematicOffsetSize == null)
+			{
+				throw new NullPointerException(DeviceInstrumentUtilites.class.getName()+
+				":getInstrumentNudgematicOffsetSize:Default nudgematic offset size was null using key:instrument."+
+					      instrumentId+".nudgematic_offset_size.default");
+			}
+		}
+		return nudgematicOffsetSize;
+	}
+		
+	/**
+	 * Get the coadd exposure length specified in the specified device.
+	 * @param tea An instance of the TelescopeEmbeddedAgent, to get the instrument properties from.
+	 * @param instrumentType Which sort of instrument we are getting the coadd exposure length for.
+	 * @param instrumentId The id of the instrument to get the default coadd exposure length from, if needed.
+	 * @param device The RTML device instance. 
+	 * @return An integer representing the coadd exposure length to use for this instrument, in milliseconds. 
+	 *         This should be one of 100 or 1000.
+	 * @throws NullPointerException Thrown if the default coadd exposure length for the instrument is null.
+	 * @throws NGATPropertyException Thrown if the default coadd exposure length for the instrument could not be parsed
+	 *         from the config file as a valid integer.
+	 */
+	public static int getInstrumentCoaddExposureLength(TelescopeEmbeddedAgent tea,int instrumentType,String instrumentId,
+							   RTMLDevice device) throws NullPointerException, NGATPropertyException
+	{
+		boolean useDefaultCoaddExposureLength;
+		int coaddExposureLength = 1000;
+		
+		useDefaultCoaddExposureLength = true;
+		//if(device.getCoaddExposureLength() != -1)
+		//{
+		//	coaddExposureLength = device.getCoaddExposureLength();
+		//	useDefaultCoaddExposureLength = false;
+		//}
+		if(useDefaultCoaddExposureLength)
+		{
+			coaddExposureLength = tea.getPropertyInteger("instrument."+instrumentId+".coadd_exposure_length.default");
+		}
+		return coaddExposureLength;
+	}
+		
 	/**
 	 * Get the name of the type of instrument the specifed device represents.
 	 * @param device The RTMLDevice to parse.
