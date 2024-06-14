@@ -28,6 +28,7 @@ import ngat.phase2.PolarimeterConfig;
 import ngat.phase2.MOPTOPPolarimeterConfig;
 import ngat.phase2.RISEConfig;
 import ngat.phase2.SpratConfig;
+import ngat.phase2.LiricConfig;
 import ngat.phase2.THORConfig;
 import ngat.phase2.Window;
 import ngat.phase2.XAcquisitionConfig;
@@ -54,6 +55,7 @@ import ngat.phase2.XLampDef;
 import ngat.phase2.XMinimumIntervalTimingConstraint;
 import ngat.phase2.XMonitorTimingConstraint;
 import ngat.phase2.XMoptopInstrumentConfig;
+import ngat.phase2.XLiricInstrumentConfig;
 import ngat.phase2.XMultipleExposure;
 import ngat.phase2.XPeriodExposure;
 import ngat.phase2.XPhotometricityConstraint;
@@ -1872,7 +1874,38 @@ public class Phase2ExtractorTNG implements Logging {
 			xim.setInstrumentName("IO:I");
 			return xim;
 
-		} else if (config instanceof LowResSpecConfig) {
+		}
+		else if (config instanceof LiricConfig)
+		{
+			LiricConfig liricConfig = (LiricConfig) config;
+
+			String filterName = liricConfig.getFilterName();
+
+			XFilterSpec filterSpec = new XFilterSpec();
+			filterSpec.addFilter(new XFilterDef(filterName));
+
+			XLiricInstrumentConfig	xLiricConfig = new XLiricInstrumentConfig(config.getName());
+			xLiricConfig.setDetectorConfig(xdet);
+			xLiricConfig.setInstrumentName("LIRIC");
+			if(liricConfig.getNudgematicOffsetSize() == LiricConfig.NUDGEMATIC_OFFSET_SIZE_NONE)
+				xLiricConfig.setNudgematicOffsetSize(XLiricInstrumentConfig.NUDGEMATIC_OFFSET_SIZE_NONE);
+			else if(liricConfig.getNudgematicOffsetSize() == LiricConfig.NUDGEMATIC_OFFSET_SIZE_SMALL)
+				xLiricConfig.setNudgematicOffsetSize(XLiricInstrumentConfig.NUDGEMATIC_OFFSET_SIZE_SMALL);
+			else if(liricConfig.getNudgematicOffsetSize() == LiricConfig.NUDGEMATIC_OFFSET_SIZE_LARGE)
+				xLiricConfig.setNudgematicOffsetSize(XLiricInstrumentConfig.NUDGEMATIC_OFFSET_SIZE_LARGE);
+			else
+			{
+				throw new Exception(this.getClass().getName()+
+						    "translateToNewStyleConfig:LIRIC config:"+
+						    liricConfig.getName()+ " has illegal nudgematic offset size "+
+						    liricConfig.getNudgematicOffsetSize());
+			}
+			xLiricConfig.setCoaddExposureLength(liricConfig.getCoaddExposureLength());
+			xLiricConfig.setFilterSpec(filterSpec);
+			return xLiricConfig;
+		}
+		else if (config instanceof LowResSpecConfig)
+		{
 
 			LowResSpecConfig lowResSpecConfig = (LowResSpecConfig) config;
 			double wavelength = lowResSpecConfig.getWavelength();
@@ -2047,7 +2080,7 @@ public class Phase2ExtractorTNG implements Logging {
 	}
 
 	/**
-	 * Returnn a PhaseII XInstrumentConfig describing a Sprat configuration containing the specified grating.
+	 * Return a PhaseII XInstrumentConfig describing a Sprat configuration containing the specified grating.
 	 * The Grism is in, the slit is in and the detector binned 1.
 	 * The grism is not rotated if the gratingName contains the work "red".
 	 * @param gratingName The name of the grating.
