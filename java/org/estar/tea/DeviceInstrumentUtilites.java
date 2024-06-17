@@ -310,7 +310,7 @@ public class DeviceInstrumentUtilites implements Logging
 								   nudgematicOffsetSize+"'for LIRIC IR camera.");
 			}
 			liricConfig.setCoaddExposureLength(coaddExposureLength);
-			liricConfig.setFilterName(moptopFilterType);
+			liricConfig.setFilterName(liricFilterType);
 			LiricDetector liricDetector = (LiricDetector)liricConfig.getDetector(0);
 			liricDetector.clearAllWindows();
 			liricDetector.setXBin(bin);
