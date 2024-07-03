@@ -783,6 +783,8 @@ public class TOCSessionManager implements Runnable, Logging
 					}
 					// slew telescope
 					slew(document);
+					// focal plane
+					focalPlane(document);
 					// configure instrument
 					instr(document);
 					// acquire if neccessary
@@ -1017,6 +1019,30 @@ public class TOCSessionManager implements Runnable, Logging
 		target = getTargetFromDocument(document);
 		// slew
 		session.slew(target.getName(),target.getRA(),target.getDec());
+	}
+
+	/**
+	 * Method to configure the telescope focal plane (aperture offset) for the instrument 
+	 * specified in the specified document.
+	 * Assumes the session <b>helo</b> and <b>init</b> methods have been called first.
+	 * @param document The document to extract the instrument name from.
+	 * @exception IllegalArgumentException Thrown if there are the wrong number of observations in the document.
+	 * @exception NullPointerException Thrown if the device or detector was not in the document.
+	 * @exception TOCException Thrown if the TOCA focalPlane command fails in some way.
+	 * @exception Exception Thrown if the sendInstr method fails.
+	 * @see #tea
+	 * @see #session
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#sendInstr
+	 */
+	private void focalPlane(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
+							 TOCException, Exception
+	{
+		RTMLDevice device = null;
+
+		device = getDeviceFromDocument(document);
+		// Parse RTMLDevice and send appropriate focalPlane using TOCSession session.
+		DeviceInstrumentUtilites.sendFocalPlane(tea,session,device);
 	}
 
 	/**
