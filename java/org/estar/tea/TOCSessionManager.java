@@ -1176,6 +1176,16 @@ public class TOCSessionManager implements Runnable, Logging
 		return filenameList;
 	}
 
+	/** 
+	 * Take an arc with the currently selected (by instr) instrument (must be a spectrograph).
+	 * @param lampName The name of the lamp to turn on for the arc.
+	 * @see #session
+	 */
+	private void arc(String lampName) throws TOCException
+	{
+		session.arc(lampName);
+	}
+
 	/**
 	 * Internal method to extract a valid device from the specified document. This currently only allows
 	 * one observation per document, and extracts the device from that observation, or from
