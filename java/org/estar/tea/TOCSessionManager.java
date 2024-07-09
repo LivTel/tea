@@ -996,7 +996,7 @@ public class TOCSessionManager implements Runnable, Logging
 			throw new IllegalArgumentException(this.getClass().getName()+
 			    ":acquire:Unsupported spectrograph "+instrumentId+" detected.");
 		}
-		session.acquire(target.getRA(),target.getDec(),acquireMode);
+		session.acquire(target.getRA(),target.getDec(),acquireMode,false);
 	}
 
 	/**
