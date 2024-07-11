@@ -1022,6 +1022,57 @@ public class TOCSessionManager implements Runnable, Logging
 	}
 
 	/**
+	 * Configure the rotator mode. This can normally be left to the default (setup as part of the INIT command, "FLOAT" the
+	 * rotator at it's current position.
+	 * A different approach is needed for Sprat, this needs to be set to a specific mount angle. The mount angle to use is read
+	 * from the tea properties file ("instrument.sprat.rotator.mount.angle").
+	 * (so the slit is pointing at zenith to allow for atmosphereic differential refraction).
+	 * @exception TOCException Thrown if the TOCA rotator command fails.
+	 * @exception NGATPropertyException Thrown if the Sprat mount angle could not be parsed.
+	 * @see #rotator
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#getInstrumentId
+	 */
+	private void configureRotator(RTMLDocument document) throws TOCException, NGATPropertyException
+	{
+		RTMLDevice device = null;
+		String instrumentId = null;
+		double mountAngle = 0.0;
+		
+		// extract device
+		device = getDeviceFromDocument(document);
+		// extract instrument Id
+		instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
+		if(instrumentId.equalsIgnoreCase("sprat"))
+		{
+			mountAngle = tea.getPropertyDouble("instrument.sprat.rotator.mount.angle");
+			rotator("MOUNT",mountAngle);
+		}
+		else
+		{
+			// In theory, we don't need to do anything here as the INIT command has already FLOATed the rotator.
+			// A previous Sprat observation may have moved the rotator to Sprat's mount angle, but the rotator is then
+			// floated at that angle by the TOCA rotator command.
+			//rotator("FLOAT",0.0);
+		}
+		
+	}
+	
+	/** 
+	 * Configure the rotator. This is normally done as part of the INIT command, however for certain instrument/observations
+	 * (Sprat) we need to use a different rotator configuration.
+	 * @param rotatorMode The mode to configure the rotator, one of "SKY", "MOUNT" or "FLOAT".
+	 * @param mountAngle If the rotator mode is "MOUNT", the mount angle to move the rotator to (in degrees),
+	 *                   before floating the rotator.
+	 * @see #session
+	 */
+	private void rotator(String rotatorMode, double mountAngle) throws TOCException
+	{
+		session.rotator(rotatorMode,mountAngle);
+	}
+
+
+	/**
 	 * Method to configure the telescope focal plane (aperture offset) for the instrument 
 	 * specified in the specified document.
 	 * Assumes the session <b>helo</b> and <b>init</b> methods have been called first.
