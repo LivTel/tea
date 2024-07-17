@@ -789,6 +789,16 @@ public class DeviceInstrumentUtilites implements Logging
 			//bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrMeaburnSpec(wavelengthString,false,false);
 		}
+		else if(toopInstrName.equals("SPRAT"))
+		{
+			RTMLGrating grating = null;
+			String gratingName = null;
+			
+			grating = device.getGrating();
+			gratingName = grating.getName(); // gratingName should be one of: "red" or "blue"
+			// SPRAT <slit:in|out> <grism:in|out> <grism:red|blue>
+			session.instrSprat("in","in",gratingName,false,false);
+		}
 		// diddly FrodoSpec
 		else
 		{
