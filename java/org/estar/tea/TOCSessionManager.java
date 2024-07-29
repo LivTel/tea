@@ -1014,7 +1014,7 @@ public class TOCSessionManager implements Runnable, Logging
 		RTMLSchedule schedule = null;
 		String acquireMode = null;
 		String instrumentId = null;
-		int exposureLength,exposureCount;
+		int exposureLength,exposureCount,maxAcquireBrightestExpLen;
 
 		// extract target from document
 		target = getTargetFromDocument(document);
@@ -1066,8 +1066,21 @@ public class TOCSessionManager implements Runnable, Logging
 		}
 		else if(instrumentId.equals("sprat"))
 		{
-			// always WCS for Sprat
-			acquireMode = TOCSession.ACQUIRE_MODE_WCS;
+			try
+			{
+				maxAcquireBrightestExpLen = tea.getPropertyInteger("instrument.sprat.acquire.bright.exp_len.max");
+			}
+			catch(NGATPropertyException e)
+			{
+				logger.log(INFO, 1, CLASS,this.getClass().getName()+
+				      ":acquire:Failed to retrieve 'instrument.sprat.acquire.bright.exp_len.max' from properties:"+e);
+				logger.dumpStack(1,e);
+				maxAcquireBrightestExpLen = 30000;
+			}
+			if(exposureLength <= maxAcquireBrightestExpLen)
+				acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
+			else
+				acquireMode = TOCSession.ACQUIRE_MODE_WCS;
 		}
 		// put other spectrographs here
 		else
