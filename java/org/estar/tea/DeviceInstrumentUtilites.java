@@ -588,6 +588,43 @@ public class DeviceInstrumentUtilites implements Logging
 	}
 
 	/**
+	 * Send a suitable FOCALPLANE command to a running TOCSession.
+	 * @param tea The instance of TelescopeEmbeddedAgent, used to retrieve configuration data.
+	 * @param session An instance of TOCSession which has already opened a TOCA session.
+	 * @param device The instance of RTML Device data to extract the instrument to configure the focal plane for.
+	 * @exception IllegalArgumentException Thrown if an argument is wrong, 
+	 *            or if there is no toop instrument mapping.
+	 * @exception TOCException Thrown if focalPlane fails.
+	 * @exception Exception Thrown if getCCDLowerFilterType/getCCDUpperFilterType/getSingleFilterType fails.
+	 * @exception NullPointerException Thrown if getInstrumentRotorSpeed/getInstrumentNudgematicOffsetSize fails.
+	 * @exception NGATPropertyException Thrown if getInstrumentCoaddExposureLength fails.
+	 * @see TelescopeEmbeddedAgent
+	 * @see org.estar.rtml.RTMLDevice
+	 * @see org.estar.toop.TOCSession
+	 * @see org.estar.toop.TOCSession#focalPlane
+	 * @see #getInstrumentId
+	 */
+	public static void sendFocalPlane(TelescopeEmbeddedAgent tea,TOCSession session,RTMLDevice device) throws
+		TOCException
+	{
+		String instrumentId = null;
+		String toopInstrName = null;
+
+
+		// get id
+		instrumentId = getInstrumentId(tea,device);
+		// get toop instrument name for id
+		toopInstrName = tea.getPropertyString("instrument."+instrumentId+".toop");
+		if(toopInstrName == null)
+		{
+			throw new IllegalArgumentException("org.estar.tea.DeviceInstrumentUtilites:"+
+							   "sendFocalPlane:Instrument id "+
+							   instrumentId+" has no toop instrument mapping.");
+		}
+		session.focalPlane(toopInstrName);
+	}
+
+	/**
 	 * Send a suitable INSTR command to a running TOCSession.
 	 * @param tea The instance of TelescopeEmbeddedAgent, used to retrieve configuration data.
 	 * @param session An instance of TOCSession which has already opened a TOCA session.
@@ -751,6 +788,16 @@ public class DeviceInstrumentUtilites implements Logging
 			// This needs to get more sophisticated if we allow non-square binning
 			//bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrMeaburnSpec(wavelengthString,false,false);
+		}
+		else if(toopInstrName.equals("SPRAT"))
+		{
+			RTMLGrating grating = null;
+			String gratingName = null;
+			
+			grating = device.getGrating();
+			gratingName = grating.getName(); // gratingName should be one of: "red" or "blue"
+			// SPRAT <slit:in|out> <grism:in|out> <grism:red|blue>
+			session.instrSprat("in","in",gratingName,false,false);
 		}
 		// diddly FrodoSpec
 		else

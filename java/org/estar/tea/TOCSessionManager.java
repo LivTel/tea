@@ -64,7 +64,13 @@ public class TOCSessionManager implements Runnable, Logging
 	 * List of documents to process in this session.
 	 */
 	private List documentList = null;
-
+	/**
+	 * Boolean to try and keep track of whether the autoguider is on or off.
+	 * We need to turn the autoguider on/off for both long exposures and Sprat observations, which means
+	 * the autoguider control is handled by multiple methods, hence needing a whole object variable.
+	 */
+	private boolean autoguiderOn = false;
+	
 	/**
 	 * Default constructor. Initialise session and sessionData.
 	 * Initialise logger.
@@ -704,18 +710,69 @@ public class TOCSessionManager implements Runnable, Logging
 
 	/**
 	 * Run method, called from a separate thread.
-	 * Finally, removes itself from the class sessionManagerMap.
+	 * <ul>
+	 * <li>We enter a loop, until we have finished processing RTMLDocument's.
+	 *     <ul>
+	 *     <li>We acquire a lock on the documentList. We retrieve the first RTMLDocument in the list, or wait
+	 *         for two minutes for a document to be added to the list (by another thread). If no document
+	 *         arrives withjin 2 minutes we terminate the outer loop.
+	 *     <li>If we are not in a session, we start one by issuing the following TOCSession session commands
+	 *         (the session reference was initialised in the TOCSessionManager's constructor):
+	 *         <ul>
+	 *         <li>helo
+	 *         <li>init
+	 *         </ul>
+	 *     <li>We call the slew method to point the telescope at the RTMLDocument's target. We reset autoguiderOn.
+	 *     <li>We call the focalPlane method to issue the correct telescope aperture for the 
+	 *         science instrument we are using.
+	 *     <li>We call the configureRotator method to ensure the rotator is correctly setup (really only for
+	 *         Sprat which needs the rotator floated at a specific mount angle, other instruments have the rotator
+	 *         floated as part of init).
+	 *     <li>We call acquireNeeded to check whether the science instrument needs to acquire the target.
+	 *         If so we call acquire to do the acuisition.
+	 *     <li>We call the instr method to configure the instrument to take the science data.
+	 *     <li>We call autoguiderNeeded to check whether we need to turn the autoguider on, and if so, we call
+	 *         the auto method to turn it on. We update autoguiderOn.
+	 *     <li>We call the expose method to take the science data with the science instrument.
+	 *     <li>We call arcNeeded to see if we need to take a calbration arc, and if so call the arc method to do this.
+	 *     <li>We start an instance of PostProcessThread to process the acquired data.
+	 *     <li>If we turned the autoguider on (autoguiderOn) we need to turn the autoguider off, and if so, we call
+	 *         the auto method to turn it off.
+	 *     <li>If an error occurs whilst processing the above it is logged, and an error document sent back to
+	 *         the intelligent agent with the error message.
+	 *     <li>Finally, the processed document is removed from the document list.
+	 *     </ul>
+	 * <li>We call the session's quit method to release the telescope from TOCA mode (exit the TOCA agent).
+	 * <li>Finally, we remove this instance of TOCSessionManager from the class sessionManagerMap.
+	 * </ul>
+	 * @see PostProcessThread
 	 * @see #documentList
 	 * @see #tagUserProposalInfo
+	 * @see #session
 	 * @see #sessionManagerMap
 	 * @see #logger
+	 * @see #slew
+	 * @see #focalPlane
+	 * @see #configureRotator
+	 * @see #acquireNeeded
+	 * @see #acquire
+	 * @see #instr
+	 * @see #autoguiderNeeded
+	 * @see #auto
+	 * @see #expose
+	 * @see #arcNeeded
+	 * @see #arc
+	 * @see #autoguiderOn
+	 * @see org.estar.rtml.toop.TOCSession
+	 * @see org.estar.rtml.toop.TOCSession#helo
+	 * @see org.estar.rtml.toop.TOCSession#init
+	 * @see org.estar.rtml.toop.TOCSession#quit
 	 */
 	public void run()
 	{
 		PostProcessThread postProcessThread = null;
 		RTMLDocument document = null;
 		List filenameList = null;
-		List localFilenameList = null;
 		Thread t = null;
 		boolean done;
 		boolean inSession;
@@ -781,20 +838,33 @@ public class TOCSessionManager implements Runnable, Logging
 						session.init();
 						inSession = true;
 					}
-					// slew telescope
+					// initialise list of generated filenames
+					filenameList = new Vector();
+					// slew telescope, this also means the autoguider will be off
 					slew(document);
-					// configure instrument
-					instr(document);
+					autoguiderOn = false;
+					// focal plane
+					focalPlane(document);
+					// configure rotator (really sprat only, move to mount angle 0 before floating)
+					// other instruments have a floated rotator as part of init
+					configureRotator(document);
 					// acquire if neccessary
 					if(acquireNeeded(document))
-						acquire(document);
+						acquire(document,filenameList);					
+					// configure instrument
+					instr(document);
 					// autoguider on if necessary
+					// Note the previous acquire command may have turned the autoguider on (Sprat)
 					if(autoguiderNeeded(document))
 					{
 						// don't worry if it fails, log error and continue.
 						try
 						{
-							auto(true);
+							// Note the previous acquire command may have turned
+							// the autoguider on (Sprat)
+							if(autoguiderOn == false)
+								auto(true);
+							autoguiderOn = true;
 						}
 						catch(Exception e)
 						{
@@ -803,7 +873,10 @@ public class TOCSessionManager implements Runnable, Logging
 						}
 					}
 					// expose
-					filenameList = expose(document);
+					expose(document,filenameList);
+					// Sprat needs to take an ARC after the science exposure
+					if(arcNeeded(document))
+						arc(document,filenameList);
 					// pass filenameList into inner class thread to handle data
 					// transfer etc, so we can go back to watching for new docs to process
 					// whilst transfering/pipelineprocess/update/obs doc on this one
@@ -814,11 +887,12 @@ public class TOCSessionManager implements Runnable, Logging
 					t.start();
 					logger.log(INFO, 1, CLASS,"TOCSessionManager::run: Started new post-process thread.");
 					// if autoguider was turned on, now turn it off
-					if(autoguiderNeeded(document))
+					if(autoguiderOn)
 					{
 						try
 						{
 							auto(false);
+							autoguiderOn = false;
 						}
 						catch(Exception e)
 						{
@@ -921,6 +995,7 @@ public class TOCSessionManager implements Runnable, Logging
 	 * The target is extracted from the document. The acquire Mode is synthesized from the instrument Id
 	 * and exposure length extracted from the document.
 	 * @param document The document to extract target information from.
+	 * @param filenameList A list instance to add filenames of FITS images generated by acquisition command to.
 	 * @exception IllegalArgumentException Thrown if there are the wrong number of observations in the document.
 	 * @exception NullPointerException Thrown if the target was not in the document.
 	 * @exception TOCException Thrown if the TOCA acquire command fails.
@@ -930,7 +1005,8 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @see #getDeviceFromDocument
 	 * @see DeviceInstrumentUtilites#getInstrumentId
 	 */
-	private void acquire(RTMLDocument document) throws IllegalArgumentException, NullPointerException, TOCException
+	private void acquire(RTMLDocument document,List filenameList) throws IllegalArgumentException,
+									     NullPointerException, TOCException
 	{
 		RTMLDevice device = null;
 		RTMLTarget target = null;
@@ -938,7 +1014,7 @@ public class TOCSessionManager implements Runnable, Logging
 		RTMLSchedule schedule = null;
 		String acquireMode = null;
 		String instrumentId = null;
-		int exposureLength,exposureCount;
+		int exposureLength,exposureCount,maxAcquireBrightestExpLen;
 
 		// extract target from document
 		target = getTargetFromDocument(document);
@@ -988,13 +1064,60 @@ public class TOCSessionManager implements Runnable, Logging
 			else
 				acquireMode = TOCSession.ACQUIRE_MODE_WCS;
 		}
+		else if(instrumentId.equals("sprat"))
+		{
+			try
+			{
+				maxAcquireBrightestExpLen = tea.getPropertyInteger("instrument.sprat.acquire.bright.exp_len.max");
+			}
+			catch(NGATPropertyException e)
+			{
+				logger.log(INFO, 1, CLASS,this.getClass().getName()+
+				      ":acquire:Failed to retrieve 'instrument.sprat.acquire.bright.exp_len.max' from properties:"+e);
+				logger.dumpStack(1,e);
+				maxAcquireBrightestExpLen = 30000;
+			}
+			if(exposureLength <= maxAcquireBrightestExpLen)
+				acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
+			else
+				acquireMode = TOCSession.ACQUIRE_MODE_WCS;
+		}
 		// put other spectrographs here
 		else
 		{
 			throw new IllegalArgumentException(this.getClass().getName()+
 			    ":acquire:Unsupported spectrograph "+instrumentId+" detected.");
 		}
-		session.acquire(target.getRA(),target.getDec(),acquireMode);
+		// initial acquisition, autoguider off, high precision is false
+		session.acquire(target.getRA(),target.getDec(),acquireMode,false);
+		// Sprat is a slit spectrograph, and therefore requires a second high precision acquisition
+		// after turning the autoguider on (which causes a small jump in the telescope pointing)
+		if(instrumentId.equals("sprat"))
+		{
+			// turn autoguider on
+			// don't worry if it fails, log error and continue.
+			try
+			{
+				auto(true);
+				autoguiderOn = true;
+			}
+			catch(Exception e)
+			{
+				logger.log(INFO, 1, CLASS,this.getClass().getName()+":acquire:Autoguider on failed:"+e);
+				logger.dumpStack(1,e);
+			}
+			// high precision acquisition, autoguider on, high precision is true
+			session.acquire(target.getRA(),target.getDec(),acquireMode,true);
+			// Sprat slit image, we don't care whether the grism is red or blue as it's out of the beam
+			session.instrSprat("in","out","red",false,false);
+			// Sprat slit exposure (1 x 10s)
+			session.expose(10000,1,false);
+			// get slit exposure filename and add to list
+			for(int i = 0;i < session.getExposeFilenameCount(); i++)
+			{
+				filenameList.add(session.getExposeFilename(i));
+			}
+		}// end if instrument is Sprat.
 	}
 
 	/**
@@ -1017,6 +1140,82 @@ public class TOCSessionManager implements Runnable, Logging
 		target = getTargetFromDocument(document);
 		// slew
 		session.slew(target.getName(),target.getRA(),target.getDec());
+	}
+
+	/**
+	 * Configure the rotator mode. This can normally be left to the default (setup as part of the INIT command, "FLOAT" the
+	 * rotator at it's current position.
+	 * A different approach is needed for Sprat, this needs to be set to a specific mount angle. 
+	 * The mount angle to use is read
+	 * from the tea properties file ("instrument.sprat.rotator.mount.angle").
+	 * (so the slit is pointing at zenith to allow for atmosphereic differential refraction).
+	 * @exception TOCException Thrown if the TOCA rotator command fails.
+	 * @exception NGATPropertyException Thrown if the Sprat mount angle could not be parsed.
+	 * @see #rotator
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#getInstrumentId
+	 */
+	private void configureRotator(RTMLDocument document) throws TOCException, NGATPropertyException
+	{
+		RTMLDevice device = null;
+		String instrumentId = null;
+		double mountAngle = 0.0;
+		
+		// extract device
+		device = getDeviceFromDocument(document);
+		// extract instrument Id
+		instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
+		if(instrumentId.equalsIgnoreCase("sprat"))
+		{
+			mountAngle = tea.getPropertyDouble("instrument.sprat.rotator.mount.angle");
+			rotator("MOUNT",mountAngle);
+		}
+		else
+		{
+			// In theory, we don't need to do anything here as the INIT command has already FLOATed the rotator.
+			// A previous Sprat observation may have moved the rotator to Sprat's mount angle, but the rotator is then
+			// floated at that angle by the TOCA rotator command.
+			//rotator("FLOAT",0.0);
+		}
+		
+	}
+	
+	/** 
+	 * Configure the rotator. This is normally done as part of the INIT command, however for certain instrument/observations
+	 * (Sprat) we need to use a different rotator configuration.
+	 * @param rotatorMode The mode to configure the rotator, one of "SKY", "MOUNT" or "FLOAT".
+	 * @param mountAngle If the rotator mode is "MOUNT", the mount angle to move the rotator to (in degrees),
+	 *                   before floating the rotator.
+	 * @see #session
+	 */
+	private void rotator(String rotatorMode, double mountAngle) throws TOCException
+	{
+		session.rotator(rotatorMode,mountAngle);
+	}
+
+
+	/**
+	 * Method to configure the telescope focal plane (aperture offset) for the instrument 
+	 * specified in the specified document.
+	 * Assumes the session <b>helo</b> and <b>init</b> methods have been called first.
+	 * @param document The document to extract the instrument name from.
+	 * @exception IllegalArgumentException Thrown if there are the wrong number of observations in the document.
+	 * @exception NullPointerException Thrown if the device or detector was not in the document.
+	 * @exception TOCException Thrown if the TOCA focalPlane command fails in some way.
+	 * @exception Exception Thrown if the sendInstr method fails.
+	 * @see #tea
+	 * @see #session
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#sendInstr
+	 */
+	private void focalPlane(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
+							 TOCException, Exception
+	{
+		RTMLDevice device = null;
+
+		device = getDeviceFromDocument(document);
+		// Parse RTMLDevice and send appropriate focalPlane using TOCSession session.
+		DeviceInstrumentUtilites.sendFocalPlane(tea,session,device);
 	}
 
 	/**
@@ -1088,11 +1287,12 @@ public class TOCSessionManager implements Runnable, Logging
 	{
 		session.auto(on);
 	}
-
+		
 	/**
 	 * Method to do the exposure sequence specified in the specified document.
 	 * Assumes the session <b>helo</b>, <b>init</b>, <b>slew</b>, <b>instr</b> methods have been called first.
 	 * @param document The document to extract the exposure sequence information from.
+	 * @param filenameList A list instance to add filenames of FITS images generated by the expose command to.
 	 * @return A list of exposure filenames are returned.
 	 * @exception IllegalArgumentException Thrown if there are the wrong number of observations in the document.
 	 *           Thrown if the Schedule has a SeriesConstraint and SeeingConstraint. Thrown if getting
@@ -1101,13 +1301,12 @@ public class TOCSessionManager implements Runnable, Logging
 	 * @exception TOCException Thrown if the TOCA expose command fails in some way.
 	 * @see #session
 	 */
-	private List expose(RTMLDocument document) throws NullPointerException, IllegalArgumentException, 
+	private void expose(RTMLDocument document,List filenameList) throws NullPointerException, IllegalArgumentException, 
 							TOCException
 	{
 		RTMLObservation observation = null;
 		RTMLSchedule schedule = null;
 		Expose expose = null;
-		List filenameList = null;
 		int exposureLength = 0;
 		int exposureCount = 0;
 
@@ -1141,13 +1340,70 @@ public class TOCSessionManager implements Runnable, Logging
 		// expose - default data pipeline flag to true for RATCAM/DILLCAM.
 		session.expose(exposureLength,exposureCount,true);
 		// extract filenames of data taken
-		filenameList = new Vector();
 		expose = session.getExpose();
 		for(int i = 0;i < expose.getFilenameCount(); i++)
 		{
 			filenameList.add(expose.getFilename(i));
 		}
-		return filenameList;
+	}
+
+	/**
+	 * Method to determine whether an ARC calibration frame is needed to accurately calibrate the science 
+	 * (presumably spectroscopic) data.
+	 * Arcs are only needed for Sprat at the moment.
+	 * @param document The document to extract target information from.
+	 * @exception IllegalArgumentException Thrown if the document contains > 1 observation,
+	 *            or no device exists in the observation or document.
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#getInstrumentId
+	 */
+	private boolean arcNeeded(RTMLDocument document) throws IllegalArgumentException
+	{
+		RTMLDevice device = null;
+		String instrumentId = null;
+		boolean arcNeeded;
+
+		device = getDeviceFromDocument(document);
+		instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
+		arcNeeded = (instrumentId.equalsIgnoreCase("sprat"));
+		return arcNeeded;
+	}
+
+	/**
+	 * Take an arc calibration frame with the currently selected (by instr) instrument (must be a spectrograph).
+	 * @param document The RTML document describing the science data to be taken (and instrument to be used).
+	 * @param filenameList A list of filenames to add the acquired arc FITS filename to.
+	 * @see #session
+	 * @see #getDeviceFromDocument
+	 * @see DeviceInstrumentUtilites#getInstrumentId
+	 * @see org.estar.toop.TOCSession#arc
+	 * @see org.estar.toop.TOCSession#arc
+	 */
+	private void arc(RTMLDocument document,List filenameList) throws TOCException
+	{
+		RTMLDevice device = null;
+		String instrumentId = null;
+		String lampName = null;
+
+		// get instrument id
+		device = getDeviceFromDocument(document);
+		instrumentId = DeviceInstrumentUtilites.getInstrumentId(tea,device);
+		// Figure out ARC lamp to use based on instrument
+		if(instrumentId.equalsIgnoreCase("sprat"))
+		{
+			lampName = new String("Xe");
+		}
+		else
+		{
+			throw new TOCException(this.getClass().getName()+":arc:Unknown instrument for arc:"+instrumentId);
+		}
+		// take the arc
+		session.arc(lampName);
+		// extract filenames of data taken
+		for(int i = 0;i < session.getArcFilenameCount(); i++)
+		{
+			filenameList.add(session.getArcFilename(i));
+		}
 	}
 
 	/**
