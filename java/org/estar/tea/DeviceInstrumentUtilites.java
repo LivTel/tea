@@ -701,7 +701,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType2 = null;
 		String moptopFilterType = null;
 		String liricFilterType = null;
-		String lociilterType = null;
+		String lociFilterType = null;
 		String rotorSpeed = null;
 		String nudgematicOffsetSize = null;
 		String toopInstrName = null;
