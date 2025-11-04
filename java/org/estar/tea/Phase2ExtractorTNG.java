@@ -29,6 +29,7 @@ import ngat.phase2.MOPTOPPolarimeterConfig;
 import ngat.phase2.RISEConfig;
 import ngat.phase2.SpratConfig;
 import ngat.phase2.LiricConfig;
+import ngat.phase2.LociConfig;
 import ngat.phase2.THORConfig;
 import ngat.phase2.Window;
 import ngat.phase2.XAcquisitionConfig;
@@ -74,7 +75,8 @@ import ngat.phase2.XWindow;
  * from an RTML document, and insert it into the Phase2 database via the OSS RMI handler.
  * @author eng
  */
-public class Phase2ExtractorTNG implements Logging {
+public class Phase2ExtractorTNG implements Logging
+{
 
 	/** Default maximum unguided exposure length (ms). */
 	public static final long DEFAULT_MAXIMUM_UNGUIDED_EXPOSURE = 24 * 3600 * 1000L;
@@ -1858,6 +1860,21 @@ public class Phase2ExtractorTNG implements Logging {
 			xim.setFilterSpec(filterSpec);
 			xim.setDetectorConfig(xdet);
 			xim.setInstrumentName("IO:O");
+			return xim;
+
+		}
+		else if (config instanceof LociConfig)
+		{
+			LociConfig lociConfig = (LociConfig) config;
+			StringBuffer filterStringBuffer = new StringBuffer();
+
+			XFilterSpec filterSpec = new XFilterSpec();
+			filterSpec.addFilter(new XFilterDef(lociConfig.getFilterName()));
+
+			XImagerInstrumentConfig xim = new XImagerInstrumentConfig(config.getName());
+			xim.setFilterSpec(filterSpec);
+			xim.setDetectorConfig(xdet);
+			xim.setInstrumentName("LOCI");
 			return xim;
 
 		}

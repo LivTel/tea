@@ -133,6 +133,8 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see ngat.phase2.MOPTOPPolarimeterDetector
 	 * @see ngat.phase2.LiricConfig
 	 * @see ngat.phase2.LiricDetector
+	 * @see ngat.phase2.LociConfig
+	 * @see ngat.phase2.LociDetector
 	 */
 	public static InstrumentConfig getInstrumentConfig(TelescopeEmbeddedAgent tea,RTMLDevice device) throws
 		IllegalArgumentException, ClassNotFoundException, NoSuchMethodException, InstantiationException, 
@@ -149,6 +151,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String irFilterType = null;
 		String moptopFilterType = null;
 		String liricFilterType = null;
+		String lociFilterType = null;
 		String oFilterType[] = new String[OConfig.O_FILTER_INDEX_COUNT];
 		String rotorSpeed = null;
 		String nudgematicOffsetSize = null;
@@ -254,6 +257,27 @@ public class DeviceInstrumentUtilites implements Logging
 			oDetector.clearAllWindows();
 			oDetector.setXBin(bin);
 			oDetector.setYBin(bin);
+		}
+ 		else if(configClassName.equals("ngat.phase2.LociConfig"))
+		{
+			rtmlFilterType = device.getFilterType();
+			lociFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
+			// This needs to get more sophisticated if we allow non-square binning
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			// create config
+			config = createInstrumentConfig(configClassName,"TEA-LOCI-"+lociFilterType+"-"+bin+"x"+bin);
+			if (! (config instanceof LociConfig))
+			{
+				throw new IllegalArgumentException(
+					  "getInstrumentConfig:Invalid config class for LOCI camera:"+
+								   config.getClass().getName());
+			}
+			LociConfig lociConfig = (LociConfig)config;
+			lociConfig.setFilterName(lociFilterType);
+			LociDetector lociDetector = (LociDetector)lociConfig.getDetector(0);
+			lociDetector.clearAllWindows();
+			lociDetector.setXBin(bin);
+			lociDetector.setYBin(bin);
 		}
                 else if(configClassName.equals("ngat.phase2.IRCamConfig"))
 		{
@@ -648,6 +672,7 @@ public class DeviceInstrumentUtilites implements Logging
 	 * @see org.estar.toop.TOCSession#instrRingo3
 	 * @see org.estar.toop.TOCSession#instrMoptop
 	 * @see org.estar.toop.TOCSession#instrLiric
+	 * @see org.estar.toop.TOCSession#instrLoci
 	 * @see org.estar.toop.TOCSession#instrMeaburnSpec
 	 * @see #getInstrumentType
 	 * @see #getSingleFilterType
@@ -676,6 +701,7 @@ public class DeviceInstrumentUtilites implements Logging
 		String filterType2 = null;
 		String moptopFilterType = null;
 		String liricFilterType = null;
+		String lociFilterType = null;
 		String rotorSpeed = null;
 		String nudgematicOffsetSize = null;
 		String toopInstrName = null;
@@ -737,6 +763,13 @@ public class DeviceInstrumentUtilites implements Logging
 			coaddExposureLength = getInstrumentCoaddExposureLength(tea,instrumentType,instrumentId,device);
 			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
 			session.instrLiric(liricFilterType,nudgematicOffsetSize,coaddExposureLength,bin,bin,false,false);
+		}
+		else if(toopInstrName.equals("LOCI"))
+		{
+			rtmlFilterType = device.getFilterType();
+			lociFilterType = getSingleFilterType(tea,instrumentId,rtmlFilterType);
+			bin = getInstrumentDetectorBinning(tea,instrumentType,instrumentId,device.getDetector());
+			session.instrLoci(lociFilterType,bin,bin,false,false);
 		}
 		else if(toopInstrName.equals("IO:O"))
 		{
