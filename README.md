@@ -32,5 +32,5 @@ The TEA also requires the following dependencies installing in ltproxy:/proxy/te
 
 ## Software structure
 
-There is a little documentation on RTML document handling [here](org/estar/tea/README.md).
+There is a little documentation on RTML document handling [here](java/org/estar/tea/README.md).
 
