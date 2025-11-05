@@ -246,6 +246,7 @@ public class Phase2ExtractorTNG implements Logging
 		return document;
 
 	}
+	
 	/**
 	 * Handle a RTML abort document.
 	 * <ul>
@@ -455,7 +456,134 @@ public class Phase2ExtractorTNG implements Logging
 		document.addHistoryEntry("TEA:" + tea.getId(), null, "Document aborted.");
 		return document;
 	}
+	
+	/**
+	 * Handle a RTML update document.
+	 * <ul>
+	 * <li>If the document is a TOOP (target of opportunity) document:-
+	 *     <ul>
+	 *     <li>Reply with an error document (reject), we can't report on a TOOP session at the moment.
+	 *     </ul>
+	 */
+	public RTMLDocument handleUpdate(RTMLDocument document) throws Exception 
+	{
+		AgentRequestHandler arq = null;
+		String cid = null;
+		String groupName = null;
 
+		cid = document.getUId();
+		// Tag/User ID combo is what we expect here.
+		RTMLContact contact = document.getContact();
+		if (contact == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate", 
+				   "RTML Contact was not specified, failing update.");
+			throw new IllegalArgumentException("No update was supplied");
+		}
+		String userId = contact.getUser();
+		if (userId == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate", 
+				   "RTML Contact User was not specified, failing update.");
+			throw new IllegalArgumentException("Your User ID was null");
+		}
+		
+		logger.log(INFO, 1, CLASS, cid, "handleUpdate", "handleUpdate for document UId: " + document.getUId());
+		// Is the document a TOOP document
+		if (document.isTOOP()) 
+		{
+			document.setReject();
+			document.addHistoryRejection("TEA:"+tea.getId(),null,RTMLHistoryEntry.REJECTION_REASON_SYNTAX,
+						     this.getClass().getName()+
+						     ":handleUpdate:Cannot get an update on a TOOP document.");
+			document.setErrorString(this.getClass().getName()+
+						":handleAbort:Cannot get an update on  a TOOP document.");
+			logger.log(INFO, 1, CLASS, cid, "handleAbort", "Cannot get an update on  a TOOP document..");
+			return document;
+		}
+		// The document must be a phaseII document
+		phase2 = tea.getPhase2Model();
+		// Find the proposal ID name from the RTML document's project data
+		RTMLProject project = document.getProject();
+		if( project == null)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate","RTML Project was null, failing update.");
+			throw new IllegalArgumentException("handleUpdate:RTML Project was null, failing update.");
+		}
+		String proposalIdName = project.getProject();
+		if (proposalIdName == null) 
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate", 
+				   "RTML Project was null, failing update.");
+			throw new IllegalArgumentException("handleUpdate:RTML Project was null, failing update.");
+		}
+		// Find the proposal info  from the proposal Id name
+		Map proposalMap = tea.getProposalMap();
+		if (!proposalMap.containsKey(proposalIdName))
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate","Unable to match proposal name: ["+proposalIdName+
+					    "] with known proposals.");
+			throw new Exception("handleUpdate:Unable to match proposal name: [" + proposalIdName + 
+					    "] with known proposals.");
+		}
+		// extract proposal info from proposal map using proposal id name
+		ProposalInfo pinfo = (ProposalInfo) proposalMap.get(proposalIdName);
+		logger.log(INFO, 1, CLASS, cid, "handleUpdate", "Obtained pinfo for: " + proposalIdName);
+		if(pinfo == null)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate",
+				   "Unable to extract proposal info from proposal id name "+proposalIdName+".");
+			throw new Exception("handleUpdate:Unable to extract proposal info from proposal id name "+
+					    proposalIdName+".");
+		}
+		// check extracted user has access permission on this proposal
+		if(pinfo.userHasAccess(userId) == false)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate", "User [" + userId +
+				   "] does NOT have access to Proposal [" + proposalIdName + "].");
+			throw new Exception("handleUpdate:User [" + userId +
+				   "] does NOT have access to Proposal [" + proposalIdName + "].");
+		}
+		else
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate", "User [" + userId +
+				   "] does have access to Proposal [" + proposalIdName + "].");
+		}
+		IProposal proposal = pinfo.getProposal();
+		if(proposal == null)
+		{
+			logger.log(INFO, 1, CLASS, cid, "handleUpdate",
+				   "Unable to extract proposal from proposal id name "+proposalIdName+".");
+			throw new Exception("handleUpdate:Unable to extract proposal from proposal id name "+
+					    proposalIdName+".");
+		}
+		// Find the name of the group
+		// See extractGroup, group.setName is set to the document Uid, with non-word characters replaced by
+		// '_'.
+		groupName = document.getUId();
+		if (groupName == null) 
+		{
+			logger.log(INFO,1,CLASS,cid,"handleUpdate","RTML uid was not specified, failing update request.");
+			throw new IllegalArgumentException("handleUpdate:RTML uid was not specified, failing update request.");
+		}
+		groupName = groupName.replaceAll("\\W", "_");
+		logger.log(INFO,1,CLASS,cid,"handleUpdate","PhaseII group name is:"+groupName);
+		// Get phase 2 proposal Id
+ 		long phase2ProposalId = proposal.getID();
+		logger.log(INFO,1,CLASS,cid,"handleUpdate","PhaseII proposal Id is:"+phase2ProposalId);
+		// find group id from proposal id and group name
+		logger.log(INFO,1,CLASS,cid,"handleUpdate","Attempting to find group name: "+groupName+
+			   " in proposal Id:"+phase2ProposalId);
+		long phase2GroupId = phase2.findIdOfGroupInProposal(groupName,phase2ProposalId);
+		logger.log(INFO,1,CLASS,cid,"handleUpdate","Group name: "+groupName+" in proposal Id:"+phase2ProposalId+
+			   " has group id:"+phase2GroupId);
+		// do the update
+		// diddly
+		//document.setUpdateReply();
+		//document.addHistoryEntry("TEA:" + tea.getId(), null, "Document aborted.");
+		return document;
+	}
+	
 	/**
 	 * Method to extract a group path string from the specified document.
 	 * @param document The RTML document to extract the group path from.
