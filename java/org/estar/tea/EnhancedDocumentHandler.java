@@ -328,10 +328,25 @@ public class EnhancedDocumentHandler implements Logging
 	{
 		Phase2ExtractorTNG extractor = new Phase2ExtractorTNG(tea);
 		return extractor.handleAbort(doc);
-
 	}
 	
-	
+	/**
+	 * Handle a RTML update document.
+	 * <ul>
+	 * <li>We create a Phase2ExtractorTNG, and call it's handleUpdate method.
+	 * </ul>
+	 * @param doc The RTML abort document to process, an instance of RTMLDocument.
+	 * @return An instance of RTMLDocument containing the result of processing the document.
+	 * @see #tea
+	 * @see Phase2ExtractorTNG
+	 * @see Phase2ExtractorTNG#handleUpdate
+	 */
+	public RTMLDocument handleUpdate(RTMLDocument doc) throws Exception 
+	{
+		Phase2ExtractorTNG extractor = new Phase2ExtractorTNG(tea);
+		return extractor.handleUpdate(doc);
+	}
+		
 	public RTMLDocument handleModification(RTMLDocument doc) throws Exception {
 		
 		Phase2ExtractorTNG extractor = new Phase2ExtractorTNG(tea);
