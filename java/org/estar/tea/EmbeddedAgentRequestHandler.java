@@ -31,4 +31,11 @@ public interface EmbeddedAgentRequestHandler extends Remote
      */
     public RTMLDocument handleAbort(RTMLDocument dec) throws RemoteException;
 
+    /** 
+     * Handle an update request.
+     * @param doc The RTML document to provide a status update on.
+     * @return A RTML document with a status update, or an error document describing what went wrong.
+     */
+    public RTMLDocument handleUpdate(RTMLDocument dec) throws RemoteException;
+
 }
