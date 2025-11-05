@@ -176,6 +176,42 @@ public class EnhancedEmbeddedAgentRequestHandler extends UnicastRemoteObject imp
 		return reply;
 	}
 
+	/**
+	 * Handle an update request (i.e. request the status of the group associated with the  RTML document with the specified UID).
+	 * <ul>
+	 * <li>A new EnhancedDocumentHandler instance is created.
+	 * <li>The EnhancedDocumentHandler's handleUpdate method is invoked.
+	 * <li>The returned document is logged and returned.
+	 * </ul>
+	 * @param doc The RTML document to be deleted.
+	 * @return The reply RTML document, or an error document if an error occured.
+	 * @see org.estar.tea.EnhancedDocumentHandler
+	 * @see org.estar.tea.EnhancedDocumentHandler#handleUpdate
+	 * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
+	 */
+	public RTMLDocument handleUpdate(RTMLDocument doc) throws RemoteException 
+	{
+		RTMLDocument reply = null;
+
+		try 
+		{
+			EnhancedDocumentHandler rdh = new EnhancedDocumentHandler(tea);
+			tea.logRTML(alogger, 1, "RequestDocHandler handling update request: ", doc);
+			reply = rdh.handleUpdate(doc);
+			alogger.log(1, "RequestDocHandler returned update reply doc: " + reply);
+			tea.logRTML(alogger, 1, "RequestDocHandler returned update reply doc: ", reply);
+
+			LogCollator collator = logger.create().info().level(1).extractCallInfo().msg(
+					"RequestDocHandler returned update reply document.");
+		} 
+		catch (Exception e) 
+		{
+			e.printStackTrace();
+			throw new RemoteException("Exception while handling update request: " + e);
+		}
+		return reply;
+	}
+
 	/** Request the system to test ongoing throughput. */
 	public void testThroughput() throws RemoteException {
 
