@@ -3,7 +3,9 @@ package org.estar.tea;
 import java.io.File;
 import java.util.Date;
 import java.util.Map;
-
+import java.util.List;
+import java.util.Iterator;
+	
 import ngat.util.logging.*;
 import org.estar.rtml.*;
 import org.estar.astrometry.*; //import ngat.phase2.*;
@@ -16,6 +18,7 @@ import ngat.phase2.Detector;
 import ngat.phase2.FrodoSpecConfig;
 import ngat.phase2.IAcquisitionConfig;
 import ngat.phase2.IAutoguiderConfig;
+import ngat.phase2.IHistoryItem;
 import ngat.phase2.IObservingConstraint;
 import ngat.phase2.IProgram;
 import ngat.phase2.IProposal;
@@ -171,7 +174,6 @@ public class Phase2ExtractorTNG implements Logging
 	 * @see org.estar.rtml.RTMLDocument#isTOOP
 	 * @see org.estar.rtml.RTMLDocument#setRequestReply
 	 * @see org.estar.rtml.RTMLDocument#addHistoryEntry
-	 * @see ngat.oss.model.IPhase2Model
 	 * @see ngat.oss.model.IPhase2Model
 	 */
 	public RTMLDocument handleRequest(RTMLDocument document) throws Exception 
@@ -462,12 +464,73 @@ public class Phase2ExtractorTNG implements Logging
 	 * <ul>
 	 * <li>If the document is a TOOP (target of opportunity) document:-
 	 *     <ul>
+	 *     <li>If we can't find a Contact->User in the document, throw an exception.
 	 *     <li>Reply with an error document (reject), we can't report on a TOOP session at the moment.
+	 *     <li>We get the Phase2 Model (RMI end-point) from the tea instance.
+	 *     <li>We get the Project from the document, and map it to a Phase2 Proposal.
+	 *     <li>We get an instance of ProposalInfo relevant to the specified proposal, from the tea's proposal Map. 
+	 *     <li>We check the extracted user has access to the extracted proposal (ProposalInfo.userHasAccess).
+	 *     <li>We get the Phase2DB IProposal instance for this proposal from the tea's proposal Map 
+	 *         (ProposalInfo.getProposal).
+	 *     <li>We convert the RTML document's Uid into a Phase2DB group name.
+	 *     <li>We invoke the phase2 model's RMI method findIdOfGroupInProposal to get the group ID of 
+	 *         the specified group name in the specified phase2 proposal. 
+	 *     <li>We retrieve a Phase2 History Model from the tea, and invoke listHistoryItems with the specified
+	 *         group Id to retrieve the history of the group.
+	 *     <li>We iterate over the the list of Phase2 History items.
+	 *         <ul>
+	 *         <li>We calculate how long the group took to succeed/fail using the 
+	 *             IHistoryItem getScheduledTime / getCompletionTime.
+	 *         <li>We retrieve the completion status (IHistoryItem.getCompletionStatus).
+	 *         <li>Depending on whether the status is EXECUTION_SUCCESSFUL or EXECUTION_FAILED we create 
+	 *             an appropriate message, including the error code and error message if appropriate 
+	 *             (IHistoryItem.getErrorCode / IHistoryItem.getErrorMessage).
+	 *         <li>We create a new RTMLHistoryEntry with the specified message, 
+	 *             and the history item's completion time as a timestamp. 
+	 *             If the status was EXECUTION_FAILED the RTMLHistoryEntry's error message is set.
+	 *         <li>We add the new RTMLHistoryEntry to the RTML document's RTMLHistory.
+	 *         </ul>
 	 *     </ul>
+	 * @see #tea
+	 * @see #phase2
+	 * @see TelescopeEmbeddedAgent#getProposalMap
+	 * @see TelescopeEmbeddedAgent#getPhase2Model
+	 * @see TelescopeEmbeddedAgent#getHistoryModel
+	 * @see ProposalInfo
+	 * @see ProposalInfo#userHasAccess
+	 * @see ProposalInfo#getProposal
+	 * @see ngat.phase2.IProposal
+	 * @see ngat.phase2.IProposal#getID
+	 * @see ngat.phase2.IHistoryItem#getCompletionTime
+	 * @see ngat.phase2.IHistoryItem#getScheduledTime
+	 * @see ngat.phase2.IHistoryItem#getCompletionStatus
+	 * @see ngat.phase2.IHistoryItem#getErrorCode
+	 * @see ngat.phase2.IHistoryItem#getErrorMessage
+	 * @see ngat.phase2.IHistoryItem#EXECUTION_SUCCESSFUL
+	 * @see ngat.phase2.IHistoryItem#EXECUTION_FAILED
+	 * @see ngat.oss.model.IPhase2Model#findIdOfGroupInProposal
+	 * @see ngat.oss.model.IHistoryModel#listHistoryItems
+	 * @see org.estar.rtml.RTMLDocument
+	 * @see org.estar.rtml.RTMLDocument#getContact
+	 * @see org.estar.rtml.RTMLDocument#getProject
+	 * @see org.estar.rtml.RTMLDocument#getHistory
+	 * @see org.estar.rtml.RTMLDocument#getUId
+	 * @see org.estar.rtml.RTMLDocument#isTOOP
+	 * @see org.estar.rtml.RTMLProject#getProject
+	 * @see org.estar.rtml.RTMLContact#getUser
+	 * @see org.estar.rtml.RTMLHistory
+	 * @see org.estar.rtml.RTMLHistory#addEntry
+	 * @see org.estar.rtml.RTMLHistoryEntry
+	 * @see org.estar.rtml.RTMLHistoryEntry#setAgent
+	 * @see org.estar.rtml.RTMLHistoryEntry#setDescription
+	 * @see org.estar.rtml.RTMLHistoryEntry#setTimeStamp
+	 * @see org.estar.rtmlRTMLHistoryEntry#setError
 	 */
 	public RTMLDocument handleUpdate(RTMLDocument document) throws Exception 
 	{
-		AgentRequestHandler arq = null;
+		RTMLHistory rtmlHistory = null;
+		RTMLHistoryEntry rtmlHistoryEntry = null;
+		RTMLIntelligentAgent ia = null;
 		String cid = null;
 		String groupName = null;
 
@@ -577,10 +640,71 @@ public class Phase2ExtractorTNG implements Logging
 		long phase2GroupId = phase2.findIdOfGroupInProposal(groupName,phase2ProposalId);
 		logger.log(INFO,1,CLASS,cid,"handleUpdate","Group name: "+groupName+" in proposal Id:"+phase2ProposalId+
 			   " has group id:"+phase2GroupId);
-		// do the update
-		// diddly
-		//document.setUpdateReply();
-		//document.addHistoryEntry("TEA:" + tea.getId(), null, "Document aborted.");
+		// get the RTML document's History, so we can add new entries to it
+		rtmlHistory = document.getHistory();
+		if(rtmlHistory == null)
+		{
+			rtmlHistory = new RTMLHistory();
+			document.setHistory(rtmlHistory);
+		}
+		// setup an RTMLIntelligentAgent to use as the agent in the new RTMLHistoryEntry's
+		ia = new RTMLIntelligentAgent();
+		ia.setId("TEA:"+tea.getId());
+		ia.setUri(null);
+		// do the update: look at the specified group's history
+		// See OfflineRelay.java: doCheckGroupAction for the original version of this report
+		// get a list of history items for this group Id
+		List historyList = tea.getHistoryModel().listHistoryItems(phase2GroupId);		
+		Iterator it = historyList.iterator();
+		while (it.hasNext())
+		{
+			IHistoryItem phase2HistoryItem = (IHistoryItem) it.next();
+			
+			logger.log(INFO,1,CLASS,cid,"handleUpdate","Processing Phase2 History Item: with status: "+
+				   phase2HistoryItem.getCompletionStatus()+
+				   " at time : "+new Date(phase2HistoryItem.getCompletionTime()));
+			int ts = (int) ((phase2HistoryItem.getCompletionTime() -
+					 phase2HistoryItem.getScheduledTime()) / 1000);
+			int m = ts / 60;
+			int s = ts - 60 * m;
+			String message = "";
+
+			int status = phase2HistoryItem.getCompletionStatus();
+			switch (status)
+			{
+				case IHistoryItem.EXECUTION_SUCCESSFUL:
+					message = "Completed in " + m + "M " + s + "S";
+					break;
+				case IHistoryItem.EXECUTION_FAILED:
+					message = "Failed after " + m + "M " + s + "S due to [" +
+						phase2HistoryItem.getErrorCode() + "] "+
+						phase2HistoryItem.getErrorMessage();
+					break;
+				default:
+					message = "Unknown status code: " + status;
+					break;
+			}
+			logger.log(INFO,1,CLASS,cid,"handleUpdate",
+				   "Creating RTMLHistoryEntry for Phase2 History Item: with status: "+
+				   phase2HistoryItem.getCompletionStatus()+
+				   " at time : "+new Date(phase2HistoryItem.getCompletionTime())+
+				   " and message:"+message);
+			// Create a new history entry
+			rtmlHistoryEntry = new RTMLHistoryEntry();
+			rtmlHistoryEntry.setAgent(ia);
+			rtmlHistoryEntry.setDescription(message);
+			rtmlHistoryEntry.setTimeStamp(new Date(phase2HistoryItem.getCompletionTime()));
+			if(status == IHistoryItem.EXECUTION_FAILED)
+			{
+				rtmlHistoryEntry.setError(phase2HistoryItem.getErrorMessage());
+			}
+			// add the new history Entry to the document's history
+			logger.log(INFO,1,CLASS,cid,"handleUpdate",
+				   "Adding RTMLHistoryEntry to RTMLDocument's RTMLHistory:"+
+				   rtmlHistoryEntry.toString("\t"));
+			rtmlHistory.addEntry(rtmlHistoryEntry);
+		}// end while on history items
+		document.setUpdate();
 		return document;
 	}
 	
