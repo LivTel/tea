@@ -7,6 +7,8 @@
 set TEA_HOME   = ${DEPLOY_HOME}/tea
 set TEA_SCRIPT = ${TEA_HOME}/scripts
 set TEA_DOCS   = ${TEA_HOME}/docs
+set TEA_DATA   = ${TEA_HOME}/data
+set TEA_DATAX  = ${TEA_HOME}/expired
 set TEA_CLASS  = ${TEA_HOME}/javalib
 set TEA_LIB    = ${TEA_HOME}/elib
 set TEA_CONFIG = ${TEA_HOME}/config
@@ -17,19 +19,18 @@ foreach file (${TEA_CLASS}/*.jar)
     echo $CLASSPATH | grep -q $file > /dev/null
     if ($status != 0) then
 	setenv CLASSPATH ${CLASSPATH}:$file
+	echo "Add " $file
     endif
 end
 
-
 # Add NodeAgent remote classes
-set NA_JAR = /usr/local/tomcat/webapps/org_estar_nodeagent/WEB-INF/lib/org_estar_nodeagent.jar
+#set NA_JAR = /usr/local/tomcat/webapps/org_estar_nodeagent/WEB-INF/lib/org_estar_nodeagent.jar
 
-echo $CLASSPATH | grep $NA_JAR > /dev/null
-if ($status != 0) then
-    setenv CLASSPATH ${CLASSPATH}:${NA_JAR}
-    echo "Add $NA_JAR to classpath"
-endif
-
+#echo $CLASSPATH | grep $NA_JAR > /dev/null
+#if ($status != 0) then
+ #   setenv CLASSPATH ${CLASSPATH}:${NA_JAR}
+  #  echo "Add $NA_JAR to classpath"
+#endif
 
 # Add TEA C Libraries
 echo $LD_LIBRARY_PATH | grep -q $TEA_LIB
