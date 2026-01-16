@@ -29,3 +29,8 @@ The TEA also requires the following dependencies installing in ltproxy:/proxy/te
 - activation.jar
 - mailapi.jar
 - smtp.jar
+
+## Software structure
+
+There is a little documentation on RTML document handling [here](java/org/estar/tea/README.md).
+

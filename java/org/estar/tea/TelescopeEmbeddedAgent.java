@@ -20,8 +20,9 @@ import ngat.util.*;
 import ngat.util.logging.*;
 import ngat.net.*;
 import ngat.oss.model.IAccessModel;
-import ngat.oss.model.IPhase2Model;
 import ngat.oss.model.IAccountModel;
+import ngat.oss.model.IHistoryModel;
+import ngat.oss.model.IPhase2Model;
 import ngat.phase2.IAccessPermission;
 import ngat.phase2.IInstrumentConfig;
 import ngat.phase2.IProgram;
@@ -333,13 +334,15 @@ public class TelescopeEmbeddedAgent implements Logging
 
 	private Map proposalMap;
 
-	private String p2Host;
-
+	/**
+	 * A String representing the URI of the Phase2 Model RMI end-point.
+	 */
 	private String phase2ModelUrl;
 
-	private IPhase2Model phase2;
-
-	private IAccountModel accounts;
+	/**
+	 * A String representing the URI of the Phase2 History Model RMI end-point.
+	 */
+	private String historyModelUrl;
 
 	/** Create a TEA with the supplied ID. */
 	public TelescopeEmbeddedAgent(String id)
@@ -779,22 +782,41 @@ public class TelescopeEmbeddedAgent implements Logging
 	}
 
 	/** Sets the SSL transfer trust store. */
-	public void setRelayTrustFile(File t) {
+	public void setRelayTrustFile(File t)
+	{
 		relayTrustFile = t;
 	};
 
 	/** Sets the SSL transfer keypass. */
-	public void setRelayPassword(String p) {
+	public void setRelayPassword(String p)
+	{
 		relayPassword = p;
 	}
 
 	/** Sets the SSL transfer bandwidth (kbyte/s). */
-	public void setTransferBandwidth(int b) {
+	public void setTransferBandwidth(int b)
+	{
 		transferBandwidth = b;
 	}
 
-	public void setPhaseModelUrl(String p2url) {
+	/**
+	 * Set the Phase2 Model URI, used to connect to the Phase2 RMI end-point.
+	 * @param p2url A string containing a URI pointing to the Phase2 RMI end-point.
+	 * @see #phase2ModelUrl
+	 */
+	public void setPhase2ModelUrl(String p2url)
+	{
 		this.phase2ModelUrl = p2url;
+	}
+	
+	/**
+	 * Set the Phase2 History Model URI, used to connect to the Phase2 History RMI end-point.
+	 * @param url A string containing a URI pointing to the Phase2 History RMI end-point.
+	 * @see #historyModelUrl
+	 */
+	public void setHistoryModelUrl(String url)
+	{
+		this.historyModelUrl = url;
 	}
 
 	/**
@@ -1799,8 +1821,12 @@ public class TelescopeEmbeddedAgent implements Logging
 
 		String p2host = config.getProperty("p2.host", DEFAULT_P2_HOST);
 		String p2url = "rmi://" + p2host + "/Phase2Model";
-		setPhaseModelUrl(p2url);
+		setPhase2ModelUrl(p2url);
 
+		// Use same underlying phase2 host for the history model
+		String historyUrl = new String("rmi://" + p2host + "/HistoryModel");
+		setHistoryModelUrl(historyUrl);
+		
 		// configure the proposal name list from proposal.list
 		String proplistString = config.getProperty("proposal.list");
 		traceLog.log(INFO, 1, CLASS, id, "configure","Proposal list = [" + proplistString + "]");
@@ -2092,16 +2118,24 @@ public class TelescopeEmbeddedAgent implements Logging
 	}
 
 	/**
-	 * Return the p2model if avialable.
-	 * 
+	 * Return the p2model if avialable. Returns the result of a Naming.lookup on phase2ModelUrl.
+	 * @see #phase2ModelUrl
 	 * @throws Exception
 	 * @throws MalformedURLException
 	 */
 	public IPhase2Model getPhase2Model() throws Exception
 	{
-
 		return (IPhase2Model) Naming.lookup(phase2ModelUrl);
+	}
 
+	/**
+	 * Return the Phase2 History Model if avialable. 
+	 * @see #historyModelUrl
+	 * @throws Exception Throen if an error occurs.
+	 */
+	public IHistoryModel getHistoryModel() throws Exception
+	{
+		return (IHistoryModel) Naming.lookup(historyModelUrl);
 	}
 
 	private class TEAConnectionFactory implements ConnectionFactory

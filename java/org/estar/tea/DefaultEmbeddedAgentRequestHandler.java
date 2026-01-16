@@ -112,7 +112,25 @@ public class DefaultEmbeddedAgentRequestHandler extends UnicastRemoteObject
 	return reply;
     }
 
+    /**
+     * Handle an update request.
+     * @param doc The RTML document.
+     * @see org.estar.tea.TelescopeEmbeddedAgent#logRTML
+     */
+    public RTMLDocument handleUpdate(RTMLDocument doc) throws RemoteException {
 
+	RTMLDocument reply = null;
+
+	try {
+		// This handler is no longer used, so UpdateDocumentHandler has not been implemented.
+		//UpdateDocumentHandler udh = new UpdateDocumentHandler(tea);
+		//reply = udh.handleUpdate(doc);
+	    tea.logRTML(alogger,1,"handleUpdate returned doc: ",reply);
+	} catch (Exception e) {
+	    throw new RemoteException("Exception while handling update: "+e);
+	}
+	return reply;
+    }
 
     /** Request the system to test ongoing throughput.*/
     public void testThroughput() throws RemoteException {
