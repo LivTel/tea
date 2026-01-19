@@ -12,6 +12,7 @@ endif
 source /opt/ngat/etc/cshrc
 
 source ${DEPLOY_BIN}/class_setup
+source ${DEPLOY_BIN}/x_setup
 source ${DEPLOY_BIN}/tea_setup
 
 set model = $2
@@ -55,6 +56,9 @@ switch ($1)
 	echo "Using classpth: ${CLASSPATH}"
         echo $$ > $PID
 
+	# Move all the stuff in data dir to expired dir
+	/bin/mv -fv $TEA_DATA/doc-*.rtml $TEA_DATAX/
+
 	set ASTRO = "-Dastrometry.impl=ngat.astrometry.TestCalculator"
 	set EGD   = "-Djava.security.egd=file:/dev/urandom"
 	set DEBUG = "-Djavax.net.debug=all"
@@ -63,18 +67,27 @@ switch ($1)
 	#set HTTP_PROXY = "-Dhttp.proxyHost=wwwcache.livjm.ac.uk -Dhttp.proxyPort=8080"
 	set HTTP_PROXY = ""
 
+	# Various settings to enable JMX
+	# set JMX = "-D="
+	# set JMX = "-D="         
+	# set JMX = "-D="        
+
+
 	# set if we are using RMI mode.
-	#set REG = -"DregisterHandler=true"
-	set REG
+	set REG = -"DregisterHandler=true"
+	#set REG
 
 	# These are only needed if using RMI mode - make sure the registry started before TEA.
-        set POLICY = "-Djava.security.policy=/occ/tmp/policy.dat"
+        set POLICY = "-Djava.security.policy=/proxy/tmp/policy.dat"
         set SRC = "-Djava.rmi.server.codebase=file:///${TEA_CLASS}/tea.jar"
 
 	# should really run from TEA_HOME
-	cd $TEA_SCRIPT
+	#cd $TEA_SCRIPT
 
-	java -DTEA $POLICY $SRC $ASTRO $EGD $REG $HTTP_PROXY org.estar.tea.TelescopeEmbeddedAgent ${model} $TEA_CONFIG/tea.properties
+	set RMIHOST = "-Djava.rmi.server.host=ltproxy"
+
+	cd $TEA_HOME
+	$JAVA -DTEA $POLICY $SRC $ASTRO $EGD $REG $RMIHOST $HTTP_PROXY -Xss2m org.estar.tea.TelescopeEmbeddedAgent ${model} $TEA_CONFIG/tea.properties
 
 	set mexit = $status
         echo "TEA (${model}) Process exited with status $mexit "
