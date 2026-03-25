@@ -4,9 +4,9 @@
 
 The Telescope Embedded Agent is run on ltproxy. The normal /etc/init.d startup schema is used, which calls the installed **/etc/init.d/tea_init**. This calls **$DEPLOY_BIN/tea start** (**/proxy/bin/tea**) which sets up the enviroment and them invokes Java. The eventual Java command line is currently:
 
-**
+```
 /usr/java/jdk1.6.0_45/bin/java -DTEA -Djava.security.policy=/proxy/tmp/policy.dat -Djava.rmi.server.codebase=file:////proxy/tea/javalib/tea.jar -Dastrometry.impl=ngat.astrometry.TestCalculator -Djava.security.egd=file:/dev/urandom -DregisterHandler=true -Djava.rmi.server.host=ltproxy -Xss2m org.estar.tea.TelescopeEmbeddedAgent lt /proxy/tea/config/tea.properties
-**
+```
 
 ## Document handling
 
