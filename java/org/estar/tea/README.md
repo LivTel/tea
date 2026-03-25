@@ -21,5 +21,6 @@ The Telescope Embedded Agent is run on ltproxy. The normal /etc/init.d startup s
 Each **EnhancedEmbeddedAgentRequestHandler** handler creates an instance of **EnhancedDocumentHandler**, and calls
 the appropriate handle method to do the document processing requested.
 
-The **EnhancedDocumentHandler** usually creates an instance of **Phase2ExtractorTNG** and calls the relevant handle method in that instance. Some of the scoring is actually done in **EnhancedDocumentHandler**, Phase2ExtractorTNG is used to extract the phase2 group from the RTML.
+The **EnhancedDocumentHandler** usually creates an instance of **Phase2ExtractorTNG** and calls the relevant handle method in that instance. Some of the scoring is actually done in **EnhancedDocumentHandler**, **Phase2ExtractorTNG** is used to extract the phase2 group from the RTML.
 
+If the RTML document is a target-of-oppurtunity document (TOOP), then the document is added to a list of documents to be processed by the **TOCSessionManager**.
