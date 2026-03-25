@@ -785,6 +785,7 @@ public class Phase2ExtractorTNG implements Logging
 	 * @param document A document object model, representing the RTML document containing the group
 	 *         data to extract and insert into the Phase2 database.
 	 * @exception Exception Thrown if an error occurs.
+	 * @see #getAcquisitionType
 	 */
 	public void extractGroup(RTMLDocument document) throws Exception 
 	{
@@ -1526,8 +1527,10 @@ public class Phase2ExtractorTNG implements Logging
 				// * Expose slit for 10 seconds
 				if(hasSpratObs)
 				{
+					// determine whether to do "wcs" or "brightest" acquisition based on the RTML
+					int acquisitionType = getAcquisitionType(target);
 					// Then we need to FINE_TUNE - Normal precision
-					XAcquisitionConfig xAcqCfgFineTune_NORMAL = new XAcquisitionConfig(IAcquisitionConfig.WCS_FIT);
+					XAcquisitionConfig xAcqCfgFineTune_NORMAL = new XAcquisitionConfig(acquisitionType);
 					xAcqCfgFineTune_NORMAL.setAcquisitionInstrumentName("SPRAT");
 					xAcqCfgFineTune_NORMAL.setTargetInstrumentName("SPRAT");
 					xAcqCfgFineTune_NORMAL.setPrecision(IAcquisitionConfig.PRECISION_NORMAL);
@@ -1542,7 +1545,7 @@ public class Phase2ExtractorTNG implements Logging
 					isGuiding = true;
 
 					// FINE-TUNE - High precision
-					XAcquisitionConfig xAcqCfgFineTune_HIGH = new XAcquisitionConfig(IAcquisitionConfig.WCS_FIT);
+					XAcquisitionConfig xAcqCfgFineTune_HIGH = new XAcquisitionConfig(acquisitionType);
 					xAcqCfgFineTune_HIGH.setAcquisitionInstrumentName("SPRAT");
 					xAcqCfgFineTune_HIGH.setTargetInstrumentName("SPRAT");
 					xAcqCfgFineTune_HIGH.setPrecision(IAcquisitionConfig.PRECISION_HIGH);
@@ -2025,6 +2028,64 @@ public class Phase2ExtractorTNG implements Logging
 		return master;
 	} // [getUnifiedConstraints]
 
+	/**
+	 * Based on the contents of the RTMLTarget element, decide whether we are going to acquire a target using "wcs"
+	 * or "brightest" modes.
+	 * This code currently assumes the instrument we are acquiring for is Sprat, and will need to be changed to
+	 * support other instruments.
+	 * @oaram target The RTML documents parsed target element, containg the acquisition information to be extracted.
+	 * @return An integer, either IAcquisitionConfig.WCS_FIT if "wcs" acquisition is required, or
+	 *         IAcquisitionConfig.BRIGHTEST if "brightest" acquisition is required.
+	 * @exception IllegalArgumentException Thrown if the contents of the Acquisition element are empty, or "none" (not allowed
+	 *            for Sprat).
+	 * @see ngat.phase2.IAcquisitionConfig#WCS_FIT
+	 * @see ngat.phase2.IAcquisitionConfig#BRIGHTEST
+	 * @see org.estar.rtml.RTMLAcquisition#ACQUISITION_STRING_NONE
+	 * @see org.estar.rtml.RTMLAcquisition#ACQUISITION_STRING_WCS
+	 * @see org.estar.rtml.RTMLAcquisition#ACQUISITION_STRING_BRIGHTEST
+	 */
+	protected int getAcquisitionType(RTMLTarget target) throws IllegalArgumentException
+	{
+		RTMLAcquisition acquisition = null;
+		String acquisitionMode = null;
+		
+		acquisition = target.getAcquisition();
+		if(acquisition == null)
+		{
+			// An <Target><Acquisition> element has not been detected in the RTML document
+			// For non-Sprat this should mean no acquisition is required.
+			// For Sprat we should default to WCS_FIT to maintain compatibility with older documents
+			// We are assuming Sprat is the selected instrument here (see call in extractGroup).
+			return IAcquisitionConfig.WCS_FIT;
+		}
+		acquisitionMode = acquisition.getAcquisitionMode();
+		if(acquisitionMode == null)
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+				  ":getAcquisitionType:Acquisition element specified with no mode specified.");
+		}
+		if(acquisitionMode.equals(RTMLAcquisition.ACQUISITION_STRING_NONE))
+		{
+			// This is fine for imagers, but is not allowed for Sprat
+			throw new IllegalArgumentException(this.getClass().getName()+
+				  ":getAcquisitionType:Acquisition element 'none' for Sprat is not allowed.");
+			
+		}
+		else if(acquisitionMode.equals(RTMLAcquisition.ACQUISITION_STRING_WCS))
+		{
+			return IAcquisitionConfig.WCS_FIT;
+		}
+		else if(acquisitionMode.equals(RTMLAcquisition.ACQUISITION_STRING_BRIGHTEST))
+		{
+			return IAcquisitionConfig.BRIGHTEST;
+		}
+		else
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+				  ":getAcquisitionType:Unknown Acquisition mode:"+acquisitionMode);
+		}
+	}
+	
 	/**
 	 * Method that checks the equality of two objects, given one or the other
 	 * may be null. If both are null they are the same, if one is null and one
