@@ -1066,22 +1066,42 @@ public class TOCSessionManager implements Runnable, Logging
 		}
 		else if(instrumentId.equals("sprat"))
 		{
-			try
+			RTMLAcquisition acquisition = null;
+			String acquisitionMode = null;
+		
+			// read target acquisition element if present and use that to determine acquisition mode
+			acquisition = target.getAcquisition();
+			if(acquisition != null)
 			{
-				maxAcquireBrightestExpLen = tea.getPropertyInteger("instrument.sprat.acquire.bright.exp_len.max");
+				acquisitionMode = acquisition.getAcquisitionMode();
+				if(acquisitionMode != null)
+				{
+					if(acquisitionMode.equals(RTMLAcquisition.ACQUISITION_STRING_WCS))
+						acquireMode = TOCSession.ACQUIRE_MODE_WCS;
+					else if(acquisitionMode.equals(RTMLAcquisition.ACQUISITION_STRING_BRIGHTEST))
+						acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
+				}
 			}
-			catch(NGATPropertyException e)
+			// If we can't determine the acquire mode from the RTML document, infer one from exposure length
+			if(acquireMode == null)
 			{
-				logger.log(INFO, 1, CLASS,this.getClass().getName()+
-				      ":acquire:Failed to retrieve 'instrument.sprat.acquire.bright.exp_len.max' from properties:"+e);
-				logger.dumpStack(1,e);
-				maxAcquireBrightestExpLen = 30000;
-			}
-			if(exposureLength <= maxAcquireBrightestExpLen)
-				acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
-			else
-				acquireMode = TOCSession.ACQUIRE_MODE_WCS;
-		}
+				try
+				{
+					maxAcquireBrightestExpLen = tea.getPropertyInteger("instrument.sprat.acquire.bright.exp_len.max");
+				}
+				catch(NGATPropertyException e)
+				{
+					logger.log(INFO, 1, CLASS,this.getClass().getName()+
+						   ":acquire:Failed to retrieve 'instrument.sprat.acquire.bright.exp_len.max' from properties:"+e);
+					logger.dumpStack(1,e);
+					maxAcquireBrightestExpLen = 30000;
+				}
+				if(exposureLength <= maxAcquireBrightestExpLen)
+					acquireMode = TOCSession.ACQUIRE_MODE_BRIGHTEST;
+				else
+					acquireMode = TOCSession.ACQUIRE_MODE_WCS;
+			}// end if acquireMode  == null
+		}// end if sprat
 		// put other spectrographs here
 		else
 		{
