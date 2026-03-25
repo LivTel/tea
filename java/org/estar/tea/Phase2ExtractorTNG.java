@@ -1550,7 +1550,7 @@ public class Phase2ExtractorTNG implements Logging
 					root.addElement(eXFineTuneHigh); // FINE-TUNE - High precision
 					// SLIT IMAGE Config 
 					// create a SPRAT config for imaging the slit
-					XInstrumentConfig spratSlitImageConfig = getSPRATSlitImageInstrumentConfig();
+					XInstrumentConfig spratSlitImageConfig = getSPRATSlitImageInstrumentConfig(requestId);
 					// add it to the phase2database and get an ID for it
 					long spratSlitImageConfigId = phase2.addInstrumentConfig(program.getID(), spratSlitImageConfig);
 					// set the ID back on the object
@@ -1609,7 +1609,7 @@ public class Phase2ExtractorTNG implements Logging
 						throw new IllegalArgumentException("null grating on SPRAT RTML request.");
 					}
 					String gratingName = rtmlGrating.getName();
-					XInstrumentConfig userDefinedSpratCfg = getUserDefinedSpratCfg(gratingName);
+					XInstrumentConfig userDefinedSpratCfg = getUserDefinedSpratCfg(requestId,gratingName);
 					// add it to the phase2database and get an ID for it
 					long userDefinedSpratCfgId = phase2.addInstrumentConfig(program.getID(), userDefinedSpratCfg);
 					// set the ID back on the object
@@ -2326,13 +2326,14 @@ public class Phase2ExtractorTNG implements Logging
 	/**
 	 * Returnn a PhaseII XInstrumentConfig describing a slit image configuration for Sprat.
 	 * The Grism is out, the slit is in and the detector binned 1.
+	 * @param requestId The name of the RTML document Uid, used for constructing a unique config name.
 	 * @return An instance of XInstrumentConfig
 	 */
-	private XInstrumentConfig getSPRATSlitImageInstrumentConfig()
+	private XInstrumentConfig getSPRATSlitImageInstrumentConfig(String requestId)
 			throws Exception
 	{
 		XImagingSpectrographInstrumentConfig xSlitImagingConfig = new XImagingSpectrographInstrumentConfig(
-				"slit_image_config");
+				requestId+":slit_image_config");
 		xSlitImagingConfig
 				.setGrismPosition(XImagingSpectrographInstrumentConfig.GRISM_OUT);
 		xSlitImagingConfig
@@ -2352,14 +2353,15 @@ public class Phase2ExtractorTNG implements Logging
 	 * Return a PhaseII XInstrumentConfig describing a Sprat configuration containing the specified grating.
 	 * The Grism is in, the slit is in and the detector binned 1.
 	 * The grism is not rotated if the gratingName contains the work "red".
+	 * @param requestId The name of the RTML document Uid, used for constructing a unique config name.
 	 * @param gratingName The name of the grating.
 	 * @return An instance of XInstrumentConfig
 	 */
-	private XInstrumentConfig getUserDefinedSpratCfg(String gratingName)
+	private XInstrumentConfig getUserDefinedSpratCfg(String requestId,String gratingName)
 			throws Exception
 	{
 		XImagingSpectrographInstrumentConfig xSlitImagingConfig = new XImagingSpectrographInstrumentConfig(
-				"user_def_config");
+				requestId+":user_def_config");
 		xSlitImagingConfig
 				.setGrismPosition(XImagingSpectrographInstrumentConfig.GRISM_IN);
 		xSlitImagingConfig
