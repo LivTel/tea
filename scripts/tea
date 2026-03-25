@@ -87,6 +87,7 @@ switch ($1)
 	set RMIHOST = "-Djava.rmi.server.host=ltproxy"
 
 	cd $TEA_HOME
+	echo "TEA command line: $JAVA -DTEA $POLICY $SRC $ASTRO $EGD $REG $RMIHOST $HTTP_PROXY -Xss2m org.estar.tea.TelescopeEmbeddedAgent ${model} $TEA_CONFIG/tea.properties"
 	$JAVA -DTEA $POLICY $SRC $ASTRO $EGD $REG $RMIHOST $HTTP_PROXY -Xss2m org.estar.tea.TelescopeEmbeddedAgent ${model} $TEA_CONFIG/tea.properties
 
 	set mexit = $status
